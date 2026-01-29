@@ -1,0 +1,24 @@
+{
+  "_comment": "Copy this MCP server configuration to your Claude Code settings (~/.claude/settings.json)",
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "<your-github-token>"
+      }
+    },
+    "terraform": {
+      "command": "npx",
+      "args": ["-y", "@anthropics/terraform-mcp-server"]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@anthropics/mcp-server-playwright"]
+    },
+    "serena": {
+      "command": "npx",
+      "args": ["-y", "serena-mcp-server"]
+    }
+  }
+}
