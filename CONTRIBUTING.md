@@ -228,9 +228,51 @@ terraform {
 
 Users deploying for longer-term use can add their own backend configuration.
 
-## Pull Request Process
+## Branching and Pull Request Workflow
 
-### 1. Before Submitting
+The `main` branch is protected. All changes must be submitted via pull request.
+
+### Branch Naming
+
+Use descriptive branch names with a prefix:
+
+| Prefix | Use Case | Example |
+|--------|----------|---------|
+| `feature/` | New blueprints or features | `feature/dcf-eks-blueprint` |
+| `fix/` | Bug fixes | `fix/transit-aws-timeout` |
+| `docs/` | Documentation updates | `docs/improve-prerequisites` |
+| `chore/` | Maintenance tasks | `chore/update-provider-versions` |
+
+### Workflow
+
+```bash
+# 1. Clone the repository (first time only)
+git clone https://github.com/AviatrixSystems/aviatrix-blueprints.git
+cd aviatrix-blueprints
+
+# 2. Create a feature branch from main
+git checkout main
+git pull origin main
+git checkout -b feature/your-blueprint-name
+
+# 3. Make your changes
+cp -r blueprints/_template blueprints/your-blueprint-name
+# ... develop and test ...
+
+# 4. Commit your changes
+git add .
+git commit -m "Add your-blueprint-name blueprint"
+
+# 5. Push your branch
+git push -u origin feature/your-blueprint-name
+
+# 6. Create a Pull Request on GitHub
+# Visit: https://github.com/AviatrixSystems/aviatrix-blueprints/pulls
+```
+
+### Pull Request Requirements
+
+#### Before Submitting
 
 - [ ] Run `terraform fmt -recursive` on your blueprint
 - [ ] Run `terraform validate` successfully
@@ -238,25 +280,30 @@ Users deploying for longer-term use can add their own backend configuration.
 - [ ] Verify all links in README work
 - [ ] Update the blueprint catalog in root README.md
 
-### 2. PR Requirements
+#### PR Description Must Include
 
-Your PR must include:
 - Clear description of what the blueprint does
 - Screenshots or diagram of the deployed architecture
 - Confirmation that you've tested deploy and destroy
 - List of any prerequisites beyond standard requirements
 
-### 3. Review Process
+### Review Process
 
 1. **Automated checks**: CI runs `terraform fmt` and `terraform validate`
 2. **Maintainer review**: Code and documentation review
-3. **SE validation** (required for merging all PRs): Full deployment test by Aviatrix SE
+3. **Approval required**: At least 1 approving review from a team member with write access
+4. **SE validation** (required for merging): Full deployment test by Aviatrix SE
 
-### 4. After Merge
+### Merging
+
+Once approved, PRs are merged using **squash merge** to keep the main branch history clean. The PR title becomes the commit message.
+
+### After Merge
 
 - Blueprint appears in catalog as "Community" tier
 - Aviatrix team may promote to "Verified" after QA validation
 - Version tags are created for releases
+- Delete your feature branch (GitHub offers this option after merge)
 
 ## Improving Existing Blueprints
 
