@@ -144,6 +144,7 @@ blueprints/your-blueprint/
 ├── versions.tf          # Provider versions
 ├── terraform.tfvars.example
 ├── architecture.png     # Architecture diagram
+├── CHANGELOG.md         # Version history (recommended)
 └── modules/             # Local modules (if needed)
 ```
 
@@ -197,23 +198,37 @@ output "test_instance_ip" {
 }
 ```
 
-### 5. Versioning
+### 5. Version Tracking
 
-Blueprints use semantic versioning with controller compatibility:
+Blueprints track tested versions and change history:
 
+#### Tested With Section (Required)
+
+Document current tested versions in README:
+```markdown
+## Tested With
+
+| Component | Version |
+|-----------|---------|
+| Aviatrix Controller | 8.0.x |
+| Aviatrix Terraform Provider | 3.2.0 |
+| Terraform | 1.9.x |
+| AWS Provider | 5.80.x |
 ```
-v<MAJOR>.<MINOR>.<PATCH>+avx<CONTROLLER_VERSION>
+
+#### CHANGELOG.md (Recommended)
+
+Track significant changes in a separate changelog file:
+```markdown
+# Changelog
+
+## 2025-01-15
+- Added support for multiple availability zones
+- Updated to Aviatrix provider 3.2.0
+
+## 2024-12-01
+- Initial release
 ```
-
-- **MAJOR**: Breaking changes (restructured inputs/outputs)
-- **MINOR**: New features, backward compatible
-- **PATCH**: Bug fixes, documentation updates
-- **avx**: Tested Aviatrix Control Plane version
-
-Examples:
-- `v1.0.0+avx8.1` - Initial release for Control Plane 8.1.x
-- `v1.1.0+avx8.2` - Added feature, tested on 8.2.x
-- `v2.0.0+avx9.0` - Breaking changes for Control Plane 9.0
 
 ### 6. State Management
 

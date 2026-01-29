@@ -112,16 +112,6 @@ We welcome contributions! Whether you're fixing a bug, improving documentation, 
 2. Follow the [Blueprint Standards](docs/blueprint-standards.md)
 3. Submit a PR for review
 
-## Versioning
-
-Blueprints follow semantic versioning with controller compatibility:
-
-```
-v<MAJOR>.<MINOR>.<PATCH>+avx<CONTROLLER_VERSION>
-```
-
-Example: `v1.2.0+avx8.1` indicates version 1.2.0 tested with Aviatrix Control Plane 8.1.x
-
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/aviatrix/aviatrix-blueprints/issues)
