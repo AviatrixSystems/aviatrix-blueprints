@@ -1,0 +1,52 @@
+# =============================================================================
+# Aviatrix Blueprint Configuration
+# =============================================================================
+# Copy this file to terraform.tfvars and update the values.
+# Required values are marked with "REQUIRED".
+
+# -----------------------------------------------------------------------------
+# Aviatrix Control Plane Configuration
+# -----------------------------------------------------------------------------
+# The Aviatrix Control Plane consists of Controller (for Terraform/API) and
+# CoPilot (for GUI). These credentials connect to the Controller.
+
+# REQUIRED: IP address or hostname of your Aviatrix Controller
+controller_ip = "1.2.3.4"
+
+# Controller admin username (default: "admin")
+controller_username = "admin"
+
+# REQUIRED: Controller admin password
+controller_password = "CHANGE_ME"
+
+# REQUIRED: Aviatrix access account name for AWS
+# This must match an account already onboarded in your Control Plane
+aviatrix_account_name = "aws-account"
+
+# -----------------------------------------------------------------------------
+# AWS Configuration
+# -----------------------------------------------------------------------------
+
+# AWS region for deployment
+aws_region = "us-east-1"
+
+# -----------------------------------------------------------------------------
+# Blueprint Configuration
+# -----------------------------------------------------------------------------
+
+# Prefix for all resource names
+# Must start with a letter and contain only lowercase letters, numbers, and hyphens
+name_prefix = "blueprint"
+
+# CIDR block for the VPC
+vpc_cidr = "10.0.0.0/16"
+
+# Instance size for Aviatrix gateways
+gateway_size = "t3.medium"
+
+# -----------------------------------------------------------------------------
+# Optional Features
+# -----------------------------------------------------------------------------
+
+# Enable high availability for gateways
+# enable_ha = false
