@@ -1,0 +1,24 @@
+# Aviatrix Control Plane Configuration
+# Set these via environment variables (recommended):
+# export AVIATRIX_CONTROLLER_IP="<controller-ip>"
+# export AVIATRIX_USERNAME="<username>"
+# export AVIATRIX_PASSWORD="<password>"
+
+# AWS Configuration
+aviatrix_aws_account_name = "your-aws-account-name"  # AWS account name as registered in Aviatrix Controller
+aws_region                = "us-east-2"
+
+# Kubernetes Configuration
+kubernetes_version = "1.33"
+
+# EKS Node Group Configuration
+node_group_config = {
+  min_size       = 1
+  max_size       = 3
+  desired_size   = 2
+  instance_types = ["t3.large"]
+  capacity_type  = "SPOT"  # Use "ON_DEMAND" for production
+}
+
+# DNS Configuration
+route53_private_zone_name = "aws.aviatrixdemo.local"

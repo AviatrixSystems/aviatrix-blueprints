@@ -1,0 +1,440 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Repository Purpose
+
+This is a Terraform-based infrastructure repository for deploying an Aviatrix-managed multi-cluster Kubernetes demo environment, originally showcased at KubeCon EU 2024 to demonstrate Distributed Cloud Firewall (DCF) for Kubernetes capabilities.
+
+## Architecture Overview
+
+The infrastructure follows a **hub-and-spoke network topology** with **two EKS clusters**:
+
+```
+┌─────────────────────────────────────────┐
+│   Aviatrix Transit Gateway (Hub)       │
+│   Region: us-east-2                     │
+│   CIDR: 10.2.0.0/20                     │
+└────────┬───────────────────┬────────────┘
+         │                   │
+    ┌────▼─────┐      ┌─────▼──────┐
+    │ Frontend │      │  Backend   │
+    │  Spoke   │      │   Spoke    │
+    │ 10.10/23 │      │  10.20/23  │
+    │          │      │            │
+    │ ┌──────┐ │      │ ┌────────┐ │
+    │ │ EKS  │ │      │ │  EKS   │ │
+    │ │Cluster│ │      │ │ Cluster│ │
+    │ └──────┘ │      │ └────────┘ │
+    └──────────┘      └────────────┘
+         │                   │
+         └─────────┬─────────┘
+                   │
+            ┌──────▼─────┐
+            │ DB Spoke   │
+            │ 10.5.0/22  │
+            │            │
+            │ ┌────────┐ │
+            │ │Apache  │ │
+            │ │  VM    │ │
+            │ └────────┘ │
+            └────────────┘
+```
+
+**Key Features:**
+- **Overlapping Pod CIDRs**: Both EKS clusters use non-routable 100.64.0.0/16 for pods (RFC6598 CGNAT space)
+- **Aviatrix Custom SNAT**: Pod traffic is NATted to spoke gateway IPs for transit routing
+- **Route53 Private Hosted Zone**: Internal DNS (aws.aviatrixdemo.local) shared across all VPCs
+- **ExternalDNS Integration**: Automatic DNS record creation for Kubernetes services
+- **Separated Subnets**: Dedicated subnets for Aviatrix gateways, load balancers, infrastructure, and pods
+
+### 3-Layer Deployment Architecture
+
+The infrastructure is deployed in **three layers** to solve the Terraform "chicken-and-egg" problem where node group `count`/`for_each` depends on cluster outputs that don't exist during initial plan.
+
+```
+Layer 1: Network Infrastructure
+├── network-aviatrix/           # Aviatrix Transit, Spokes, VPCs, DB VM, Route53
+
+Layer 2: EKS Clusters (Control Plane Only)
+├── eks/frontend-cluster/       # Frontend EKS control plane
+├── eks/backend-cluster/        # Backend EKS control plane
+
+Layer 3: EKS Node Groups
+├── eks/frontend-nodes/         # Frontend node groups
+├── eks/backend-nodes/          # Backend node groups
+```
+
+Each layer reads the previous layer's state via `terraform_remote_state` data sources.
+
+### Directory Structure
+
+```
+k8s_multicloud/
+├── network-aviatrix/           # Layer 1: Network infrastructure
+│   ├── main.tf                 # Transit, spokes, VPCs, DB VM
+│   ├── outputs.tf              # Export VPC IDs, subnet IDs, Route53 zone
+│   └── terraform.tfstate       # Network state
+│
+├── eks/
+│   ├── shared-modules/
+│   │   ├── eks-cluster/        # Layer 2: EKS control plane module
+│   │   └── eks-node-group/     # Layer 3: Node group module
+│   │
+│   ├── frontend-cluster/       # Deploy Layer 2 for frontend
+│   ├── frontend-nodes/         # Deploy Layer 3 for frontend
+│   ├── backend-cluster/        # Deploy Layer 2 for backend
+│   └── backend-nodes/          # Deploy Layer 3 for backend
+│
+├── modules/                    # Shared Terraform modules
+│   ├── eks-vpc/                # Custom VPC module
+│   └── apache-vm/              # Test VM module
+│
+├── k8s-apps/                   # Kubernetes application manifests
+│   ├── frontend/               # Frontend apps (Gatus)
+│   └── backend/                # Backend apps (Gatus)
+│
+└── scripts/                    # Build and deployment scripts
+```
+
+### Key Architectural Decisions
+
+1. **3-Layer Separation**: Network, cluster control plane, and node groups are deployed separately to avoid Terraform count/for_each issues
+
+2. **Overlapping Pod CIDRs**: Both clusters use 100.64.0.0/16 (RFC6598) for pods, with Aviatrix SNAT translating to unique spoke gateway IPs
+
+3. **CNI Custom Networking**: VPC CNI uses ENIConfig resources to assign pod IPs from secondary CIDR subnets
+
+4. **State Dependencies**: Each layer reads previous layer state via `terraform_remote_state`
+
+5. **HA Disabled**: High availability is disabled (`ha_gw = false`) for cost optimization in this demo environment
+
+6. **VPC DNS Server for Gateways**: All transit and spoke gateways have `enable_vpc_dns_server = true` to use the cloud VPC DNS server for gateway management. This is **required** for:
+   - Hostname-based SmartGroups in Distributed Cloud Firewall (DCF)
+   - Resolving private DNS records (e.g., Route53 private hosted zones)
+   - Connectivity to private resources registered in private DNS
+
+## Common Commands
+
+### Step 0: Set Environment Variables
+
+```bash
+# Set Aviatrix Controller credentials
+export AVIATRIX_CONTROLLER_IP="<controller-ip>"
+export AVIATRIX_USERNAME="<username>"
+export AVIATRIX_PASSWORD="<password>"
+
+# Ensure AWS credentials are configured
+aws sts get-caller-identity
+```
+
+### Step 1: Deploy Network Infrastructure
+
+```bash
+cd network-aviatrix/
+
+# Initialize Terraform
+terraform init -upgrade
+
+# Create your variable file
+cp terraform.tfvars.example var.tfvars
+# Edit var.tfvars with your values
+
+# Review and deploy (~15-20 minutes)
+terraform plan -var-file=var.tfvars
+terraform apply -var-file=var.tfvars
+```
+
+### Step 2: Deploy EKS Clusters (Control Plane)
+
+```bash
+# Frontend cluster
+cd ../eks/frontend-cluster/
+terraform init
+terraform apply  # ~10-15 minutes
+
+# Backend cluster
+cd ../backend-cluster/
+terraform init
+terraform apply  # ~10-15 minutes
+```
+
+### Step 3: Deploy Frontend Node Groups
+
+```bash
+# Frontend nodes
+cd ../frontend-nodes/
+terraform init
+terraform apply  # ~5-7 minutes
+```
+
+### Step 3a: Configure kubectl for Frontend Cluster (REQUIRED!)
+
+⚠️ You MUST configure kubectl before running any kubectl commands!
+
+```bash
+# Go to frontend-cluster directory (NOT frontend-nodes!)
+cd ../frontend-cluster/
+$(terraform output -raw configure_kubectl)
+kubectl config rename-context $(kubectl config current-context) frontend-cluster
+
+# Verify it works
+kubectl get nodes
+```
+
+### Step 4: Deploy Backend Cluster
+
+```bash
+cd ../backend-cluster/
+terraform init
+terraform apply  # ~10-15 minutes
+```
+
+### Step 5: Deploy Backend Node Groups
+
+```bash
+cd ../backend-nodes/
+terraform init
+terraform apply  # ~5-7 minutes
+```
+
+### Step 5a: Configure kubectl for Backend Cluster (REQUIRED!)
+
+```bash
+# Go to backend-cluster directory (NOT backend-nodes!)
+cd ../backend-cluster/
+$(terraform output -raw configure_kubectl)
+kubectl config rename-context $(kubectl config current-context) backend-cluster
+
+# Verify it works
+kubectl get nodes
+```
+
+### Step 6: Verify Both Clusters
+
+```bash
+# View all configured contexts
+kubectl config get-contexts
+
+# Test switching between clusters
+kubectl config use-context frontend-cluster
+kubectl get nodes
+
+kubectl config use-context backend-cluster
+kubectl get nodes
+```
+
+### Step 7: VPC CNI Custom Networking & Kubernetes Add-ons (Automated)
+
+**Both are fully automated via Terraform!**
+
+- VPC CNI custom networking is configured in Layer 2 (cluster) and Layer 3 (nodes)
+- AWS Load Balancer Controller and ExternalDNS are installed via Terraform Helm provider in Layer 3 (nodes)
+
+**No manual kubectl or Helm commands required!**
+
+Verify the configuration:
+```bash
+kubectl config use-context frontend-cluster
+
+# Verify ENIConfigs (created by Terraform)
+kubectl get eniconfig
+
+# Verify CNI environment variables (set by Terraform)
+kubectl get daemonset aws-node -n kube-system -o yaml | grep -A1 CUSTOM_NETWORK
+
+# Verify Helm charts were installed (by Terraform)
+kubectl get deployment -n kube-system aws-load-balancer-controller
+kubectl get deployment -n kube-system external-dns
+```
+
+### Day 2 Operations
+
+```bash
+# Change node group scaling (no cluster changes needed)
+cd eks/frontend-nodes/
+vim terraform.tfvars  # Update min_size, max_size, desired_size
+terraform apply
+
+# View outputs
+cd network-aviatrix/
+terraform output
+```
+
+### Destroy Infrastructure (Reverse Order)
+
+```bash
+# Step 1: Remove K8s resources (clean up ALBs/NLBs)
+kubectl config use-context frontend-cluster
+kubectl delete ingress --all -A
+kubectl delete svc --all -A --field-selector metadata.name!=kubernetes
+
+kubectl config use-context backend-cluster
+kubectl delete ingress --all -A
+kubectl delete svc --all -A --field-selector metadata.name!=kubernetes
+
+# Wait for LoadBalancers to be deleted
+sleep 60
+
+# Step 2: Destroy node groups
+cd eks/backend-nodes/ && terraform destroy
+cd ../frontend-nodes/ && terraform destroy
+
+# Step 3: Destroy clusters
+cd ../backend-cluster/ && terraform destroy
+cd ../frontend-cluster/ && terraform destroy
+
+# Step 4: Destroy network
+cd ../../network-aviatrix/ && terraform destroy -var-file=var.tfvars
+```
+
+## Provider and Module Versions
+
+Current versions (updated 2025-01-27):
+- **Terraform**: >= 1.5
+- **Aviatrix Provider**: `~> 8.2` (requires compatible controller version, DCF support)
+- **AWS Provider**: `~> 6.0`
+- **mc-transit module**: `~> 8.0`
+- **mc-spoke module**: `~> 8.0`
+- **EKS module**: `~> 21.9`
+- **IAM module**: `~> 6.2`
+
+See [VERSION_UPDATES.md](VERSION_UPDATES.md) for detailed version history and upgrade notes.
+
+## Critical Configuration Notes
+
+### Variable Files
+- `var.tfvars` contains your configuration and is gitignored
+- Required variables:
+  - `aviatrix_aws_account_name` - AWS account name registered in Aviatrix Controller
+  - `aws_region` - defaults to `us-east-2`
+
+### Aviatrix Controller Authentication
+Provide controller credentials via environment variables:
+- `AVIATRIX_CONTROLLER_IP`
+- `AVIATRIX_USERNAME`
+- `AVIATRIX_PASSWORD`
+
+### Aviatrix CoPilot UI Access (Playwright)
+
+Claude Code can use Playwright to log into the Aviatrix CoPilot UI for visual inspection, screenshots, or UI-based operations.
+
+**Credentials are stored in `.env`:**
+```bash
+AVIATRIX_CONTROLLER_IP="<controller-ip>"
+AVIATRIX_USERNAME="<username>"
+AVIATRIX_PASSWORD="<password>"
+AVIATRIX_COPILOT_IP="<copilot-ip>"
+```
+
+**To access CoPilot via Playwright:**
+1. Source the `.env` file or read credentials from it
+2. Navigate to `https://$AVIATRIX_COPILOT_IP`
+3. Log in using `AVIATRIX_USERNAME` and `AVIATRIX_PASSWORD`
+
+This enables Claude Code to take screenshots, verify UI state, or interact with CoPilot features not exposed via API.
+
+### CNI Configuration Settings
+
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| `AWS_VPC_K8S_CNI_CUSTOM_NETWORK_CFG` | `true` | Enables custom networking mode |
+| `ENI_CONFIG_LABEL_DEF` | `topology.kubernetes.io/zone` | Matches ENIConfigs by AZ |
+| `AWS_VPC_K8S_CNI_EXTERNALSNAT` | `true` | Disables CNI SNAT, allows Aviatrix SNAT |
+
+### Networking Details
+
+**Subnet Layout (per VPC):**
+| Subnet Type | CIDR | Purpose |
+|-------------|------|---------|
+| Aviatrix Gateway | /28 (16 IPs) | Aviatrix spoke gateways |
+| Load Balancer | /26 (64 IPs) | ALB/NLB ENIs |
+| Infrastructure | /26 (64 IPs) | EKS nodes, control plane ENIs |
+| Pods | /17 (32k IPs) | Pod ENIs (from secondary CIDR) |
+
+**Aviatrix SNAT Configuration:**
+- **Source CIDR**: 100.64.0.0/16 (pod CIDR)
+- **Destination**: 0.0.0.0/0
+- **SNAT IP**: Spoke gateway private IP
+- **Purpose**: Allows overlapping pod CIDRs while maintaining unique source IPs in transit
+
+## Known Limitations and Warnings
+
+1. **No Remote State Backend**: State is stored locally. Risk of loss and no team collaboration support.
+
+2. **No State Locking**: Concurrent applies will corrupt state. Only one operator should run Terraform at a time.
+
+3. **Security Group Rules**: Some security groups allow `0.0.0.0/0` ingress - acceptable for demos, not production.
+
+4. **Legacy Modules**: `vm-setup/` is deprecated; use the 3-layer architecture instead.
+
+## Troubleshooting
+
+### Pods Can't Reach Other Clusters
+
+1. Verify SNAT configuration in Aviatrix Controller:
+   - Gateway → Spoke Gateway → SNAT → Verify 100.64.0.0/16 source CIDR
+
+2. Check ENIConfig:
+   ```bash
+   kubectl get eniconfig -o yaml
+   ```
+
+3. Verify CNI configuration:
+   ```bash
+   kubectl get daemonset aws-node -n kube-system -o yaml | grep -A1 EXTERNALSNAT
+   # Should show: AWS_VPC_K8S_CNI_EXTERNALSNAT=true
+   ```
+
+4. Check pod IP assignments:
+   ```bash
+   kubectl get pods -A -o wide
+   # Pod IPs should be from 100.64.x.x range (secondary CIDR)
+   ```
+
+### DNS Resolution Not Working
+
+1. Check ExternalDNS logs:
+   ```bash
+   kubectl logs -n kube-system -l app.kubernetes.io/name=external-dns
+   ```
+
+2. Verify Route53 hosted zone associations
+
+3. Test DNS resolution from pod:
+   ```bash
+   kubectl run -it --rm debug --image=nicolaka/netshoot --restart=Never -- \
+     nslookup db.aws.aviatrixdemo.local
+   ```
+
+### LoadBalancer Service Stuck in Pending
+
+1. Check AWS Load Balancer Controller logs:
+   ```bash
+   kubectl logs -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller
+   ```
+
+2. Verify IRSA is working:
+   ```bash
+   kubectl describe sa aws-load-balancer-controller -n kube-system
+   ```
+
+### Terraform "Chicken-and-Egg" Errors
+
+If you see `The "count" value depends on resource attributes that cannot be determined until apply`:
+
+1. Ensure you're deploying in the correct order (network → cluster → nodes)
+2. Verify the cluster terraform.tfstate exists before running node deployment
+3. Check data.tf paths are correct
+
+### State corruption
+
+- Always backup state: `terraform state pull > backup.tfstate`
+- Use state commands to inspect: `terraform state list`, `terraform state show <resource>`
+
+## Related Documentation
+
+- [README.md](README.md) - Complete deployment guide with detailed steps
+- [RESTRUCTURE_PLAN.md](RESTRUCTURE_PLAN.md) - Architecture decisions and migration notes
+- [VERSION_UPDATES.md](VERSION_UPDATES.md) - Version upgrade history and breaking changes
+- Demo credentials and detailed walkthrough: https://coda.io/d/KubeCon-Demo-Instructions_dAkOqZF69B9/

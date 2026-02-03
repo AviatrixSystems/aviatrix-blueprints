@@ -12,6 +12,7 @@ This directory contains configuration and skills for [Claude Code](https://claud
 └── skills/                     # Custom skills for blueprint development
     ├── analyze-blueprint.md
     ├── validate-blueprint.md
+    ├── deploy-blueprint.md
     └── test-blueprint.md
 ```
 
@@ -46,6 +47,19 @@ Validates a blueprint against repository standards:
 - Naming conventions
 - Security checks
 
+### /deploy-blueprint
+
+Deploys a blueprint with guided, multi-step orchestration:
+- Interactive blueprint selection
+- README review and prerequisites check
+- Environment file creation for credentials
+- Multi-layer architecture analysis
+- Orchestrated deployment with parallel subagents
+- Validation and connectivity tests
+- Post-deployment access information
+
+Supports both simple single-layer and complex multi-layer blueprints (like dcf-eks with network → clusters → nodes).
+
 ### /test-blueprint
 
 Deploys and tests a blueprint end-to-end:
@@ -61,7 +75,11 @@ Deploys and tests a blueprint end-to-end:
 2. Configure MCP servers in your global settings (see `mcp-servers.example.json`)
 3. Open this repository in Claude Code
 4. Claude will automatically read the project's `CLAUDE.md` for context
-5. Use skills with `/analyze-blueprint`, `/validate-blueprint`, or `/test-blueprint`
+5. Use skills with:
+   - `/analyze-blueprint` - Understand what a blueprint creates
+   - `/validate-blueprint` - Check blueprint against standards
+   - `/deploy-blueprint` - Deploy a blueprint to your environment
+   - `/test-blueprint` - Full end-to-end testing with cleanup
 
 ## Customization
 

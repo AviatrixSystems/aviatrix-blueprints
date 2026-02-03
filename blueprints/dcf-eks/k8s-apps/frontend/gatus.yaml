@@ -1,0 +1,191 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend
+  namespace: gatus
+data:
+  config.yaml: |
+    storage:
+      type: memory
+    metrics: true
+    endpoints:
+      # Internal Services
+      - name: "Prod Database"
+        group: "Internal"
+        url: "http://db.aws.aviatrixdemo.local"
+        interval: 5s
+        conditions:
+          - "[STATUS] == 200"
+          - "[RESPONSE_TIME] < 300"
+      - name: "Backend Service"
+        group: "Internal"
+        url: "http://backend.aws.aviatrixdemo.local:8080"
+        interval: 5s
+        conditions:
+          - "[STATUS] == 200"
+          - "[RESPONSE_TIME] < 500"
+
+      # Egress - Allowed Traffic
+      - name: "kubernetes.io"
+        group: "Egress"
+        url: "https://kubernetes.io"
+        interval: 60s
+        client:
+          insecure: true
+        conditions: ["[STATUS] == 200"]
+
+      - name: "github.com/.../terraform-provider-aviatrix"
+        group: "Egress"
+        url: "https://github.com/AviatrixSystems/terraform-provider-aviatrix"
+        interval: 60s
+        client:
+          insecure: true
+        conditions: ["[STATUS] == 200"]
+
+      - name: "github.com/.../avxlabs-docs"
+        group: "Egress"
+        url: "https://github.com/AviatrixSystems/avxlabs-docs"
+        interval: 60s
+        client:
+          insecure: true
+        conditions: ["[STATUS] == 200"]
+
+      - name: "registry.npmjs.org"
+        group: "Egress"
+        url: "https://registry.npmjs.org"
+        interval: 60s
+        client:
+          insecure: true
+        conditions: ["[STATUS] == 200"]
+
+      # Threats - Should be BLOCKED by DCF
+      - name: "GeoBlock - Iran"
+        group: "Threats"
+        url: "icmp://www.irna.ir"
+        interval: 30s
+        conditions: ["[CONNECTED] == true"]
+
+      - name: "Threat Feed - Malicious IP"
+        group: "Threats"
+        url: "icmp://102.130.117.167"
+        interval: 30s
+        conditions: ["[CONNECTED] == true"]
+
+    ui:
+      logo: "https://aviatrix.com/wp-content/uploads/2019/10/cropped-Aviatrix-Logo@2x-1-32x32.png"
+      header: "Frontend Cluster - ${HOSTNAME}"
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: frontend
+  namespace: gatus
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: gatus
+  labels:
+    app: frontend
+    cluster: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      name: frontend
+      labels:
+        app: frontend
+        cluster: frontend
+    spec:
+      serviceAccountName: frontend
+      terminationGracePeriodSeconds: 5
+      containers:
+        - image: twinproduction/gatus
+          imagePullPolicy: IfNotPresent
+          name: frontend
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 250m
+              memory: 100M
+            requests:
+              cpu: 50m
+              memory: 30M
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 5
+          volumeMounts:
+            - mountPath: /config
+              name: frontend-config
+      volumes:
+        - configMap:
+            name: frontend
+          name: frontend-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: gatus
+  labels:
+    app: frontend
+    service: frontend
+  annotations:
+    # ExternalDNS will create DNS record: frontend.aws.aviatrixdemo.local
+    external-dns.alpha.kubernetes.io/hostname: frontend.aws.aviatrixdemo.local
+    # Use IP target type for NLB to work correctly with Aviatrix SNAT
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+spec:
+  type: LoadBalancer
+  ports:
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app: frontend
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend-ingress
+  namespace: gatus
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    # ExternalDNS will create DNS record: frontend-web.aws.aviatrixdemo.local
+    external-dns.alpha.kubernetes.io/hostname: frontend-web.aws.aviatrixdemo.local
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 8080

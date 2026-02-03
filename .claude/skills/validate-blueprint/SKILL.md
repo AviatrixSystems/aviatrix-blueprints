@@ -1,4 +1,16 @@
-# /validate-blueprint
+---
+name: validate-blueprint
+description: Run comprehensive validation checks on a blueprint to ensure it meets repository standards. Use when validating compliance, checking standards, or preparing a blueprint for submission.
+argument-hint: [blueprint-path]
+allowed-tools:
+  - Bash(terraform *)
+  - Bash(git check-ignore *)
+  - Read
+  - Grep
+  - Glob
+---
+
+# Validate Blueprint
 
 Run comprehensive validation checks on a blueprint to ensure it meets repository standards.
 

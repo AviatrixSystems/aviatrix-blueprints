@@ -1,0 +1,50 @@
+#####################
+# WebGroupPolicy CRD Example - Dev Namespace
+#
+# This policy allows pods in the dev namespace to access
+# additional development resources not covered by the base Terraform policy.
+#
+# Use case: Developer needs to access a new API temporarily for testing.
+# Instead of modifying Terraform, apply a CRD-based policy.
+#
+# Prerequisites:
+#   helm install --repo https://aviatrixsystems.github.io/k8s-firewall-charts k8s-firewall k8s-firewall
+#
+# Apply:
+#   kubectl apply -f webgrouppolicy-dev.yaml
+#
+# Verify:
+#   kubectl get webgrouppolicies -n dev
+#   kubectl get events -n dev
+#####################
+
+apiVersion: networking.aviatrix.com/v1alpha1
+kind: WebGroupPolicy
+metadata:
+  name: dev-external-apis
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      environment: development
+
+  action: permit
+  protocol: tcp
+  ports:
+    - "443"
+  logging: true
+
+  domains:
+    # Package registries
+    - "pypi.org"
+    - "*.pypi.org"
+    - "files.pythonhosted.org"
+    # Docker Hub
+    - "hub.docker.com"
+    - "registry-1.docker.io"
+    - "*.docker.io"
+    # GitHub (broader access for dev)
+    - "github.com"
+    - "*.github.com"
+    - "raw.githubusercontent.com"
+    - "api.github.com"
