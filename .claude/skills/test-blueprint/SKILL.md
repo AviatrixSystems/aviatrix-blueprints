@@ -1,4 +1,20 @@
-# /test-blueprint
+---
+name: test-blueprint
+description: Deploy a blueprint to a real environment, verify it works, run test scenarios, and clean up. Use for end-to-end testing of blueprints.
+argument-hint: "[blueprint-path] [--keep] [--screenshots]"
+disable-model-invocation: true
+allowed-tools:
+  - Bash(terraform *)
+  - Bash(aws *)
+  - Bash(kubectl *)
+  - Bash(curl *)
+  - Bash(ssh *)
+  - Read
+  - Grep
+  - Glob
+---
+
+# Test Blueprint
 
 Deploy a blueprint to a real environment, verify it works, run test scenarios, and clean up.
 
@@ -15,7 +31,7 @@ Options:
 ## Prerequisites
 
 This skill requires:
-- **Playwright MCP server** configured and running
+- **Playwright MCP server** configured and running (optional, for screenshots)
 - **Valid terraform.tfvars** with real credentials
 - **Aviatrix Control Plane** (Controller and CoPilot) accessible from the test environment
 - **Cloud provider credentials** configured

@@ -213,13 +213,20 @@ aws ec2 describe-vpcs --filters "Name=tag:Name,Values=*<name_prefix>*"
 
 **Solution**: Steps to resolve
 
-## Version Compatibility
+## Tested With
 
-<!-- TEMPLATE: Document tested versions -->
+<!-- TEMPLATE: Document the versions this blueprint is tested against -->
 
-| Blueprint Version | Controller Version | Terraform | AWS Provider |
-|-------------------|-------------------|-----------|--------------|
-| v1.0.0 | 7.1.x | >= 1.5.0 | >= 5.0.0 |
+This blueprint is currently tested with:
+
+| Component | Version |
+|-----------|---------|
+| Aviatrix Controller | 8.0.x |
+| Aviatrix Terraform Provider | 3.2.0 |
+| Terraform | 1.9.x |
+| AWS Provider | 5.80.x |
+
+> **Note**: The blueprint may work with other versions, but these are the versions used for validation.
 
 ## Contributing
 

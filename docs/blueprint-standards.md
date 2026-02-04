@@ -222,17 +222,41 @@ Common issues and solutions:
 3. Review node security group rules
 ```
 
-### 11. Version Compatibility Matrix
+### 11. Tested Versions
 
-Document tested versions:
+Document the versions this blueprint is currently tested against:
 
 ```markdown
-## Version Compatibility
+## Tested With
 
-| Blueprint Version | Controller Version | Terraform | AWS Provider |
-|-------------------|-------------------|-----------|--------------|
-| v1.0.0 | 7.1.x | >= 1.5.0 | >= 5.0.0 |
-| v1.1.0 | 7.2.x | >= 1.5.0 | >= 5.0.0 |
+This blueprint is currently tested with:
+
+| Component | Version |
+|-----------|---------|
+| Aviatrix Controller | 8.0.x |
+| Aviatrix Terraform Provider | 3.2.0 |
+| Terraform | 1.9.x |
+| AWS Provider | 5.80.x |
+
+> **Note**: The blueprint may work with other versions, but these are the versions used for validation.
+```
+
+### 12. Changelog (Optional but Recommended)
+
+Include a `CHANGELOG.md` file to track significant changes:
+
+```markdown
+# Changelog
+
+## 2025-01-15
+
+- Added support for multiple availability zones
+- Updated to Aviatrix provider 3.2.0
+
+## 2024-12-01
+
+- Initial release
+- Tested with Controller 8.0.1
 ```
 
 ## Required Files
@@ -247,7 +271,8 @@ blueprints/example-blueprint/
 ├── outputs.tf                # Output definitions
 ├── versions.tf               # Required providers and versions
 ├── terraform.tfvars.example  # Example variable values
-└── architecture.png          # Architecture diagram
+├── architecture.png          # Architecture diagram
+└── CHANGELOG.md              # Version history (optional but recommended)
 ```
 
 ### versions.tf Template

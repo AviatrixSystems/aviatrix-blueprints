@@ -160,7 +160,7 @@ Deploy and test a blueprint:
 - Always test destroy before considering a blueprint complete
 - Include troubleshooting for common failure scenarios
 - Link prerequisites to shared docs in `docs/prerequisites/`
-- Version format: `v<MAJOR>.<MINOR>.<PATCH>+avx<CONTROLLER_VERSION>`
+- Each blueprint tracks tested versions in a "Tested With" table and optionally a `CHANGELOG.md`
 
 ## Aviatrix-Specific Knowledge
 

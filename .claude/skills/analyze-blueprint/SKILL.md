@@ -1,4 +1,10 @@
-# /analyze-blueprint
+---
+name: analyze-blueprint
+description: Analyze a blueprint directory and generate comprehensive documentation about what it creates and requires. Use when the user asks to analyze, understand, or document a blueprint.
+argument-hint: [blueprint-path]
+---
+
+# Analyze Blueprint
 
 Analyze a blueprint directory and generate comprehensive documentation about what it creates and requires.
 

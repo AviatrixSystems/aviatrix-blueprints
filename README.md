@@ -4,6 +4,31 @@ Production-ready Terraform lab environments for learning, demonstrating, and tes
 
 ![Aviatrix Blueprints](aviatrix_blueprints_logo.png)
 
+> [!TIP]
+> **🤖 Aviatrix Blueprints are Optimized for Claude Code**
+>
+> Get AI-assisted deployment with prerequisite checks, cost estimates, and automated orchestration.
+>
+> | Skill | Description |
+> |-------|-------------|
+> | `/deploy-blueprint` | Guided deployment with prerequisite validation |
+> | `/analyze-blueprint` | Resource inventory and cost estimates |
+>
+> [Get Claude Code](https://claude.ai/code)
+
+## Quick Start with Claude Code
+
+```bash
+# Clone and open with Claude Code
+git clone https://github.com/aviatrix/aviatrix-blueprints.git
+cd aviatrix-blueprints
+claude
+```
+
+Inside Claude Code:
+- `/deploy-blueprint dcf-eks` — Deploy with guided assistance
+- `/analyze-blueprint dcf-eks` — Preview resources and costs before deploying
+
 ## What are Blueprints?
 
 Blueprints are **complete, deployable lab environments** that demonstrate Aviatrix capabilities in real-world scenarios. Unlike reusable Terraform modules, blueprints are designed to be:
@@ -26,7 +51,7 @@ Blueprints are **complete, deployable lab environments** that demonstrate Aviatr
 |-----------|-------------|----------|------|--------|
 | [dcf-eks](blueprints/dcf-eks/) | Distributed Cloud Firewall with EKS | AWS | Community | 🚧 In Progress |
 
-## Quick Start
+## Manual Deployment
 
 ### 1. Prerequisites
 
@@ -111,16 +136,6 @@ We welcome contributions! Whether you're fixing a bug, improving documentation, 
 1. Copy the [blueprint template](blueprints/_template/)
 2. Follow the [Blueprint Standards](docs/blueprint-standards.md)
 3. Submit a PR for review
-
-## Versioning
-
-Blueprints follow semantic versioning with controller compatibility:
-
-```
-v<MAJOR>.<MINOR>.<PATCH>+avx<CONTROLLER_VERSION>
-```
-
-Example: `v1.2.0+avx8.1` indicates version 1.2.0 tested with Aviatrix Control Plane 8.1.x
 
 ## Support
 
