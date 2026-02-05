@@ -1032,7 +1032,7 @@ If you see: `The "count" value depends on resource attributes that cannot be det
 ## Directory Structure
 
 ```
-dcf-eks/
+aws-eks-multicluster/
 ├── network/                    # Layer 1: Network infrastructure
 │   ├── main.tf                 # Transit, spokes, VPCs, DB VM
 │   ├── outputs.tf              # Export VPC IDs, subnet IDs, Route53 zone

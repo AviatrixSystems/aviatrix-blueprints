@@ -26,8 +26,8 @@ claude
 ```
 
 Inside Claude Code:
-- `/deploy-blueprint dcf-eks` — Deploy with guided assistance
-- `/analyze-blueprint dcf-eks` — Preview resources and costs before deploying
+- `/deploy-blueprint aws-eks-multicluster` — Deploy with guided assistance
+- `/analyze-blueprint aws-eks-multicluster` — Preview resources and costs before deploying
 
 ## What are Blueprints?
 
@@ -49,7 +49,7 @@ Blueprints are **complete, deployable lab environments** that demonstrate Aviatr
 
 | Blueprint | Description | Cloud(s) | Tier | Status |
 |-----------|-------------|----------|------|--------|
-| [dcf-eks](blueprints/dcf-eks/) | Distributed Cloud Firewall with EKS | AWS | Community | 🚧 In Progress |
+| [aws-eks-multicluster](blueprints/aws-eks-multicluster/) | Distributed Cloud Firewall with EKS | AWS | Community | 🚧 In Progress |
 
 ## Manual Deployment
 
@@ -75,7 +75,7 @@ git clone https://github.com/aviatrix/aviatrix-blueprints.git
 cd aviatrix-blueprints
 
 # Navigate to your chosen blueprint
-cd blueprints/dcf-eks
+cd blueprints/aws-eks-multicluster
 
 # Review the README for specific requirements
 cat README.md
@@ -116,7 +116,7 @@ aviatrix-blueprints/
 ├── modules/                 # Shared Terraform modules (future)
 ├── blueprints/              # Deployable lab environments
 │   ├── _template/           # Template for new blueprints
-│   └── dcf-eks/             # Individual blueprints...
+│   └── aws-eks-multicluster/             # Individual blueprints...
 └── .github/                 # CI/CD and templates
 ```
 

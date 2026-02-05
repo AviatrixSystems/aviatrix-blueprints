@@ -126,7 +126,7 @@ When this skill is invoked:
 ## Output Format
 
 ```
-Validating blueprint: dcf-eks
+Validating blueprint: aws-eks-multicluster
 
 ## Terraform Validation
 ✅ terraform fmt -check passed
@@ -159,7 +159,7 @@ Validating blueprint: dcf-eks
 ✅ Version compatibility
 
 ## Standards Compliance
-✅ Directory naming (dcf-eks)
+✅ Directory naming (aws-eks-multicluster)
 ✅ Resource naming uses name_prefix
 ✅ No hardcoded credentials detected
 ⚠️ AWS region hardcoded in data source (line 45)

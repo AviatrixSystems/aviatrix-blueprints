@@ -303,7 +303,7 @@ controller_password = "CHANGE_ME"
 aws_region = "us-east-1"
 
 # Blueprint-Specific Variables
-name_prefix = "dcf-eks"
+name_prefix = "aws-eks-multicluster"
 ```
 
 ## Quality Checklist

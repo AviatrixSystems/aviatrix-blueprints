@@ -58,7 +58,7 @@ Deploys a blueprint with guided, multi-step orchestration:
 - Validation and connectivity tests
 - Post-deployment access information
 
-Supports both simple single-layer and complex multi-layer blueprints (like dcf-eks with network → clusters → nodes).
+Supports both simple single-layer and complex multi-layer blueprints (like aws-eks-multicluster with network → clusters → nodes).
 
 ### /test-blueprint
 
