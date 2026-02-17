@@ -45,7 +45,7 @@ Browse the [Blueprint Catalog](../README.md#blueprint-catalog) and select one th
 
 ```bash
 # Navigate to your chosen blueprint
-cd blueprints/dcf-eks
+cd blueprints/aws-eks-multicluster
 ```
 
 ### Step 3: Review Requirements
@@ -186,7 +186,7 @@ terraform workspace new dev
 terraform workspace new prod
 
 # Or use separate directories
-cp -r blueprints/dcf-eks blueprints/dcf-eks-demo2
+cp -r blueprints/aws-eks-multicluster blueprints/aws-eks-multicluster-demo2
 ```
 
 ## Next Steps

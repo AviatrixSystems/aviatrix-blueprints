@@ -78,9 +78,9 @@ When this skill is invoked:
 ## Example
 
 ```
-> /analyze-blueprint blueprints/dcf-eks
+> /analyze-blueprint blueprints/aws-eks-multicluster
 
-Analyzing blueprint: dcf-eks
+Analyzing blueprint: aws-eks-multicluster
 
 ## Resources Created (14 total)
 

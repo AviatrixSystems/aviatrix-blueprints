@@ -57,7 +57,7 @@ module "aws_transit" {
   enable_transit_firenet        = true
   enable_egress_transit_firenet = false
 
-  instance_size     = "t3.medium"
+  instance_size     = "c5.xlarge"
   connected_transit = true
 
   # Use VPC DNS server for gateway management - required for hostname SmartGroups

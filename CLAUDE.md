@@ -49,7 +49,7 @@ Always use the Aviatrix Terraform provider:
 
 ### Naming Conventions
 
-- Blueprint directories: lowercase with hyphens (`dcf-eks`, `transit-aws`)
+- Blueprint directories: lowercase with hyphens (`aws-eks-multicluster`, `transit-aws`)
 - Pattern: `<feature>-<platform>` or `<use-case>-<cloud>`
 - Resources: `${var.name_prefix}-<resource-type>`
 

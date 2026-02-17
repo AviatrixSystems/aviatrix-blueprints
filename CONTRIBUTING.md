@@ -102,7 +102,7 @@ Every blueprint **must** include:
 
 Use lowercase with hyphens:
 ```
-blueprints/dcf-eks/           # Good
+blueprints/aws-eks-multicluster/           # Good
 blueprints/DCF_EKS/           # Bad
 blueprints/distributed-cloud-firewall-eks/  # Too verbose
 ```
@@ -110,7 +110,7 @@ blueprints/distributed-cloud-firewall-eks/  # Too verbose
 Pattern: `<feature>-<platform>` or `<use-case>-<cloud>`
 
 Examples:
-- `dcf-eks` - Distributed Cloud Firewall with EKS
+- `aws-eks-multicluster` - Distributed Cloud Firewall with EKS
 - `transit-aws` - Transit architecture in AWS
 - `multicloud-hub` - Multi-cloud hub and spoke
 
@@ -120,7 +120,7 @@ Use consistent prefixes within your blueprint:
 ```hcl
 # Use a variable for the prefix
 variable "name_prefix" {
-  default = "dcf-eks"
+  default = "aws-eks-multicluster"
 }
 
 # Apply consistently
@@ -253,7 +253,7 @@ Use descriptive branch names with a prefix:
 
 | Prefix | Use Case | Example |
 |--------|----------|---------|
-| `feature/` | New blueprints or features | `feature/dcf-eks-blueprint` |
+| `feature/` | New blueprints or features | `feature/aws-eks-multicluster-blueprint` |
 | `fix/` | Bug fixes | `fix/transit-aws-timeout` |
 | `docs/` | Documentation updates | `docs/improve-prerequisites` |
 | `chore/` | Maintenance tasks | `chore/update-provider-versions` |

@@ -89,9 +89,9 @@ Uses Playwright to:
 
 ```
 Verifying in Control Plane...
-✅ Transit gateway 'dcf-eks-transit' status: UP
-✅ Spoke gateway 'dcf-eks-spoke-1' status: UP
-✅ Spoke gateway 'dcf-eks-spoke-2' status: UP
+✅ Transit gateway 'aws-eks-multicluster-transit' status: UP
+✅ Spoke gateway 'aws-eks-multicluster-spoke-1' status: UP
+✅ Spoke gateway 'aws-eks-multicluster-spoke-2' status: UP
 ✅ Transit-spoke attachment verified
 ✅ CoPilot topology shows correct architecture
 ```
@@ -222,7 +222,7 @@ Use Playwright to verify nothing remains in the Control Plane.
 ```
 === Blueprint Test Report ===
 
-Blueprint: dcf-eks
+Blueprint: aws-eks-multicluster
 Date: 2024-01-15 14:32:00 UTC
 Duration: 18m 45s
 
@@ -255,7 +255,7 @@ Duration: 18m 45s
 - Orphan check: CLEAN
 
 ---
-Blueprint dcf-eks is **VERIFIED** ✅
+Blueprint aws-eks-multicluster is **VERIFIED** ✅
 ```
 
 ## Error Handling
