@@ -195,8 +195,6 @@ resource "aviatrix_spoke_gateway" "spokes" {
   gw_size      = "t3.small"
   subnet       = aws_subnet.spokes_public[each.key].cidr_block
 
-  transit_gw = aviatrix_transit_gateway.main.gw_name
-
   enable_encrypt_volume = true
   enable_active_standby = false
 
@@ -275,4 +273,15 @@ resource "aws_instance" "test_vms" {
     Environment = each.value.environment
     Role        = "test-instance"
   })
+}
+
+# ============================================================================
+# Spoke to Transit Attachments
+# ============================================================================
+
+resource "aviatrix_spoke_transit_attachment" "attachments" {
+  for_each = var.spokes
+
+  spoke_gw_name   = aviatrix_spoke_gateway.spokes[each.key].gw_name
+  transit_gw_name = aviatrix_transit_gateway.main.gw_name
 }
