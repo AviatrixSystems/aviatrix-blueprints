@@ -16,25 +16,25 @@
 #
 # IMPORTANT LESSONS LEARNED:
 #   - DCF sees POST-SNAT traffic (spoke gateway IPs), not pod IPs
-#   - Use VPC CIDR SmartGroups for source/destination matching
-#   - FQDN SmartGroups DO NOT work with CNAME records (K8s services via ExternalDNS)
+#   - Use VPC type SmartGroups for source matching (match by VPC name)
+#   - Use Hostname SmartGroups for service destinations (FQDN pointing to NLB/ALB)
 #   - Default deny with dst=0.0.0.0/0 blocks inter-VPC traffic - DO NOT USE
-#   - See HOSTNAME_SMARTGROUP_DNS_ISSUE.md for detailed explanation
 #
 # NOTE: K8s CRD-based policies (FirewallPolicy, WebGroupPolicy) can be applied
 # directly in-cluster for namespace-level controls. See k8s-apps/dcf-crd/ for examples.
 #####################
 
 #####################
-# SmartGroups - CIDR Based (Infrastructure)
-# These are the ONLY SmartGroups that reliably work for K8s service traffic
+# SmartGroups - VPC Based (Infrastructure)
+# Match by VPC name for source traffic identification
 #####################
 
 resource "aviatrix_smart_group" "frontend_vpc" {
   name = "sg-frontend-vpc"
   selector {
     match_expressions {
-      cidr = local.clusters.frontend.primary_cidr
+      type = "vpc"
+      name = "frontend"
     }
   }
 }
@@ -43,7 +43,8 @@ resource "aviatrix_smart_group" "backend_vpc" {
   name = "sg-backend-vpc"
   selector {
     match_expressions {
-      cidr = local.clusters.backend.primary_cidr
+      type = "vpc"
+      name = "backend"
     }
   }
 }
@@ -52,7 +53,8 @@ resource "aviatrix_smart_group" "db_vpc" {
   name = "sg-db-vpc"
   selector {
     match_expressions {
-      cidr = "10.5.0.0/22"
+      type = "vpc"
+      name = "k8s-demo-db"
     }
   }
 }
@@ -61,28 +63,39 @@ resource "aviatrix_smart_group" "all_eks_clusters" {
   name = "sg-all-eks-clusters"
   selector {
     match_expressions {
-      cidr = local.clusters.frontend.primary_cidr
+      type = "vpc"
+      name = "frontend"
     }
     match_expressions {
-      cidr = local.clusters.backend.primary_cidr
+      type = "vpc"
+      name = "backend"
     }
   }
 }
 
 #####################
-# SmartGroups - FQDN Based (Direct A Records ONLY)
-#
-# WARNING: FQDN SmartGroups DO NOT work with CNAME records!
-# Aviatrix does not follow CNAME chains - it requires direct A records.
-#
-# K8s services with ExternalDNS create CNAMEs → AWS ELB hostnames → IPs
-# Example: frontend.aws.aviatrixdemo.local → CNAME → k8s-xxx.elb.amazonaws.com → A → 10.10.1.173
-#
-# ONLY use FQDN SmartGroups for resources with direct A records (e.g., VMs, static IPs)
-# See: HOSTNAME_SMARTGROUP_DNS_ISSUE.md for full details
+# SmartGroups - Hostname Based (Service Endpoints)
+# Match by DNS hostname for service-level destination targeting
 #####################
 
-# Database has a direct A record (VM with static IP) - FQDN works here
+resource "aviatrix_smart_group" "backend_service" {
+  name = "sg-backend-service"
+  selector {
+    match_expressions {
+      fqdn = "backend.${var.route53_private_zone_name}"
+    }
+  }
+}
+
+resource "aviatrix_smart_group" "frontend_service" {
+  name = "sg-frontend-service"
+  selector {
+    match_expressions {
+      fqdn = "frontend.${var.route53_private_zone_name}"
+    }
+  }
+}
+
 resource "aviatrix_smart_group" "database" {
   name = "sg-database"
   selector {
@@ -361,11 +374,9 @@ resource "aviatrix_dcf_ruleset" "k8s_demo" {
   #
   # CRITICAL: DCF sees POST-SNAT traffic from pods
   # - Pod IP (100.64.x.x) is SNAT'd to spoke gateway IP (10.10.0.4 or 10.20.0.9)
-  # - Use VPC CIDR SmartGroups for source matching
-  # - FQDN SmartGroups only work for destinations with direct A records (not CNAMEs)
+  # - Use VPC type SmartGroups for source matching
+  # - Use Hostname SmartGroups for service destinations
   #############################
-
-  # Database uses FQDN SmartGroup - works because db.aws.aviatrixdemo.local is an A record
   rules {
     name             = "Frontend to Database"
     action           = "PERMIT"
@@ -401,7 +412,7 @@ resource "aviatrix_dcf_ruleset" "k8s_demo" {
     protocol         = "TCP"
     logging          = true
     src_smart_groups = [aviatrix_smart_group.frontend_vpc.uuid]
-    dst_smart_groups = [aviatrix_smart_group.backend_vpc.uuid]
+    dst_smart_groups = [aviatrix_smart_group.backend_service.uuid]
     port_ranges {
       lo = 8080
     }
@@ -414,7 +425,7 @@ resource "aviatrix_dcf_ruleset" "k8s_demo" {
     protocol         = "TCP"
     logging          = true
     src_smart_groups = [aviatrix_smart_group.backend_vpc.uuid]
-    dst_smart_groups = [aviatrix_smart_group.frontend_vpc.uuid]
+    dst_smart_groups = [aviatrix_smart_group.frontend_service.uuid]
     port_ranges {
       lo = 8080
     }

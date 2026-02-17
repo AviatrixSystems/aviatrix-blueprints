@@ -740,7 +740,7 @@ spec:
 ```
 
 **Key Features:**
-- **SmartGroups**: Dynamic grouping by CIDR, Kubernetes labels, cloud provider tags, region, zone
+- **SmartGroups**: Dynamic grouping by VPC name, hostname (FQDN), CIDR, Kubernetes labels, cloud provider tags, region, zone
 - **WebGroups**: Domain-based filtering (e.g., allow traffic to `*.example.com`)
 - **Actions**: `permit`, `deny`, `intrusion_detection_permit`
 - **Protocols**: TCP, UDP, ICMP, any
@@ -1160,7 +1160,7 @@ This section provides a comprehensive inventory of all AWS and Aviatrix resource
 | Component | Resource Type | Quantity | Instance Size | Capacity | Notes |
 |-----------|--------------|----------|---------------|----------|-------|
 | **Aviatrix Gateways** | | | | | |
-| Transit Gateway | EC2 | 1 | t3.medium | On-Demand | FireNet enabled, no HA |
+| Transit Gateway | EC2 | 1 | c5.xlarge | On-Demand | FireNet enabled, no HA |
 | Frontend Spoke GW | EC2 | 1 | t3.medium | On-Demand | Custom SNAT, no HA |
 | Backend Spoke GW | EC2 | 1 | t3.medium | On-Demand | Custom SNAT, no HA |
 | DB Spoke GW | EC2 | 1 | t3.medium | On-Demand | Single IP SNAT, no HA |
@@ -1209,11 +1209,11 @@ This section provides a comprehensive inventory of all AWS and Aviatrix resource
 
 | Resource | Instance | Hourly Rate | Monthly (730 hrs) |
 |----------|----------|-------------|-------------------|
-| Transit Gateway | t3.medium | $0.0416 | $30.37 |
+| Transit Gateway | c5.xlarge | $0.1700 | $124.10 |
 | Frontend Spoke GW | t3.medium | $0.0416 | $30.37 |
 | Backend Spoke GW | t3.medium | $0.0416 | $30.37 |
 | DB Spoke GW | t3.medium | $0.0416 | $30.37 |
-| **Subtotal Gateways** | | | **$121.48** |
+| **Subtotal Gateways** | | | **$215.21** |
 
 #### EC2 Compute - Other
 
@@ -1273,22 +1273,22 @@ This section provides a comprehensive inventory of all AWS and Aviatrix resource
 
 | Category | Cost |
 |----------|------|
-| Aviatrix Gateway EC2 | $121.48 |
+| Aviatrix Gateway EC2 | $215.21 |
 | Database VM EC2 | $7.59 |
 | EKS Control Planes | $146.00 |
 | EKS Nodes (SPOT) | $73.00 |
 | Storage | $7.04 |
 | Networking | $0.60 |
 | Data Transfer | ~$5.50 |
-| **TOTAL** | **~$361/month** |
+| **TOTAL** | **~$455/month** |
 
 ### Cost Breakdown by Category
 
 ```
-EKS Control Planes       ████████████████░░░░░  40.3%  ($146)
-Aviatrix Gateways (EC2)  █████████████░░░░░░░░  33.6%  ($121)
-EKS Nodes (SPOT)         ████████░░░░░░░░░░░░░  20.2%  ($73)
-Other (storage/DB/xfer)  ██░░░░░░░░░░░░░░░░░░░   5.8%  ($21)
+Aviatrix Gateways (EC2)  ██████████████████░░░  47.3%  ($215)
+EKS Control Planes       ████████████░░░░░░░░░  32.1%  ($146)
+EKS Nodes (SPOT)         ██████░░░░░░░░░░░░░░░  16.0%  ($73)
+Other (storage/DB/xfer)  ██░░░░░░░░░░░░░░░░░░░   4.6%  ($21)
 ```
 
 ---
