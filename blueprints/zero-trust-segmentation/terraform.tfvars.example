@@ -1,0 +1,58 @@
+# ============================================================================
+# Aviatrix Controller Configuration
+# ============================================================================
+# Set these as environment variables instead:
+# export AVIATRIX_CONTROLLER_IP="<your-controller-ip>"
+# export AVIATRIX_USERNAME="admin"
+# export AVIATRIX_PASSWORD="<your-password>"
+
+# ============================================================================
+# AWS Configuration
+# ============================================================================
+
+# AWS Account name as configured in Aviatrix Controller
+aws_account_name = "my-aws-account"
+
+# AWS region for deployment
+aws_region = "us-east-1"
+
+# ============================================================================
+# Blueprint Configuration
+# ============================================================================
+
+# Prefix for all resource names (keep it short, 8 chars or less)
+name_prefix = "zt-seg"
+
+# EC2 key pair name for SSH access to test VMs
+# Must exist in your AWS account in the specified region
+test_vm_key_name = "my-keypair"
+
+# EC2 instance type for test VMs (t3.micro is fine for testing)
+test_vm_instance_type = "t3.micro"
+
+# ============================================================================
+# Advanced Configuration (Optional - defaults are sensible)
+# ============================================================================
+
+# Transit Gateway configuration
+# transit_gateway = {
+#   cidr       = "10.0.0.0/23"
+#   asn        = 64512
+#   ha_enabled = false
+# }
+
+# Spoke configurations
+# spokes = {
+#   dev = {
+#     cidr        = "10.1.0.0/24"
+#     environment = "development"
+#   }
+#   prod = {
+#     cidr        = "10.2.0.0/24"
+#     environment = "production"
+#   }
+#   db = {
+#     cidr        = "10.3.0.0/24"
+#     environment = "database"
+#   }
+# }

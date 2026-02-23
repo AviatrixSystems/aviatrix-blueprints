@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">
+  <!-- Placeholder architecture diagram -->
+  <!-- TODO: Create proper architecture diagram showing:
+       - Transit Gateway in center
+       - Three spokes (Dev, Prod, DB) connected to transit
+       - Test VMs in each spoke
+       - DCF policy arrows showing allowed/denied traffic
+  -->
+  <rect width="800" height="600" fill="#f8f9fa"/>
+  <text x="400" y="280" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#666">
+    Architecture Diagram Placeholder
+  </text>
+  <text x="400" y="320" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#999">
+    Create a visual diagram showing:
+  </text>
+  <text x="400" y="345" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#999">
+    • Transit Gateway (center)
+  </text>
+  <text x="400" y="365" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#999">
+    • Three Spoke Gateways (Dev, Prod, DB)
+  </text>
+  <text x="400" y="385" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#999">
+    • Test VMs in each spoke
+  </text>
+  <text x="400" y="405" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#999">
+    • Green arrows for allowed traffic
+  </text>
+  <text x="400" y="425" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#999">
+    • Red X for denied traffic
+  </text>
+</svg>
