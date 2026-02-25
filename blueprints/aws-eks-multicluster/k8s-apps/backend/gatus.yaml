@@ -13,14 +13,14 @@ data:
       - name: "Prod Database"
         group: "Internal"
         url: "http://db.aws.aviatrixdemo.local"
-        interval: 5s
+        interval: 60s
         conditions:
           - "[STATUS] == 200"
           - "[RESPONSE_TIME] < 300"
       - name: "Frontend Service"
         group: "Internal"
         url: "http://frontend.aws.aviatrixdemo.local:8080"
-        interval: 5s
+        interval: 60s
         conditions:
           - "[STATUS] == 200"
           - "[RESPONSE_TIME] < 500"
@@ -62,13 +62,13 @@ data:
       - name: "GeoBlock - Iran"
         group: "Threats"
         url: "icmp://www.irna.ir"
-        interval: 30s
+        interval: 60s
         conditions: ["[CONNECTED] == true"]
 
       - name: "Threat Feed - Malicious IP"
         group: "Threats"
         url: "icmp://102.130.117.167"
-        interval: 30s
+        interval: 60s
         conditions: ["[CONNECTED] == true"]
 
     ui:
