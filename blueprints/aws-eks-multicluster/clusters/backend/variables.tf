@@ -11,7 +11,6 @@ variable "kubernetes_version" {
 }
 
 variable "aviatrix_controller_role_arn" {
-  description = "IAM role ARN used by Aviatrix Controller to access EKS clusters"
+  description = "IAM role ARN used by Aviatrix Controller to access EKS clusters (e.g., arn:aws:iam::ACCOUNT_ID:role/aviatrix-role-app)"
   type        = string
-  default     = "arn:aws:iam::538591868388:role/aviatrix-role-app"
 }

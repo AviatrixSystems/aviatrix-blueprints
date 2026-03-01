@@ -122,6 +122,8 @@ terraform apply -var-file=var.tfvars
 # 2. Deploy frontend cluster (~10-15 min)
 cd ../clusters/frontend/
 terraform init
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars — set aviatrix_controller_role_arn to your Controller's IAM role ARN
 terraform apply
 
 # 3. Deploy frontend nodes (~7-10 min)
@@ -138,6 +140,8 @@ kubectl get nodes  # Should show 2 Ready nodes
 # 5. Deploy backend cluster (~10-15 min)
 cd ../backend/
 terraform init
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars — set aviatrix_controller_role_arn to your Controller's IAM role ARN
 terraform apply
 
 # 6. Deploy backend nodes (~7-10 min)
@@ -258,8 +262,18 @@ The cluster layer creates the EKS control plane, security groups, OIDC provider,
 ```bash
 cd ../clusters/frontend/
 
-# Initialize and deploy cluster (~10-15 minutes)
+# Initialize Terraform
 terraform init
+
+# Create your variable file
+cp terraform.tfvars.example terraform.tfvars
+
+# Edit terraform.tfvars:
+# - aviatrix_controller_role_arn: Your Aviatrix Controller's IAM role ARN
+#   (e.g., arn:aws:iam::123456789012:role/aviatrix-role-app)
+vim terraform.tfvars
+
+# Deploy cluster (~10-15 minutes)
 terraform apply
 ```
 
@@ -399,8 +413,18 @@ kube-system   kube-proxy-xmt8f                                1/1     Running   
 ```bash
 cd ../backend/
 
-# Initialize and deploy cluster (~10-15 minutes)
+# Initialize Terraform
 terraform init
+
+# Create your variable file
+cp terraform.tfvars.example terraform.tfvars
+
+# Edit terraform.tfvars:
+# - aviatrix_controller_role_arn: Your Aviatrix Controller's IAM role ARN
+#   (same value used for the frontend cluster)
+vim terraform.tfvars
+
+# Deploy cluster (~10-15 minutes)
 terraform apply
 ```
 

@@ -1,0 +1,10 @@
+# Aviatrix Controller IAM Role ARN
+# This is the IAM role your Aviatrix Controller assumes to access AWS resources.
+# Replace ACCOUNT_ID with your AWS account ID and adjust the role name if different.
+aviatrix_controller_role_arn = "arn:aws:iam::ACCOUNT_ID:role/aviatrix-role-app"
+
+# AWS Configuration (defaults to us-east-2)
+# aws_region = "us-east-2"
+
+# Kubernetes version (defaults to 1.34)
+# kubernetes_version = "1.34"
