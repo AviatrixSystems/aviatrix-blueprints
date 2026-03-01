@@ -22,3 +22,8 @@ node_group_config = {
 
 # DNS Configuration
 route53_private_zone_name = "aws.aviatrixdemo.local"
+
+# Aviatrix Controller IAM Role ARN
+# This is the IAM role your Aviatrix Controller assumes to access AWS resources.
+# Replace ACCOUNT_ID with your AWS account ID and adjust the role name if different.
+aviatrix_controller_role_arn = "arn:aws:iam::ACCOUNT_ID:role/aviatrix-role-app"
