@@ -112,8 +112,8 @@ module "default_node_group" {
   # Security - from cluster state (exists at plan time)
   cluster_primary_security_group_id = data.terraform_remote_state.cluster.outputs.cluster_primary_security_group_id
 
-  # Cluster service CIDR - use default EKS service CIDR
-  cluster_service_cidr = "172.20.0.0/16"
+  # Cluster service CIDR - read from cluster state
+  cluster_service_cidr = data.terraform_remote_state.cluster.outputs.cluster_service_cidr
 
   # Scaling configuration - from variables (known at plan time)
   node_group_name = "default"

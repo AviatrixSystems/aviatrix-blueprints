@@ -237,8 +237,10 @@ terraform init -upgrade
 cp terraform.tfvars.example var.tfvars
 
 # Edit with your values:
+# - name_prefix: Prefix for all resource names (default: k8s-demo)
 # - aviatrix_aws_account_name: AWS account name registered in Aviatrix Controller
 # - aws_region: Deployment region (default: us-east-2)
+# - Override CIDRs if they conflict with your environment
 vim var.tfvars
 
 # Deploy network infrastructure (~15-20 minutes)

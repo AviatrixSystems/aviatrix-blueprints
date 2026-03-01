@@ -13,8 +13,8 @@ provider "aws" {
 }
 
 resource "aws_security_group" "allow_all_private_db" {
-  name        = "allow_all_private_ccdb"
-  description = "allow_all_private_ccdb"
+  name        = "${var.name_prefix}-db-sg"
+  description = "Allow private traffic to ${var.name_prefix} database"
   vpc_id      = var.vpc_id
 
   ingress {
@@ -22,6 +22,13 @@ resource "aws_security_group" "allow_all_private_db" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["10.0.0.0/8"]
+  }
+  ingress {
+    description     = "SSH from EC2 Instance Connect Endpoint"
+    from_port       = 22
+    to_port         = 22
+    protocol        = "tcp"
+    security_groups = var.eice_security_group_ids
   }
   egress {
     from_port        = 0
@@ -32,33 +39,9 @@ resource "aws_security_group" "allow_all_private_db" {
   }
 
   tags = {
-    Name = "allow_all_private"
+    Name = "${var.name_prefix}-db-sg"
   }
 }
-
-# resource "aws_instance" "cc-db" {
-#   ami             = "ami-07d9b9ddc6cd8dd30" 
-#   instance_type   = "t2.micro"
-#   key_name        = "cc-db-key"
-#   subnet_id       = var.subnet_id
-#   security_groups = [aws_security_group.allow_all_private_db.id]
-
-#   user_data = <<-EOF
-#   #!/bin/bash
-#   echo "*** Installing apache2"
-#   sudo apt update -y
-#   sudo apt install apache2 -y
-#   echo "*** Completed Installing apache2"
-#   EOF
-
-#   tags = {
-#     Name = "cc-db"
-#   }
-
-#   volume_tags = {
-#     Name = "web_instance"
-#   } 
-# }
 
 data "aws_ami" "amzn-linux-2023-ami" {
   most_recent = true
@@ -74,7 +57,7 @@ module "key_pair" {
   source  = "terraform-aws-modules/key-pair/aws"
   version = "~> 2.1"
 
-  key_name           = "k8s-dcf-demo"
+  key_name           = "${var.name_prefix}-db-key"
   create_private_key = true
 }
 
@@ -83,11 +66,11 @@ module "db_instance" {
   source  = "terraform-aws-modules/ec2-instance/aws"
   version = "~> 6.1"
 
-  name = "cc-db"
+  name = "${var.name_prefix}-db"
 
   ami                         = data.aws_ami.amzn-linux-2023-ami.image_id
   instance_type               = "t3.micro"
-  key_name                    = "avtx-cmchenry-aws-useast2"
+  key_name                    = module.key_pair.key_pair_name
   monitoring                  = true
   vpc_security_group_ids      = [aws_security_group.allow_all_private_db.id]
   subnet_id                   = var.subnet_id

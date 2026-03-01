@@ -4,12 +4,13 @@
 # export AVIATRIX_USERNAME="<username>"
 # export AVIATRIX_PASSWORD="<password>"
 
+# Resource Naming
+# All resources will be prefixed with this value (enables multiple deployments)
+name_prefix = "k8s-demo"
+
 # AWS Configuration
 aviatrix_aws_account_name = "your-aws-account-name"  # AWS account name as registered in Aviatrix Controller
 aws_region                = "us-east-2"
-
-# Kubernetes Configuration
-kubernetes_version = "1.33"
 
 # EKS Node Group Configuration
 node_group_config = {
@@ -23,7 +24,9 @@ node_group_config = {
 # DNS Configuration
 route53_private_zone_name = "aws.aviatrixdemo.local"
 
-# Aviatrix Controller IAM Role ARN
-# This is the IAM role your Aviatrix Controller assumes to access AWS resources.
-# Replace ACCOUNT_ID with your AWS account ID and adjust the role name if different.
-aviatrix_controller_role_arn = "arn:aws:iam::ACCOUNT_ID:role/aviatrix-role-app"
+# Network CIDRs (defaults shown — override if these conflict with your environment)
+# transit_cidr      = "10.2.0.0/20"
+# frontend_vpc_cidr = "10.10.0.0/23"
+# backend_vpc_cidr  = "10.20.0.0/23"
+# db_vpc_cidr       = "10.5.0.0/22"
+# pod_cidr          = "100.64.0.0/16"

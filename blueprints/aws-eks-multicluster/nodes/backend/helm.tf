@@ -11,7 +11,7 @@ resource "helm_release" "aws_load_balancer_controller" {
   repository = "https://aws.github.io/eks-charts"
   chart      = "aws-load-balancer-controller"
   namespace  = "kube-system"
-  version    = "1.10.1" # Pin version for stability
+  version    = var.alb_controller_chart_version
 
   set {
     name  = "clusterName"
@@ -59,7 +59,7 @@ resource "helm_release" "external_dns" {
   repository = "https://kubernetes-sigs.github.io/external-dns/"
   chart      = "external-dns"
   namespace  = "kube-system"
-  version    = "1.19.0" # Pin version
+  version    = var.external_dns_chart_version
 
   # Using values instead of multiple set blocks for complex configurations
   # This is more maintainable and avoids shell escaping issues
