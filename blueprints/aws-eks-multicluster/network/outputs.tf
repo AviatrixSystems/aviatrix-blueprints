@@ -129,6 +129,25 @@ output "route53_zone_name" {
 }
 
 #####################
+# Cluster Names
+#####################
+
+output "name_prefix" {
+  description = "Name prefix used for all resources"
+  value       = var.name_prefix
+}
+
+output "frontend_cluster_name" {
+  description = "Frontend EKS cluster name"
+  value       = local.clusters.frontend.name
+}
+
+output "backend_cluster_name" {
+  description = "Backend EKS cluster name"
+  value       = local.clusters.backend.name
+}
+
+#####################
 # Shared Configuration
 #####################
 

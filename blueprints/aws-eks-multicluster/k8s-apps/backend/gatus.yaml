@@ -1,3 +1,6 @@
+# NOTE: This file uses the domain "aws.aviatrixdemo.local" which must match
+# the route53_private_zone_name variable in the network layer. If you changed
+# that variable, update all occurrences of the domain below.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -65,6 +68,8 @@ data:
         interval: 60s
         conditions: ["[CONNECTED] == true"]
 
+      # NOTE: This IP must appear in your Aviatrix ThreatGuard feed to be blocked.
+      # Verify against your current threat intelligence feed and replace if needed.
       - name: "Threat Feed - Malicious IP"
         group: "Threats"
         url: "icmp://102.130.117.167"
@@ -105,7 +110,7 @@ spec:
       serviceAccountName: backend
       terminationGracePeriodSeconds: 5
       containers:
-        - image: twinproduction/gatus
+        - image: twinproduction/gatus:v5.14.0
           imagePullPolicy: IfNotPresent
           name: backend
           ports:

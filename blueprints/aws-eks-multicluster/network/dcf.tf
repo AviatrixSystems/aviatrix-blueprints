@@ -341,8 +341,10 @@ data "aviatrix_dcf_attachment_point" "tf_before_ui" {
 }
 
 resource "aviatrix_dcf_ruleset" "k8s_demo" {
-  name      = "k8s-multicloud-demo"
-  attach_to = data.aviatrix_dcf_attachment_point.tf_before_ui.id
+  name = "k8s-multicloud-demo"
+  # TODO: revert to data source once Controller returns correct ID
+  # attach_to = data.aviatrix_dcf_attachment_point.tf_before_ui.id
+  attach_to = "defa11a1-3000-4001-0000-000000000000"
 
   #############################
   # THREAT PREVENTION (Priority 0-9)

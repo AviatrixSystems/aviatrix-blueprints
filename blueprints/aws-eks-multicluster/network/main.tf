@@ -23,17 +23,17 @@ provider "aws" {
 
 locals {
   # Non-routable secondary CIDR for pods - same across all VPCs (overlapping)
-  secondary_cidr = "100.64.0.0/16"
+  secondary_cidr = var.pod_cidr
 
   # Cluster configurations
   clusters = {
     frontend = {
-      name         = "frontend-cluster"
-      primary_cidr = "10.10.0.0/23"
+      name         = "${var.name_prefix}-frontend"
+      primary_cidr = var.frontend_vpc_cidr
     }
     backend = {
-      name         = "backend-cluster"
-      primary_cidr = "10.20.0.0/23"
+      name         = "${var.name_prefix}-backend"
+      primary_cidr = var.backend_vpc_cidr
     }
   }
 }
@@ -46,11 +46,11 @@ module "aws_transit" {
   source  = "terraform-aviatrix-modules/mc-transit/aviatrix"
   version = "~> 8.0"
 
-  name    = "k8s-transit"
+  name    = "${var.name_prefix}-transit"
   cloud   = "AWS"
   account = var.aviatrix_aws_account_name
   region  = var.aws_region
-  cidr    = "10.2.0.0/20"
+  cidr    = var.transit_cidr
   ha_gw   = false
 
   # Enable FireNet for future NGFW integration
@@ -94,7 +94,7 @@ module "frontend_spoke" {
   version = "~> 8.0"
 
   cloud      = "AWS"
-  name       = "frontend-eks-spoke"
+  name       = "${var.name_prefix}-frontend-spoke"
   account    = var.aviatrix_aws_account_name
   region     = var.aws_region
   transit_gw = module.aws_transit.transit_gateway.gw_name
@@ -181,7 +181,7 @@ module "backend_spoke" {
   version = "~> 8.0"
 
   cloud      = "AWS"
-  name       = "backend-eks-spoke"
+  name       = "${var.name_prefix}-backend-spoke"
   account    = var.aviatrix_aws_account_name
   region     = var.aws_region
   transit_gw = module.aws_transit.transit_gateway.gw_name
@@ -252,8 +252,8 @@ module "spoke_db" {
   version = "~> 8.0"
 
   cloud          = "AWS"
-  name           = "k8s-demo-db"
-  cidr           = "10.5.0.0/22"
+  name           = "${var.name_prefix}-db-spoke"
+  cidr           = var.db_vpc_cidr
   account        = var.aviatrix_aws_account_name
   region         = var.aws_region
   transit_gw     = module.aws_transit.transit_gateway.gw_name
@@ -267,15 +267,31 @@ module "spoke_db" {
 }
 
 resource "aws_ec2_instance_connect_endpoint" "db_instance_connect" {
-  subnet_id = module.spoke_db.vpc.private_subnets[0].subnet_id
+  subnet_id          = module.spoke_db.vpc.private_subnets[0].subnet_id
+  security_group_ids = [aws_security_group.eice_db.id]
+}
+
+resource "aws_security_group" "eice_db" {
+  name        = "${var.name_prefix}-eice-db"
+  description = "Security group for EC2 Instance Connect Endpoint"
+  vpc_id      = module.spoke_db.vpc.vpc_id
+
+  egress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 
 module "db" {
   source = "./modules/apache-vm"
 
-  vpc_id    = module.spoke_db.vpc.vpc_id
-  subnet_id = module.spoke_db.vpc.private_subnets[0].subnet_id
-  region    = var.aws_region
+  name_prefix             = var.name_prefix
+  vpc_id                  = module.spoke_db.vpc.vpc_id
+  subnet_id               = module.spoke_db.vpc.private_subnets[0].subnet_id
+  region                  = var.aws_region
+  eice_security_group_ids = [aws_security_group.eice_db.id]
 }
 
 #####################

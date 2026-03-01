@@ -10,7 +10,7 @@ terraform {
     # ENIConfig creation moved to Layer 3 (node-group deployment)
     aviatrix = {
       source  = "AviatrixSystems/aviatrix"
-      version = "~> 8.1"
+      version = "~> 8.2"
     }
   }
 }

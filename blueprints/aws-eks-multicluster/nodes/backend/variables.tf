@@ -4,6 +4,18 @@ variable "aws_region" {
   default     = "us-east-2"
 }
 
+variable "alb_controller_chart_version" {
+  description = "Helm chart version for AWS Load Balancer Controller"
+  type        = string
+  default     = "1.10.1"
+}
+
+variable "external_dns_chart_version" {
+  description = "Helm chart version for ExternalDNS"
+  type        = string
+  default     = "1.19.0"
+}
+
 variable "node_group_config" {
   description = "Configuration for EKS managed node groups"
   type = object({

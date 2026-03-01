@@ -15,6 +15,11 @@ output "cluster_version" {
   value       = module.backend_eks.cluster_version
 }
 
+output "cluster_service_cidr" {
+  description = "Kubernetes service CIDR"
+  value       = module.backend_eks.cluster_service_cidr
+}
+
 output "cluster_endpoint" {
   description = "EKS cluster endpoint"
   value       = module.backend_eks.cluster_endpoint

@@ -8,7 +8,7 @@ terraform {
     }
     aviatrix = {
       source  = "AviatrixSystems/aviatrix"
-      version = "~> 8.1"
+      version = "~> 8.2"
     }
     kubernetes = {
       source  = "hashicorp/kubernetes"
@@ -28,7 +28,7 @@ provider "aviatrix" {
 }
 
 locals {
-  cluster_name = "backend-cluster"
+  cluster_name = data.terraform_remote_state.network.outputs.backend_cluster_name
 }
 
 # Kubernetes provider - connects to EKS cluster using AWS CLI exec auth
@@ -72,6 +72,7 @@ module "backend_eks" {
 
   # Aviatrix Controller onboarding - role ARN for EKS access
   aviatrix_controller_role_arn = var.aviatrix_controller_role_arn
+  enable_aviatrix_onboarding   = true
 
   tags = {
     Environment = "demo"
