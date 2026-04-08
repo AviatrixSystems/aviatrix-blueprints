@@ -29,6 +29,20 @@ resource "random_password" "jwt_refresh_secret" {
   special = false
 }
 
+resource "kubernetes_secret_v1" "librechat" {
+  metadata {
+    name      = "librechat-secrets"
+    namespace = "default"
+  }
+
+  data = {
+    CREDS_KEY          = random_password.creds_key.result
+    CREDS_IV           = random_password.creds_iv.result
+    JWT_SECRET         = random_password.jwt_secret.result
+    JWT_REFRESH_SECRET = random_password.jwt_refresh_secret.result
+  }
+}
+
 resource "kubernetes_config_map_v1" "librechat" {
   metadata {
     name      = "librechat-config"
@@ -109,23 +123,43 @@ resource "kubernetes_deployment_v1" "librechat" {
           }
 
           env {
-            name  = "CREDS_KEY"
-            value = random_password.creds_key.result
+            name = "CREDS_KEY"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.librechat.metadata[0].name
+                key  = "CREDS_KEY"
+              }
+            }
           }
 
           env {
-            name  = "CREDS_IV"
-            value = random_password.creds_iv.result
+            name = "CREDS_IV"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.librechat.metadata[0].name
+                key  = "CREDS_IV"
+              }
+            }
           }
 
           env {
-            name  = "JWT_SECRET"
-            value = random_password.jwt_secret.result
+            name = "JWT_SECRET"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.librechat.metadata[0].name
+                key  = "JWT_SECRET"
+              }
+            }
           }
 
           env {
-            name  = "JWT_REFRESH_SECRET"
-            value = random_password.jwt_refresh_secret.result
+            name = "JWT_REFRESH_SECRET"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.librechat.metadata[0].name
+                key  = "JWT_REFRESH_SECRET"
+              }
+            }
           }
 
           env {
