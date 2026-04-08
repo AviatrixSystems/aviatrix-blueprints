@@ -1,0 +1,20 @@
+# Required: AWS account name as registered in Aviatrix Controller
+aviatrix_aws_account_name = "aws-account"
+
+# Optional: Aviatrix Controller IAM role ARN for K8s SmartGroup onboarding
+# aviatrix_controller_role_arn = "arn:aws:iam::123456789012:role/aviatrix-role-ec2"
+
+# Optional overrides
+# name_prefix        = "ai-chat"
+# aws_region         = "us-east-2"
+# vpc_cidr           = "10.1.0.0/16"
+# transit_cidr       = "10.0.0.0/20"
+# kubernetes_version = "1.31"
+
+# node_group_config = {
+#   min_size       = 2
+#   max_size       = 4
+#   desired_size   = 2
+#   instance_types = ["t3.large"]
+#   capacity_type  = "ON_DEMAND"
+# }
