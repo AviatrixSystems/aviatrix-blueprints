@@ -6,7 +6,7 @@ resource "helm_release" "aws_load_balancer_controller" {
   name       = "aws-load-balancer-controller"
   repository = "https://aws.github.io/eks-charts"
   chart      = "aws-load-balancer-controller"
-  version    = "1.13.2"
+  version    = "3.1.0"
   namespace  = "kube-system"
 
   set {
@@ -61,7 +61,7 @@ resource "helm_release" "mongodb" {
   name       = "mongodb"
   repository = "oci://registry-1.docker.io/bitnamicharts"
   chart      = "mongodb"
-  version    = "16.5.13"
+  version    = "18.6.22"
   namespace  = "default"
 
   set {
