@@ -3,29 +3,6 @@
 # Aviatrix k8s-firewall for DCF Layer 2 enforcement
 # -----------------------------------------------------------------------------
 
-terraform {
-  required_version = ">= 1.5.0"
-
-  required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = "~> 5.0"
-    }
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.12"
-    }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.25"
-    }
-    aviatrix = {
-      source  = "AviatrixSystems/aviatrix"
-      version = "~> 8.2.0"
-    }
-  }
-}
-
 provider "google" {
   project = var.gcp_project_id
   region  = var.gcp_region

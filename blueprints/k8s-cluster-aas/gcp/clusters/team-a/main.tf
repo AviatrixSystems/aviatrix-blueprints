@@ -77,36 +77,3 @@ module "team_a_gke" {
   }
 }
 
-#####################
-# Outputs
-#####################
-
-output "cluster_name" {
-  value = module.team_a_gke.cluster_name
-}
-
-output "cluster_endpoint" {
-  value = module.team_a_gke.cluster_endpoint
-}
-
-output "cluster_ca_certificate" {
-  value     = module.team_a_gke.cluster_ca_certificate
-  sensitive = true
-}
-
-output "cluster_location" {
-  value = module.team_a_gke.cluster_location
-}
-
-output "external_dns_service_account_email" {
-  value = module.team_a_gke.external_dns_service_account_email
-}
-
-output "external_dns_helm_values" {
-  value = module.team_a_gke.external_dns_helm_values
-}
-
-output "cluster_id" {
-  description = "GKE cluster ID for Aviatrix onboarding"
-  value       = module.team_a_gke.cluster_id
-}

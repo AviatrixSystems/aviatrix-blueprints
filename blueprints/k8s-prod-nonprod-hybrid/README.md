@@ -186,3 +186,127 @@ terraform -chdir=aws/network destroy -var="aws_account_name=<account>" -auto-app
 **Recommended for most organizations.** Choose this pattern when you need environment-level isolation (prod cannot talk to nonprod) combined with team self-service egress policies. Balances security, cost, and operational overhead.
 
 For the strongest isolation, see [k8s-cluster-aas](../k8s-cluster-aas/). For the lowest cost, see [k8s-namespace-aas](../k8s-namespace-aas/).
+
+## Resources Created
+
+| Resource | Count | Description |
+|---|---|---|
+| `aviatrix_transit_gateway` | 1 | Transit hub (c5.xlarge) |
+| `aviatrix_vpc` | 3 | prod, nonprod, and database VPCs |
+| `aviatrix_spoke_gateway` | 3–6 | One per VPC (doubles with HA enabled) |
+| `aviatrix_spoke_transit_attachment` | 3 | Connects each spoke to transit |
+| `aviatrix_gateway_snat` | 3 | Masquerades pod CIDR (100.64.0.0/16) per spoke |
+| `aviatrix_distributed_firewalling_config` | 1 | Enables DCF |
+| `aviatrix_k8s_config` | 1 | Enables K8s namespace enforcement in DCF |
+| `aviatrix_kubernetes_cluster` | 2 | Registers prod and nonprod clusters with Controller |
+| `aviatrix_smart_group` | 11 | prod_vpc, nonprod_vpc, prod_db + 4 namespace groups per cluster + monitoring × 2 + sandbox + ThreatIQ |
+| `aviatrix_web_group` | 3 | prod_approved_apis, sandbox_relaxed_egress, public_internet |
+| `aviatrix_dcf_ruleset` | 1 | Dual-layer policy: VPC boundary + namespace boundary |
+| `aws_nat_gateway` | ~9 | 3 per VPC (one per AZ) — verify EIP quota |
+| `aws_eks_cluster` | 2 | Dedicated prod and nonprod clusters |
+| `aws_eks_node_group` | 2 | prod_workers and nonprod_workers |
+| `aws_autoscaling_schedule` | 2+ | Scale nonprod down off-hours to reduce cost |
+| `aws_iam_openid_connect_provider` | 2 | IRSA OIDC per cluster |
+| `aws_iam_role` (IRSA) | 4+ | ExternalDNS + K8s firewall roles per cluster |
+| `helm_release` | 4 | ExternalDNS + aviatrix_k8s_firewall per cluster |
+| `kubernetes_config_map` | ~6 | ENIConfig per AZ per cluster |
+
+> The database VPC is only reachable from the prod VPC — nonprod workloads have no network path to production data, enforced at the Aviatrix DCF layer.
+
+## Variables Reference
+
+### Network (`aws/network/`)
+
+| Variable | Type | Default | Required | Description |
+|---|---|---|---|---|
+| `aws_account_name` | `string` | — | yes | Aviatrix AWS account name (as onboarded in Controller) |
+| `aws_region` | `string` | `us-east-2` | no | AWS region for all resources |
+| `transit_cidr` | `string` | `10.2.0.0/20` | no | Transit VPC CIDR |
+| `prod_vpc_cidr` | `string` | `10.10.0.0/20` | no | Production VPC CIDR |
+| `nonprod_vpc_cidr` | `string` | `10.20.0.0/20` | no | Non-production VPC CIDR |
+| `db_spoke_cidr` | `string` | `10.5.0.0/22` | no | Database spoke CIDR (prod data only) |
+| `pod_cidr` | `string` | `100.64.0.0/16` | no | Secondary CIDR for pod networking (VPC CNI custom networking) |
+| `environment_prefix` | `string` | `pc2` | no | Prefix for all resource names |
+| `transit_gw_size` | `string` | `c5.xlarge` | no | Instance size for Transit Gateway |
+| `spoke_gw_size` | `string` | `c5.xlarge` | no | Instance size for Spoke Gateways |
+| `db_spoke_gw_size` | `string` | `t3.medium` | no | Instance size for DB Spoke Gateway |
+| `enable_ha` | `bool` | `true` | no | Enable HA for all gateways |
+| `prod_cluster_id` | `string` | `""` | no | Aviatrix cluster ID for the production EKS cluster |
+| `nonprod_cluster_id` | `string` | `""` | no | Aviatrix cluster ID for the non-production EKS cluster |
+| `route53_zone_id` | `string` | `""` | no | Route53 hosted zone ID for DNS resolution |
+| `dns_domain` | `string` | `internal.example.com` | no | Base DNS domain for services |
+| `teams` | `map(object)` | team-a, team-b | no | Map of team names to their namespace configuration |
+| `random_suffix` | `bool` | `true` | no | Append a random suffix to all resource names for uniqueness |
+| `manage_dcf` | `bool` | `true` | no | Whether this blueprint manages DCF enable/disable lifecycle |
+
+### Clusters (`aws/clusters/prod/` and `aws/clusters/nonprod/`)
+
+| Variable | Type | Default | Required | Description |
+|---|---|---|---|---|
+| `aviatrix_aws_account_name` | `string` | — | yes | Aviatrix access account name for AWS |
+| `aws_region` | `string` | `us-east-2` | no | AWS region |
+| `environment_prefix` | `string` | `pc2` | no | Prefix for resource names |
+| `kubernetes_version` | `string` | `1.35` | no | EKS Kubernetes version |
+| `enable_private_endpoint` | `bool` | `false` | no | Disable public access to the EKS API server endpoint |
+| `enable_control_plane_logging` | `bool` | `false` | no | Enable EKS control plane logging |
+
+### Nodes (`aws/nodes/prod/` and `aws/nodes/nonprod/`)
+
+| Variable | Type | Default | Required | Description |
+|---|---|---|---|---|
+| — | — | — | — | All values sourced from remote state |
+
+## Outputs Reference
+
+| Output | Layer | Description |
+|---|---|---|
+| `transit_gw_name` | Network | Aviatrix Transit Gateway name |
+| `prod_vpc_id` | Network | Production VPC ID |
+| `prod_vpc_name` | Network | Production VPC name |
+| `nonprod_vpc_id` | Network | Non-production VPC ID |
+| `nonprod_vpc_name` | Network | Non-production VPC name |
+| `db_vpc_id` | Network | Database spoke VPC ID |
+| `prod_spoke_gw_name` | Network | Production spoke gateway name |
+| `nonprod_spoke_gw_name` | Network | Non-production spoke gateway name |
+| `db_spoke_gw_name` | Network | Database spoke gateway name |
+| `prod_private_subnets` | Network | Production VPC private subnet IDs |
+| `nonprod_private_subnets` | Network | Non-production VPC private subnet IDs |
+| `dns_zone_id` | Network | Route53 zone ID for DNS |
+| `sg_prod_vpc_uuid` | Network | UUID of the production VPC SmartGroup for use in DCF rules |
+| `sg_nonprod_vpc_uuid` | Network | UUID of the non-production VPC SmartGroup for use in DCF rules |
+| `sg_prod_db_uuid` | Network | UUID of the production database SmartGroup for use in DCF rules |
+| `name_prefix` | Network | Name prefix with random suffix |
+| `cluster_name` | Clusters (prod) | EKS production cluster name |
+| `cluster_endpoint` | Clusters (prod) | EKS production cluster API endpoint |
+| `cluster_certificate_authority_data` | Clusters (prod) | EKS production cluster CA certificate (base64) |
+| `cluster_oidc_issuer_url` | Clusters (prod) | OIDC issuer URL for IRSA |
+| `cluster_oidc_provider_arn` | Clusters (prod) | OIDC provider ARN for IRSA |
+| `cluster_security_group_id` | Clusters (prod) | Security group ID attached to the EKS cluster |
+| `node_security_group_id` | Clusters (prod) | Security group ID attached to the EKS nodes |
+| `cluster_id` | Clusters (prod) | Cluster ID for Aviatrix SmartGroup k8s_cluster_id |
+| `cluster_arn` | Clusters (prod) | EKS cluster ARN (used for Aviatrix kubernetes_cluster onboarding) |
+| `cluster_name` | Clusters (nonprod) | EKS non-production cluster name |
+| `cluster_endpoint` | Clusters (nonprod) | EKS non-production cluster API endpoint |
+| `cluster_certificate_authority_data` | Clusters (nonprod) | EKS non-production cluster CA certificate (base64) |
+| `cluster_oidc_issuer_url` | Clusters (nonprod) | OIDC issuer URL for IRSA |
+| `cluster_oidc_provider_arn` | Clusters (nonprod) | OIDC provider ARN for IRSA |
+| `cluster_security_group_id` | Clusters (nonprod) | Security group ID attached to the EKS cluster |
+| `node_security_group_id` | Clusters (nonprod) | Security group ID attached to the EKS nodes |
+| `cluster_id` | Clusters (nonprod) | Cluster ID for Aviatrix SmartGroup k8s_cluster_id |
+| `cluster_arn` | Clusters (nonprod) | EKS cluster ARN (used for Aviatrix kubernetes_cluster onboarding) |
+
+## Troubleshooting
+
+1. **Prod and nonprod can communicate** — If traffic flows between prod and nonprod VPCs when it should be blocked, verify the VPC-level SmartGroups are correctly configured. Check CoPilot → Security → DCF and confirm `sg_prod_vpc` and `sg_nonprod_vpc` SmartGroups are populated. The deny rule between them must have higher priority than any permit rules.
+
+2. **`prod_cluster_id` / `nonprod_cluster_id` variables** — These must be set AFTER deploying `clusters/prod/` and `clusters/nonprod/`, once the Aviatrix Controller has inventoried each cluster. Get the cluster ID from CoPilot → Security → DCF → SmartGroups (create a K8s SmartGroup and the Controller will list available cluster IDs). Then re-apply `network/` with these values.
+
+3. **Database VPC unreachable from prod** — If prod workloads cannot reach the database, verify the DCF rule permitting `prod_vpc → prod_db` exists and that the DB spoke attachment is applied. Check spoke routing: `aviatrix_spoke_transit_attachment.db` must be present in `network/terraform.tfstate`.
+
+4. **Nonprod sandbox egress blocked** — The sandbox namespace has a more relaxed egress WebGroup (`sandbox_relaxed_egress`). If sandbox pods can't reach the internet, verify the `aviatrix_web_group.sandbox_relaxed_egress` was created and referenced in the DCF ruleset at the correct priority (lower number = higher priority).
+
+5. **EIP quota exceeded** — 3 VPCs × 3 AZs = ~9 NAT Gateways + 3–6 gateway EIPs. Default quota is 5. Request an increase to at least 20 before deploying.
+
+6. **HA gateways not deploying** — HA is controlled by `var.enable_ha` (default: `true`). If you hit EIP quota, set `enable_ha = false` in `terraform.tfvars` to reduce EIP consumption by half.
+
+7. **Autoscaling schedule not taking effect** — The nonprod autoscaling schedules scale down workers during off-hours. Verify schedules are in UTC and match your team's timezone. Check: `aws autoscaling describe-scheduled-actions --auto-scaling-group-name <name>`.

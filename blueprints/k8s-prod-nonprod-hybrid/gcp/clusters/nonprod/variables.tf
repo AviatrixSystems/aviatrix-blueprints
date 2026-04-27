@@ -54,16 +54,19 @@ variable "node_machine_type" {
 }
 
 variable "node_min_count" {
-  type    = number
-  default = 1
+  description = "Minimum node count per zone for the default node pool autoscaler"
+  type        = number
+  default     = 1
 }
 
 variable "node_max_count" {
-  type    = number
-  default = 8
+  description = "Maximum node count per zone for the default node pool autoscaler"
+  type        = number
+  default     = 8
 }
 
 variable "initial_node_count" {
-  type    = number
-  default = 2
+  description = "Initial number of nodes per zone when the node pool is created"
+  type        = number
+  default     = 2
 }

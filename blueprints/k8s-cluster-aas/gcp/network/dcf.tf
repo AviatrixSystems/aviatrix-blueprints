@@ -366,17 +366,21 @@ resource "aviatrix_dcf_ruleset" "caas" {
 #####################
 
 output "dcf_ruleset_uuid" {
-  value = aviatrix_dcf_ruleset.caas.id
+  description = "UUID of the DCF ruleset managing inter-team and egress policies"
+  value       = aviatrix_dcf_ruleset.caas.id
 }
 
 output "smartgroup_team_a_vpc_uuid" {
-  value = aviatrix_smart_group.team_a_vpc.uuid
+  description = "UUID of the SmartGroup matching team-a VPC traffic"
+  value       = aviatrix_smart_group.team_a_vpc.uuid
 }
 
 output "smartgroup_team_b_vpc_uuid" {
-  value = aviatrix_smart_group.team_b_vpc.uuid
+  description = "UUID of the SmartGroup matching team-b VPC traffic"
+  value       = aviatrix_smart_group.team_b_vpc.uuid
 }
 
 output "smartgroup_team_c_vpc_uuid" {
-  value = aviatrix_smart_group.team_c_vpc.uuid
+  description = "UUID of the SmartGroup matching team-c VPC traffic"
+  value       = aviatrix_smart_group.team_c_vpc.uuid
 }

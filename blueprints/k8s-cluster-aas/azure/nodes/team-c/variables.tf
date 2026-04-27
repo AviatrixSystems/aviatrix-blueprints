@@ -1,14 +1,17 @@
 variable "nginx_ingress_chart_version" {
-  type    = string
-  default = "4.11.0"
+  description = "Helm chart version for nginx-ingress controller"
+  type        = string
+  default     = "4.11.0"
 }
 
 variable "external_dns_chart_version" {
-  type    = string
-  default = "1.15.0"
+  description = "Helm chart version for ExternalDNS"
+  type        = string
+  default     = "1.15.0"
 }
 
 variable "node_pool_config" {
+  description = "Configuration for AKS user node pools"
   type = object({
     min_count  = number
     max_count  = number

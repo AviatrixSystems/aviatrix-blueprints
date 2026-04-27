@@ -1,15 +1,5 @@
 # Pattern C: EKS Non-Production Nodes
 
-terraform {
-  required_version = ">= 1.5.0"
-  required_providers {
-    aws        = { source = "hashicorp/aws", version = "~> 5.0" }
-    helm       = { source = "hashicorp/helm", version = "~> 2.12" }
-    kubernetes = { source = "hashicorp/kubernetes", version = "~> 2.25" }
-    aviatrix   = { source = "AviatrixSystems/aviatrix", version = "~> 8.2.0" }
-  }
-}
-
 locals {
   cluster_name     = data.terraform_remote_state.cluster.outputs.cluster_name
   cluster_endpoint = data.terraform_remote_state.cluster.outputs.cluster_endpoint

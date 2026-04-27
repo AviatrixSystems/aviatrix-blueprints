@@ -64,15 +64,18 @@ output "dns_zone_id" {
 
 # SmartGroup UUIDs for cross-module references
 output "sg_prod_vpc_uuid" {
-  value = aviatrix_smart_group.prod_vpc.uuid
+  description = "UUID of the production VPC SmartGroup for use in DCF rules"
+  value       = aviatrix_smart_group.prod_vpc.uuid
 }
 
 output "sg_nonprod_vpc_uuid" {
-  value = aviatrix_smart_group.nonprod_vpc.uuid
+  description = "UUID of the non-production VPC SmartGroup for use in DCF rules"
+  value       = aviatrix_smart_group.nonprod_vpc.uuid
 }
 
 output "sg_prod_db_uuid" {
-  value = aviatrix_smart_group.prod_db.uuid
+  description = "UUID of the production database SmartGroup for use in DCF rules"
+  value       = aviatrix_smart_group.prod_db.uuid
 }
 
 output "name_prefix" {
