@@ -329,13 +329,13 @@ resource "aviatrix_web_group" "github_aviatrix" {
 # Each blueprint creates its own policy group as a standalone attachment point.
 #####################
 
-data "aviatrix_dcf_attachment_point" "terraform_after" {
-  name = "TERRAFORM_AFTER_UI_MANAGED"
+data "aviatrix_dcf_attachment_point" "pre_hook" {
+  name = "PRE_HOOK"
 }
 
 resource "aviatrix_dcf_policy_group" "caas" {
   name      = "${local.name_prefix}-caas-group"
-  attach_to = data.aviatrix_dcf_attachment_point.terraform_after.id
+  attach_to = data.aviatrix_dcf_attachment_point.pre_hook.id
 
   ruleset_reference {
     priority    = 100

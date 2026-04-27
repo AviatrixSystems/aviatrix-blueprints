@@ -258,14 +258,14 @@ resource "aviatrix_web_group" "approved_egress" {
 #   70-99: Reserved for CRD-managed rules (team self-service)
 #####################
 
-data "aviatrix_dcf_attachment_point" "tf_before_ui" {
-  name = "TERRAFORM_BEFORE_UI_MANAGED"
+data "aviatrix_dcf_attachment_point" "pre_hook" {
+  name = "PRE_HOOK"
 }
 
 resource "aviatrix_dcf_ruleset" "namespace_isolation" {
   depends_on = [time_sleep.wait_for_dcf]
   name       = "${local.name_prefix}-namespace-isolation"
-  attach_to  = data.aviatrix_dcf_attachment_point.tf_before_ui.id
+  attach_to  = data.aviatrix_dcf_attachment_point.pre_hook.id
 
   #############################
   # THREAT PREVENTION (Priority 0-1)
