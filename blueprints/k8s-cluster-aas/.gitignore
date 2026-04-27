@@ -32,3 +32,6 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+
+# Local test files — not for distribution
+aws/k8s-apps/traffic-test/
