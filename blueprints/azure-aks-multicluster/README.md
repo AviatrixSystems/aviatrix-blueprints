@@ -61,10 +61,10 @@ az vm list-usage -l eastus2 -o table | grep -E "Total Regional|Standard DSv3|Sta
 ```bash
 REGION=eastus2
 az vm list-usage -l "$REGION" --query "[?contains(name.value,'cores') || contains(name.value,'standardDSv3Family') || contains(name.value,'standardBSFamily')].{name:localName, used:currentValue, limit:limit}" -o tsv | \
-  awk -v OFS='\t' '
-    /Total Regional vCPUs/   { if ($3 < 30) { print "FAIL", $0; bad++ } }
-    /Standard DSv3 Family/   { if ($3 < 16) { print "FAIL", $0; bad++ } }
-    /Standard BSv?2? Family/ { if ($3 < 16) { print "FAIL", $0; bad++ } }
+  awk -F '\t' '
+    /^Total Regional vCPUs\t/   { if (($3+0) < 30) { print "FAIL", $0; bad++ } }
+    /^Standard DSv3 Family/     { if (($3+0) < 16) { print "FAIL", $0; bad++ } }
+    /^Standard BSv?2? Family/   { if (($3+0) < 16) { print "FAIL", $0; bad++ } }
     END { if (bad) { print "Increase the failed quotas above before deploying."; exit 1 } else { print "Quota OK" } }
   '
 ```
@@ -278,7 +278,7 @@ cd network/
 terraform init -upgrade
 
 # Create your variable file
-cp ../terraform.tfvars.example terraform.tfvars
+cp terraform.tfvars.example terraform.tfvars
 # Edit terraform.tfvars — set at minimum:
 #   name_prefix                 (e.g., "aks-demo")
 #   aviatrix_azure_account_name (your Azure account name in Aviatrix Controller)
@@ -426,9 +426,10 @@ kubectl get nodes --context frontend
 kubectl get nodes --context backend
 ```
 
-**Expected output:**
+**Expected output** (one row per `node_count` in the cluster's `node_pool_config` — default is 2):
 ```
 NAME                             STATUS   ROLES    AGE   VERSION
+aks-system-35398034-vmss000000   Ready    <none>   10m   v1.33.x
 aks-system-35398034-vmss000001   Ready    <none>   10m   v1.33.x
 ```
 

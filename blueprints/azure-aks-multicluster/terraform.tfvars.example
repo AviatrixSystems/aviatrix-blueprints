@@ -24,6 +24,8 @@
 
 # ----------------------------
 # network/terraform.tfvars
+# (network/ also has its own terraform.tfvars.example —
+#  prefer copying that one instead of this section)
 # ----------------------------
 
 name_prefix                 = "aks-demo"
