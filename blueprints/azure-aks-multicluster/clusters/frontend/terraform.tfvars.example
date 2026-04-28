@@ -38,4 +38,6 @@ enable_aviatrix_onboarding = true
 # For SaaS / Cloud Fabric controllers this is the same value as
 # AVIATRIX_CONTROLLER_IP. For self-hosted controllers behind NAT, use the
 # controller's public egress IP (not its management IP).
+# Note: tfvars files do NOT expand shell env vars — paste the literal IP
+# (e.g., "3.131.22.171"), not "${AVIATRIX_CONTROLLER_IP}".
 # aviatrix_controller_public_ip = "1.2.3.4"

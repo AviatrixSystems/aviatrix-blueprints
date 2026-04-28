@@ -291,6 +291,9 @@ vim terraform.tfvars
 terraform apply
 ```
 
+> [!TIP]
+> If `terraform apply` fails partway through with a transient controller error like `connection reset by peer` or `502 Bad Gateway` on the Aviatrix Controller URL (most often during `aviatrix_spoke_transit_attachment`), simply re-run `terraform apply`. Terraform picks up where it left off and the controller normally accepts the retry. This is not a configuration bug.
+
 **What's created:**
 - Aviatrix Transit Gateway (transit VNet `10.2.0.0/20`, FireNet-enabled)
 - Frontend VNet (`10.10.0.0/23`) with Aviatrix spoke gateway and UDR
@@ -321,8 +324,10 @@ cp terraform.tfvars.example terraform.tfvars
 #   kubernetes_version            (default: 1.33)
 #   authorized_ip_ranges          (add your IP: run "curl -s ifconfig.me")
 #   enable_aviatrix_onboarding    (default: true — registers cluster with the Controller)
-#   aviatrix_controller_public_ip (set to ${AVIATRIX_CONTROLLER_IP} so the controller
-#                                  reaches the AKS API server)
+#   aviatrix_controller_public_ip (the public IP of your Aviatrix Controller —
+#                                  same value you used for AVIATRIX_CONTROLLER_IP
+#                                  in Step 1. Required only when authorized_ip_ranges
+#                                  is restrictive; skip if you used 0.0.0.0/0.)
 vim terraform.tfvars
 
 # Deploy cluster (~10-15 minutes)
@@ -522,13 +527,25 @@ Gatus on each cluster monitors the other cluster's service over port 8080. Verif
 - `http://db.azure.aviatrixdemo.local` (DB VM in DB spoke)
 - `http://frontend.azure.aviatrixdemo.local:8080` (Gatus in frontend cluster)
 
-You can also test manually:
+> **Two DNS names per cluster**: ExternalDNS publishes both `<cluster>.azure.aviatrixdemo.local` (the Service-direct internal LB at port 8080, used for cross-cluster east-west via Aviatrix transit) and `<cluster>-web.azure.aviatrixdemo.local` (the NGINX Ingress LB at port 80, used by the public AppGW path). The Service LB and the NGINX LB are both fronted by the same Azure `kubernetes-internal` Standard LB resource (one per cluster), so this does not double the LB cost.
+
+You can also test manually with a debug pod (kept alive for 5 min so you can run multiple commands against it):
 ```bash
-# From a debug pod in the frontend cluster, reach the backend service
-kubectl run -it --rm debug --image=nicolaka/netshoot --restart=Never \
-  --context frontend -- curl -s http://backend.azure.aviatrixdemo.local:8080/health
-# Expected: HTTP 200
+# Spawn a debug pod in the frontend cluster
+kubectl run debug --image=nicolaka/netshoot --restart=Never \
+  --context frontend --command -- sleep 300
+kubectl wait --for=condition=Ready pod/debug --context frontend --timeout=90s
+
+# Reach the backend cluster via Aviatrix transit (Service-direct LB, port 8080)
+kubectl exec debug --context frontend -- \
+  curl -s -o /dev/null -w "%{http_code}\n" http://backend.azure.aviatrixdemo.local:8080/health
+# Expected: 200
+
+# Cleanup
+kubectl delete pod debug --context frontend
 ```
+
+> **Use `--command -- sleep …`, not `-it --rm`**: an interactive `kubectl run -it --rm` blocks waiting for a TTY and stalls non-interactive shells (CI, automation). The pattern above is safe to copy-paste into any environment.
 
 ### Scenario 3: DCF Egress Policy — Allowed Domains
 
@@ -549,17 +566,10 @@ Gatus monitors two threat endpoints that **should be blocked** by DCF. They appe
 
 ### Scenario 5: K8s-Typed SmartGroup Membership
 
-Verify that the K8s-typed SmartGroups created in `network/dcf-k8s.tf` resolve membership from the cluster API once onboarding completes.
+The K8s-typed SmartGroups created in `network/dcf-k8s.tf` populate their members dynamically from the cluster API once onboarding succeeds. **CoPilot is the canonical place to verify this** — the Controller API only confirms cluster *registration*, not the resolved pod IPs.
 
 ```bash
-# In CoPilot:
-#   Cloud Workloads → Kubernetes Clusters
-#   Both clusters should show "Onboarded: Yes" with namespace and pod counts populated.
-#
-#   Security → SmartGroups → aks-demo-sg-frontend-gatus-ns
-#   Members tab should list the gatus pod IPs (100.64.x.x range, dynamically resolved).
-
-# From the Controller API (alternative):
+# Step 1 — Confirm both clusters are registered with the controller (use_csp_credentials=true).
 CID=$(curl -sk -X POST "https://${AVIATRIX_CONTROLLER_IP}/v1/api" \
   -d "action=login&username=${AVIATRIX_USERNAME}&password=${AVIATRIX_PASSWORD}" \
   | python3 -c "import sys,json; print(json.load(sys.stdin)['CID'])")
@@ -567,10 +577,21 @@ CID=$(curl -sk -X POST "https://${AVIATRIX_CONTROLLER_IP}/v1/api" \
 curl -sk -H "Authorization: cid ${CID}" \
   "https://${AVIATRIX_CONTROLLER_IP}/v2.5/api/k8s/clusters" \
   | python3 -m json.tool
-# Expected: both aks-demo-frontend and aks-demo-backend listed with use_csp_credentials=true
+# Expected: both aks-demo-frontend and aks-demo-backend listed with credential.use_csp_credentials=true.
+# Resolved pod IPs are NOT exposed by this endpoint — see CoPilot for membership.
+
+# Step 2 — Verify members in CoPilot (the only surface that exposes resolved pod IPs).
+#   Cloud Workloads → Kubernetes Clusters
+#     Both clusters should show "Onboarded: Yes" with namespace and pod counts populated.
+#     First-time sync after cluster onboarding can take up to ~10 minutes.
+#
+#   Security → SmartGroups → aks-demo-sg-frontend-gatus-ns → Members tab
+#     Should list the gatus pod IPs (100.64.x.x range, dynamically resolved).
 ```
 
-The priority-50 DCF rule ("Frontend Gatus to Backend Gatus k8s ns selector") references these SmartGroups. Once members populate, you can confirm enforcement in **CoPilot → Diagnostics → FlowIQ** by filtering for source/destination matching the gatus pod IPs.
+If both clusters are registered but CoPilot's SmartGroup Members tab is still empty after ~10 minutes, see [Troubleshooting → AKS Cluster Shows "Onboarded: No"](#aks-cluster-shows-onboarded-no-in-copilot).
+
+The priority-50 DCF rule ("Frontend Gatus to Backend Gatus k8s ns selector") references these SmartGroups. Once members populate, you can confirm enforcement in **CoPilot → Diagnostics → FlowIQ** by filtering for source/destination matching the gatus pod IPs. While membership is empty the rule is a no-op, but the lower-priority VNet-based rules (priority 14/15) still permit the cross-cluster gatus traffic — so dashboard checks remain green.
 
 ### Scenario 6: DCF CRD-Based Policies
 
@@ -590,13 +611,29 @@ kubectl get webgrouppolicies -n dev --context frontend
 
 ### Scenario 7: Private DNS Resolution
 
-ExternalDNS creates Private DNS records for Gatus Services and Ingresses. Verify DNS resolution works across clusters:
+ExternalDNS creates Private DNS records for Gatus Services and Ingresses. Each cluster registers two records (see "Two DNS names per cluster" note in Scenario 2):
+
+| FQDN | Resolves to | Behind | Used by |
+|------|-------------|--------|---------|
+| `frontend.azure.aviatrixdemo.local` | a frontend IP on `kubernetes-internal` LB (10.10.x.x) | Service `gatus/frontend` (port 8080) | Cross-cluster east-west, DCF hostname SmartGroup `frontend-service` |
+| `frontend-web.azure.aviatrixdemo.local` | NGINX LB (`10.10.0.200`) | Ingress `gatus/frontend-ingress` (port 80) | AppGW → NGINX → gatus public path |
+
+Verify DNS resolution works across clusters from inside a pod:
 
 ```bash
-# From a debug pod in the frontend cluster, resolve the backend DNS name
-kubectl run -it --rm debug --image=nicolaka/netshoot --restart=Never \
-  --context frontend -- nslookup backend.azure.aviatrixdemo.local
-# Expected: resolves to 10.20.x.x (backend NGINX LB IP)
+kubectl run debug --image=nicolaka/netshoot --restart=Never \
+  --context frontend --command -- sleep 300
+kubectl wait --for=condition=Ready pod/debug --context frontend --timeout=90s
+
+# Service-direct LB record (cross-cluster east-west)
+kubectl exec debug --context frontend -- nslookup backend.azure.aviatrixdemo.local
+# Expected: 10.20.x.x (backend Service-direct LB frontend IP)
+
+# Ingress record (NGINX LB used by AppGW)
+kubectl exec debug --context frontend -- nslookup backend-web.azure.aviatrixdemo.local
+# Expected: 10.20.0.200
+
+kubectl delete pod debug --context frontend
 
 # Verify ExternalDNS created the records
 az network private-dns record-set list \
