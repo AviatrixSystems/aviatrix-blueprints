@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Pattern A — Cluster-as-a-Service -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" xmlns="http://www.w3.org/2000/svg">
+      <rect x="340" y="20" width="220" height="60" rx="10" fill="#001A3A" stroke="#0066CC" stroke-width="2"/>
+      <text x="450" y="45" text-anchor="middle" fill="white" font-size="13" font-weight="700">Aviatrix Transit Gateway</text>
+      <text x="450" y="62" text-anchor="middle" fill="#00AAFF" font-size="10">Active/Active | HPE up to 85Gbps</text>
+      <!-- Team A -->
+      <rect x="30" y="140" width="240" height="180" rx="12" fill="white" stroke="#FF9900" stroke-width="2"/>
+      <rect x="30" y="140" width="240" height="32" rx="12" fill="#FF9900"/>
+      <text x="150" y="161" text-anchor="middle" fill="white" font-size="12" font-weight="700">Team A — AWS EKS</text>
+      <rect x="50" y="190" width="90" height="50" rx="6" fill="#FFF3E8" stroke="#FF9900" stroke-width="1"/>
+      <text x="95" y="212" text-anchor="middle" fill="#c2410c" font-size="10" font-weight="600">EKS Cluster</text>
+      <text x="95" y="228" text-anchor="middle" fill="#4A5568" font-size="9">VPC 10.10.0.0/20</text>
+      <rect x="160" y="190" width="90" height="50" rx="6" fill="#E8F0FE" stroke="#0066CC" stroke-width="1"/>
+      <text x="205" y="212" text-anchor="middle" fill="#0066CC" font-size="10" font-weight="600">Spoke GW</text>
+      <text x="205" y="228" text-anchor="middle" fill="#4A5568" font-size="9">Active/Active</text>
+      <rect x="50" y="260" width="200" height="40" rx="6" fill="#F0FFF4" stroke="#00C48C" stroke-width="1"/>
+      <text x="150" y="278" text-anchor="middle" fill="#059669" font-size="10" font-weight="600">DCF: VPC SmartGroup</text>
+      <text x="150" y="292" text-anchor="middle" fill="#4A5568" font-size="9">sg-team-a-vpc</text>
+      <!-- Team B -->
+      <rect x="330" y="140" width="240" height="180" rx="12" fill="white" stroke="#0078D4" stroke-width="2"/>
+      <rect x="330" y="140" width="240" height="32" rx="12" fill="#0078D4"/>
+      <text x="450" y="161" text-anchor="middle" fill="white" font-size="12" font-weight="700">Team B — Azure AKS</text>
+      <rect x="350" y="190" width="90" height="50" rx="6" fill="#E8F0FE" stroke="#0078D4" stroke-width="1"/>
+      <text x="395" y="212" text-anchor="middle" fill="#0078D4" font-size="10" font-weight="600">AKS Cluster</text>
+      <text x="395" y="228" text-anchor="middle" fill="#4A5568" font-size="9">VNet 10.20.0.0/20</text>
+      <rect x="460" y="190" width="90" height="50" rx="6" fill="#E8F0FE" stroke="#0066CC" stroke-width="1"/>
+      <text x="505" y="212" text-anchor="middle" fill="#0066CC" font-size="10" font-weight="600">Spoke GW</text>
+      <text x="505" y="228" text-anchor="middle" fill="#4A5568" font-size="9">Active/Active</text>
+      <rect x="350" y="260" width="200" height="40" rx="6" fill="#F0FFF4" stroke="#00C48C" stroke-width="1"/>
+      <text x="450" y="278" text-anchor="middle" fill="#059669" font-size="10" font-weight="600">DCF: VPC SmartGroup</text>
+      <text x="450" y="292" text-anchor="middle" fill="#4A5568" font-size="9">sg-team-b-vpc</text>
+      <!-- Team C -->
+      <rect x="630" y="140" width="240" height="180" rx="12" fill="white" stroke="#4285F4" stroke-width="2"/>
+      <rect x="630" y="140" width="240" height="32" rx="12" fill="#4285F4"/>
+      <text x="750" y="161" text-anchor="middle" fill="white" font-size="12" font-weight="700">Team C — GCP GKE</text>
+      <rect x="650" y="190" width="90" height="50" rx="6" fill="#F0F0FF" stroke="#4285F4" stroke-width="1"/>
+      <text x="695" y="212" text-anchor="middle" fill="#4285F4" font-size="10" font-weight="600">GKE Cluster</text>
+      <text x="695" y="228" text-anchor="middle" fill="#4A5568" font-size="9">VPC 10.30.0.0/20</text>
+      <rect x="760" y="190" width="90" height="50" rx="6" fill="#E8F0FE" stroke="#0066CC" stroke-width="1"/>
+      <text x="805" y="212" text-anchor="middle" fill="#0066CC" font-size="10" font-weight="600">Spoke GW</text>
+      <text x="805" y="228" text-anchor="middle" fill="#4A5568" font-size="9">Active/Active</text>
+      <rect x="650" y="260" width="200" height="40" rx="6" fill="#F0FFF4" stroke="#00C48C" stroke-width="1"/>
+      <text x="750" y="278" text-anchor="middle" fill="#059669" font-size="10" font-weight="600">DCF: VPC SmartGroup</text>
+      <text x="750" y="292" text-anchor="middle" fill="#4A5568" font-size="9">sg-team-c-vpc</text>
+      <!-- Lines -->
+      <line x1="205" y1="140" x2="380" y2="80" stroke="#FF9900" stroke-width="2" stroke-dasharray="4,4"/>
+      <line x1="450" y1="140" x2="450" y2="80" stroke="#0078D4" stroke-width="2" stroke-dasharray="4,4"/>
+      <line x1="750" y1="140" x2="520" y2="80" stroke="#4285F4" stroke-width="2" stroke-dasharray="4,4"/>
+      <!-- DCF -->
+      <rect x="100" y="380" width="700" height="120" rx="12" fill="#FFFBEB" stroke="#F59E0B" stroke-width="1.5"/>
+      <text x="450" y="405" text-anchor="middle" fill="#92400E" font-size="13" font-weight="700">DCF Policy — Inter-Cluster Rules (VPC SmartGroups)</text>
+      <text x="150" y="430" fill="#4A5568" font-size="11">PERMIT  sg-team-a-vpc  &rarr;  sg-team-b-svc   TCP/443   (approved API)</text>
+      <text x="150" y="450" fill="#4A5568" font-size="11">DENY    sg-team-a-vpc  &rarr;  sg-team-c-vpc   ANY       (block A&rarr;C)</text>
+      <text x="150" y="470" fill="#4A5568" font-size="11">DENY    sg-team-c-vpc  &rarr;  sg-team-a-vpc   ANY       (block C&rarr;A)</text>
+      <text x="150" y="490" fill="#059669" font-size="11" font-weight="600">Both directions explicitly denied &mdash; see Section 8 DCF best practices</text>
+      <line x1="150" y1="320" x2="250" y2="380" stroke="#F59E0B" stroke-width="1" stroke-dasharray="3,3"/>
+      <line x1="450" y1="320" x2="450" y2="380" stroke="#F59E0B" stroke-width="1" stroke-dasharray="3,3"/>
+      <line x1="750" y1="320" x2="650" y2="380" stroke="#F59E0B" stroke-width="1" stroke-dasharray="3,3"/>
+    </svg>

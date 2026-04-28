@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Pattern B — Namespace-as-a-Service -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 500" xmlns="http://www.w3.org/2000/svg">
+      <rect x="340" y="20" width="220" height="50" rx="10" fill="#001A3A" stroke="#0066CC" stroke-width="2"/>
+      <text x="450" y="42" text-anchor="middle" fill="white" font-size="12" font-weight="700">Aviatrix Transit Gateway</text>
+      <text x="450" y="58" text-anchor="middle" fill="#00AAFF" font-size="10">Active/Active | HPE up to 85Gbps</text>
+      <!-- Shared Cluster -->
+      <rect x="80" y="110" width="740" height="260" rx="14" fill="white" stroke="#00C48C" stroke-width="2"/>
+      <rect x="80" y="110" width="740" height="34" rx="14" fill="#00C48C"/>
+      <text x="450" y="132" text-anchor="middle" fill="white" font-size="12" font-weight="700">Shared Kubernetes Cluster — VPC 10.10.0.0/16</text>
+      <rect x="700" y="110" width="120" height="34" rx="14" fill="#0066CC"/>
+      <text x="760" y="131" text-anchor="middle" fill="white" font-size="10" font-weight="700">Spoke GW</text>
+      <!-- Namespaces -->
+      <rect x="110" y="165" width="195" height="80" rx="8" fill="#E8F4FD" stroke="#0066CC" stroke-width="1.5"/>
+      <text x="207" y="185" text-anchor="middle" fill="#0066CC" font-size="11" font-weight="700">ns: team-a</text>
+      <text x="207" y="200" text-anchor="middle" fill="#4A5568" font-size="9">app: api, worker</text>
+      <rect x="125" y="212" width="165" height="20" rx="3" fill="#DBEAFE"/>
+      <text x="207" y="226" text-anchor="middle" fill="#0066CC" font-size="9" font-weight="600">CRD: FirewallPolicy</text>
+      <rect x="345" y="165" width="195" height="80" rx="8" fill="#F0FFF4" stroke="#00C48C" stroke-width="1.5"/>
+      <text x="442" y="185" text-anchor="middle" fill="#059669" font-size="11" font-weight="700">ns: team-b</text>
+      <text x="442" y="200" text-anchor="middle" fill="#4A5568" font-size="9">app: frontend, cache</text>
+      <rect x="360" y="212" width="165" height="20" rx="3" fill="#D1FAE5"/>
+      <text x="442" y="226" text-anchor="middle" fill="#059669" font-size="9" font-weight="600">CRD: FirewallPolicy</text>
+      <rect x="580" y="165" width="195" height="80" rx="8" fill="#F5F3FF" stroke="#7B2FBE" stroke-width="1.5"/>
+      <text x="677" y="185" text-anchor="middle" fill="#7B2FBE" font-size="11" font-weight="700">ns: team-c</text>
+      <text x="677" y="200" text-anchor="middle" fill="#4A5568" font-size="9">app: ml-train, ml-serve</text>
+      <rect x="595" y="212" width="165" height="20" rx="3" fill="#EDE9FE"/>
+      <text x="677" y="226" text-anchor="middle" fill="#7B2FBE" font-size="9" font-weight="600">CRD: FirewallPolicy</text>
+      <!-- Shared NS -->
+      <rect x="110" y="265" width="660" height="32" rx="6" fill="#FFFBEB" stroke="#F59E0B" stroke-width="1"/>
+      <text x="440" y="285" text-anchor="middle" fill="#92400E" font-size="10" font-weight="600">Shared: monitoring | istio-system | cert-manager | ingress-nginx</text>
+      <!-- Baseline -->
+      <rect x="110" y="310" width="660" height="32" rx="6" fill="#FEF3C7" stroke="#D97706" stroke-width="1"/>
+      <text x="440" y="330" text-anchor="middle" fill="#92400E" font-size="10" font-weight="600">Platform DCF Baseline: namespace isolation | approved egress WebGroups</text>
+      <line x1="760" y1="110" x2="520" y2="70" stroke="#0066CC" stroke-width="2" stroke-dasharray="4,4"/>
+      <!-- DCF -->
+      <rect x="100" y="400" width="700" height="80" rx="10" fill="white" stroke="#0066CC" stroke-width="1.5"/>
+      <text x="450" y="422" text-anchor="middle" fill="#001A3A" font-size="12" font-weight="700">DCF SmartGroups — Namespace + Label Based (type: k8s)</text>
+      <text x="130" y="448" fill="#4A5568" font-size="11">sg-team-a: k8s_namespace = "team-a"</text>
+      <text x="400" y="448" fill="#4A5568" font-size="11">sg-team-b: k8s_namespace = "team-b"</text>
+      <text x="130" y="468" fill="#4A5568" font-size="11">sg-team-c: k8s_namespace = "team-c"</text>
+      <text x="400" y="468" fill="#4A5568" font-size="11">sg-monitoring: k8s_namespace = "monitoring"</text>
+    </svg>
