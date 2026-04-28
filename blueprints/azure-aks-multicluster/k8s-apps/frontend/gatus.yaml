@@ -75,11 +75,14 @@ data:
         interval: 60s
         conditions: ["[CONNECTED] == true"]
 
-      # NOTE: This IP must appear in your Aviatrix ThreatGuard feed to be blocked.
-      # Verify against your current threat intelligence feed and replace if needed.
+      # NOTE: Aviatrix ThreatIQ pulls from the ET Open compromised-ips feed,
+      # which rotates daily. The IP below was verified present in the feed at
+      # the time this blueprint was last tested. If your run shows this as
+      # CONNECTED (i.e. NOT blocked), pick a current IP from the live feed:
+      #   curl -s https://rules.emergingthreats.net/blockrules/compromised-ips.txt | grep -vE '^(#|$)' | head -1
       - name: "Threat Feed - Malicious IP"
         group: "Threats"
-        url: "icmp://102.130.117.167"
+        url: "icmp://185.38.148.2"
         interval: 60s
         conditions: ["[CONNECTED] == true"]
 

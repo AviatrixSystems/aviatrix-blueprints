@@ -1108,7 +1108,10 @@ These are intentional behaviors a deployer should be aware of:
 
 - **DCF egress allowlist is descriptive, not enforcing.** The DCF default action on this controller is PERMIT and the ruleset has no final DENY rule, so destinations not listed in any WebGroup (e.g., `example.com`, `iana.org`) still reach the internet. The blueprint's WebGroup-based PERMIT rules show the intended pattern; converting the allowlist to enforcement requires either changing the default action to DENY or adding a final low-priority DENY. If you do that, also add explicit allows for UDP/53 (DNS) and UDP/123 (NTP) so AKS itself keeps working.
 - **Hostname-based SmartGroups for private FQDNs are not active.** `enable_vpc_dns_server = true` consistently fails the controller's DNS check on Controller 9.0.10 with the modules' default GW DNS configuration, so the blueprint disables it on every gateway. Hostname SmartGroups for the public Internet still work (controller resolves externally), but `frontend.azure.aviatrixdemo.local` / `backend.azure.aviatrixdemo.local` / `db.azure.aviatrixdemo.local` SmartGroups won't resolve targets — east-west enforcement falls through to the VNet-based SmartGroups, which is sufficient for the demonstrated traffic flows.
-- **ThreatGuard test IP may be stale.** `102.130.117.167` was an active ThreatGuard feed IP at the time the blueprint was authored. Replace it in `k8s-apps/{frontend,backend}/gatus.yaml` if your controller's current feed differs (CoPilot → Security → ThreatIQ).
+- **Threat-feed test IP rotates.** Aviatrix ThreatIQ ingests the [ET Open compromised-ips feed](https://rules.emergingthreats.net/blockrules/compromised-ips.txt), which rotates roughly daily. The IP referenced in `k8s-apps/{frontend,backend}/gatus.yaml` is a snapshot from one run and will eventually fall out of the feed. When that happens, pick a current IP from the feed and update both YAMLs:
+  ```bash
+  curl -s https://rules.emergingthreats.net/blockrules/compromised-ips.txt | grep -vE '^(#|$)' | head -1
+  ```
 
 ## Additional Resources
 
