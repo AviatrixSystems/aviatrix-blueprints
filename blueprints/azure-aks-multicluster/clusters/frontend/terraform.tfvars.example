@@ -16,3 +16,19 @@ node_pool_config = {
 # Run: curl ifconfig.me  to get your current IP
 # authorized_ip_ranges = ["<YOUR_IP>/32"]
 authorized_ip_ranges = ["0.0.0.0/0"]
+
+# Aviatrix Controller onboarding (so DCF can use K8s-typed SmartGroups).
+# Set to false to skip onboarding (cluster still deploys, but only VNet
+# SmartGroup selectors will work for it).
+enable_aviatrix_onboarding = true
+
+# Controller credentials. Leave unset and export AVIATRIX_CONTROLLER_IP /
+# AVIATRIX_USERNAME / AVIATRIX_PASSWORD env vars (recommended), or set here.
+# aviatrix_controller_ip = "1.2.3.4"
+# aviatrix_username      = "admin"
+# aviatrix_password      = "..."
+
+# Controller public egress IP — appended to authorized_ip_ranges so the
+# controller can reach the AKS API server after fetching the kubeconfig.
+# Leave unset if authorized_ip_ranges already covers the controller (e.g., 0.0.0.0/0).
+# aviatrix_controller_public_ip = "1.2.3.4"

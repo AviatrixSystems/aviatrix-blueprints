@@ -6,11 +6,22 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 4.0"
     }
+    aviatrix = {
+      source  = "AviatrixSystems/aviatrix"
+      version = "~> 8.2"
+    }
   }
 }
 
 provider "azurerm" {
   features {}
+}
+
+provider "aviatrix" {
+  controller_ip           = var.aviatrix_controller_ip
+  username                = var.aviatrix_username
+  password                = var.aviatrix_password
+  skip_version_validation = true
 }
 
 locals {
@@ -105,6 +116,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
     network_plugin      = "azure"
     network_plugin_mode = "overlay" # Cilium overlay — pod IPs in 100.64.0.0/16 are NOT in the VNet
     network_policy      = "cilium"  # Activates Azure CNI Powered by Cilium (replaces kube-proxy with eBPF)
+    network_data_plane  = "cilium"  # Required by AKS API alongside network_policy=cilium
 
     # Pod CIDR: same across both clusters (overlapping by design).
     # Aviatrix spoke gateway SNATs 100.64.x.x → spoke GW IP for transit routing.
@@ -123,10 +135,15 @@ resource "azurerm_kubernetes_cluster" "aks" {
   # The spoke GW's public IP is auto-included because AKS nodes egress through
   # it (UDR 0.0.0.0/0 → spoke GW → SNAT → public IP). Without this the kubelet
   # CSE step fails with VMExtensionError_K8SAPIServerConnFail.
+  # The Aviatrix Controller's egress IP is appended when onboarding is enabled
+  # so the controller can reach the API server after fetching the kubeconfig.
   api_server_access_profile {
     authorized_ip_ranges = concat(
       var.authorized_ip_ranges,
       ["${data.terraform_remote_state.network.outputs.frontend_spoke_gateway_public_ip}/32"],
+      var.enable_aviatrix_onboarding && var.aviatrix_controller_public_ip != null
+      ? ["${var.aviatrix_controller_public_ip}/32"]
+      : [],
     )
   }
 
@@ -134,6 +151,12 @@ resource "azurerm_kubernetes_cluster" "aks" {
     azurerm_role_assignment.aks_vnet_contributor,
     azurerm_role_assignment.aks_route_table,
   ]
+
+  # node_count in the default_node_pool is autoscaled — ignore drift between
+  # the tfvars seed value and the live count to keep terraform plan idempotent.
+  lifecycle {
+    ignore_changes = [default_node_pool[0].node_count]
+  }
 }
 
 #####################

@@ -228,6 +228,9 @@ export ARM_CLIENT_SECRET="<client-secret>"
 az account show
 ```
 
+> [!IMPORTANT]
+> When the cluster layers run with `enable_aviatrix_onboarding = true` (default), the Aviatrix Controller calls each AKS API server directly after fetching the kubeconfig from ARM. Set `aviatrix_controller_public_ip` in `clusters/*/terraform.tfvars` (typically the same as `AVIATRIX_CONTROLLER_IP`) so it's appended to `authorized_ip_ranges`. Without this, the controller will be blocked from the API server even though registration succeeds.
+
 ### Step 2: Deploy Network Infrastructure
 
 The network layer creates the Aviatrix transit/spoke topology, VNets with subnets and UDRs, Application Gateways, Azure Private DNS zone, and the DB test VM.
@@ -275,12 +278,15 @@ cd ../clusters/frontend/
 # Initialize Terraform
 terraform init
 
-# Create variable file (copy from network, same values apply)
-cp ../../terraform.tfvars.example terraform.tfvars
+# Create variable file from the example
+cp terraform.tfvars.example terraform.tfvars
 # Verify or adjust:
-#   azure_region        (default: eastus2)
-#   kubernetes_version  (default: 1.32)
-#   authorized_ip_ranges (add your IP: run "curl -s ifconfig.me")
+#   azure_region                  (default: eastus2)
+#   kubernetes_version            (default: 1.33)
+#   authorized_ip_ranges          (add your IP: run "curl -s ifconfig.me")
+#   enable_aviatrix_onboarding    (default: true — registers cluster with the Controller)
+#   aviatrix_controller_public_ip (set to ${AVIATRIX_CONTROLLER_IP} so the controller
+#                                  reaches the AKS API server)
 vim terraform.tfvars
 
 # Deploy cluster (~10-15 minutes)
@@ -295,6 +301,7 @@ terraform apply
 - Federated credential for ExternalDNS Workload Identity
 - Role assignments: Network Contributor on frontend VNet, route table write access
 - OIDC issuer enabled for Workload Identity
+- `aviatrix_kubernetes_cluster` registration with the Aviatrix Controller (when `enable_aviatrix_onboarding = true`)
 
 ### Step 4: Deploy Backend AKS Cluster (Parallel with Step 3)
 
@@ -304,11 +311,15 @@ cd ../backend/
 # Initialize Terraform
 terraform init
 
+# Same tfvars pattern as frontend — including aviatrix_controller_public_ip
+cp terraform.tfvars.example terraform.tfvars
+vim terraform.tfvars
+
 # Deploy cluster (~10-15 minutes)
 terraform apply
 ```
 
-**What's created:** Same as the frontend cluster, scoped to the backend VNet.
+**What's created:** Same as the frontend cluster, scoped to the backend VNet, including the `aviatrix_kubernetes_cluster` registration when `enable_aviatrix_onboarding = true`.
 
 Steps 3 and 4 can run in parallel in separate terminals.
 
@@ -497,7 +508,32 @@ Gatus monitors two threat endpoints that **should be blocked** by DCF. They appe
 
 > **Note:** The threat IP `102.130.117.167` must be present in your active Aviatrix ThreatGuard feed for blocking to work. If your feed differs, verify and update the IP in `k8s-apps/frontend/gatus.yaml` and `k8s-apps/backend/gatus.yaml`.
 
-### Scenario 5: DCF CRD-Based Policies
+### Scenario 5: K8s-Typed SmartGroup Membership
+
+Verify that the K8s-typed SmartGroups created in `network/dcf-k8s.tf` resolve membership from the cluster API once onboarding completes.
+
+```bash
+# In CoPilot:
+#   Cloud Workloads → Kubernetes Clusters
+#   Both clusters should show "Onboarded: Yes" with namespace and pod counts populated.
+#
+#   Security → SmartGroups → aks-demo-sg-frontend-gatus-ns
+#   Members tab should list the gatus pod IPs (100.64.x.x range, dynamically resolved).
+
+# From the Controller API (alternative):
+CID=$(curl -sk -X POST "https://${AVIATRIX_CONTROLLER_IP}/v1/api" \
+  -d "action=login&username=${AVIATRIX_USERNAME}&password=${AVIATRIX_PASSWORD}" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['CID'])")
+
+curl -sk -H "Authorization: cid ${CID}" \
+  "https://${AVIATRIX_CONTROLLER_IP}/v2.5/api/k8s/clusters" \
+  | python3 -m json.tool
+# Expected: both aks-demo-frontend and aks-demo-backend listed with use_csp_credentials=true
+```
+
+The priority-50 DCF rule ("Frontend Gatus to Backend Gatus k8s ns selector") references these SmartGroups. Once members populate, you can confirm enforcement in **CoPilot → Diagnostics → FlowIQ** by filtering for source/destination matching the gatus pod IPs.
+
+### Scenario 6: DCF CRD-Based Policies
 
 Apply example CRD policies to test Kubernetes-native policy management:
 
@@ -513,7 +549,7 @@ kubectl get firewallpolicies -n gatus --context frontend
 kubectl get webgrouppolicies -n dev --context frontend
 ```
 
-### Scenario 6: Private DNS Resolution
+### Scenario 7: Private DNS Resolution
 
 ExternalDNS creates Private DNS records for Gatus Services and Ingresses. Verify DNS resolution works across clusters:
 
@@ -591,11 +627,17 @@ The network layer provisions a complete DCF policy ruleset. Policies are enforce
 | `backend-vnet` | CIDR | `10.20.0.0/23` |
 | `db-vnet` | CIDR | `10.5.0.0/22` |
 | `all-aks-clusters` | CIDR union | Both AKS VNets |
+| `frontend-cluster` | K8s | All workloads in the frontend AKS cluster |
+| `backend-cluster` | K8s | All workloads in the backend AKS cluster |
+| `frontend-gatus-ns` | K8s | `gatus` namespace, frontend cluster |
+| `backend-gatus-ns` | K8s | `gatus` namespace, backend cluster |
 | `frontend-service` | Hostname | `frontend.azure.aviatrixdemo.local` |
 | `backend-service` | Hostname | `backend.azure.aviatrixdemo.local` |
 | `database` | Hostname | `db.azure.aviatrixdemo.local` |
 | `geo-blocked` | Geo feed | Country: Iran |
 | `threat-intel` | Threat feed | Aviatrix ThreatGuard |
+
+The K8s-typed SmartGroups require both clusters to be onboarded with the Aviatrix Controller (see [AKS Cluster Onboarding](#aks-cluster-onboarding) below). Until onboarded, the K8s SmartGroups exist but have zero members, and any rules referencing them are no-ops — safe to keep deployed.
 
 **WebGroups (domain-based egress filtering):**
 
@@ -617,7 +659,39 @@ The network layer provisions a complete DCF policy ruleset. Policies are enforce
 | 20 | AKS-required HTTPS egress (azure-required + kubernetes-io + docker-hub) | Permit |
 | 21 | AKS-required HTTP egress (Ubuntu/Debian apt repos) | Permit |
 | 30–33 | Additional egress: npm, GitHub Aviatrix paths | Permit |
-| 50–99 | Reserved for Aviatrix k8s-firewall CRD-injected rules | Dynamic |
+| 50 | Frontend `gatus` namespace → backend `gatus` namespace (TCP 8080) — K8s SmartGroup demo | Permit |
+| 51–99 | Reserved for Aviatrix k8s-firewall CRD-injected rules | Dynamic |
+
+### AKS Cluster Onboarding
+
+Each AKS cluster is registered with the Aviatrix Controller via the `aviatrix_kubernetes_cluster` resource in `clusters/{frontend,backend}/onboarding.tf`. Once onboarded, DCF SmartGroups can target Kubernetes-typed selectors (`k8s_cluster_id`, `k8s_namespace`, `k8s_pod`, `k8s_service`) and the controller resolves membership dynamically from the cluster API.
+
+**Authentication flow** (per the [Aviatrix DCF docs for K8s onboarding](https://docs.aviatrix.com/docs/enterprise/8.2/guides/security/dcf/kubernetes-onboard#azure-aks)):
+
+1. Controller calls Azure ARM `Microsoft.ContainerService/managedClusters/listClusterUserCredential/action` via the Aviatrix Azure access account's service principal (`aviatrix_azure_account_name`).
+2. ARM returns a local-account kubeconfig.
+3. Controller connects to the AKS API server FQDN with that kubeconfig.
+
+**Key differences from the AWS/EKS pattern:**
+
+| Concern | EKS | AKS |
+|---|---|---|
+| Cluster auth model | IAM access entry → AAD-style RBAC | **Kubernetes RBAC with local accounts only.** Entra-ID-only auth is *not supported* — the kubeconfig from ARM contains `exec` entries the controller cannot process. |
+| In-cluster RBAC | `view-nodes` ClusterRole + binding required | Not required — the kubeconfig from `listClusterUserCredential` is admin-equivalent. |
+| Per-cluster role assignment | EKS access entry + `AmazonEKSViewPolicy` | None per-cluster — subscription-scoped Contributor on the access account SP covers it. |
+
+**Required Azure RBAC actions on the access account SP** (subscription scope, all included in `Contributor`):
+
+- `Microsoft.ResourceGraph/resources/read`
+- `Microsoft.ContainerService/managedClusters/read`
+- `Microsoft.ContainerService/managedClusters/listClusterUserCredential/action`
+- `Microsoft.Compute/virtualMachines/read`
+- `Microsoft.Network/networkInterfaces/read`
+- `Microsoft.Network/networkSecurityGroups/read`
+
+**API server allowlist:** The controller's public egress IP must be in the AKS API server's `authorized_ip_ranges`. Set `aviatrix_controller_public_ip` in `clusters/*/terraform.tfvars` and the cluster will append it automatically (alongside the spoke gateway public IP for AKS-node egress).
+
+**Toggle:** Set `enable_aviatrix_onboarding = false` in `clusters/*/terraform.tfvars` to skip onboarding. The cluster still deploys; only VNet-typed SmartGroup selectors will resolve for it.
 
 ### Kubernetes CRD-Based Firewall Policies
 
@@ -722,12 +796,22 @@ cd nodes/backend/ && terraform destroy
 
 ### Step 3: Destroy AKS Clusters (Parallel)
 
+`terraform destroy` removes the `aviatrix_kubernetes_cluster` registration from the controller as well as the AKS cluster itself. After destroy, confirm the registrations are gone (the Aviatrix provider has historically left stale records for some resource types):
+
 ```bash
 # Terminal 1
 cd clusters/frontend/ && terraform destroy
 
 # Terminal 2
 cd clusters/backend/ && terraform destroy
+
+# Verify no stale K8s cluster registrations remain on the controller
+CID=$(curl -sk -X POST "https://${AVIATRIX_CONTROLLER_IP}/v1/api" \
+  -d "action=login&username=${AVIATRIX_USERNAME}&password=${AVIATRIX_PASSWORD}" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['CID'])")
+curl -sk -H "Authorization: cid ${CID}" \
+  "https://${AVIATRIX_CONTROLLER_IP}/v2.5/api/k8s/clusters"
+# Expected: []  (or no entries for aks-demo-*)
 ```
 
 ### Step 4: Destroy Network Layer
@@ -735,6 +819,8 @@ cd clusters/backend/ && terraform destroy
 ```bash
 cd network/ && terraform destroy
 ```
+
+This destroys the K8s SmartGroups (`network/dcf-k8s.tf`) along with the rest of the DCF resources. Their cluster_id selectors point at AKS resources that no longer exist by this stage; the controller deletes them cleanly because they're regular Aviatrix resources, not Azure-side state.
 
 ### Step 5: Clean Up kubectl Contexts (Optional)
 
@@ -843,6 +929,54 @@ If the NGINX ingress controller Service shows `<pending>` for EXTERNAL-IP instea
    ```bash
    kubectl get secret -n kube-system --context frontend | grep azure
    ```
+
+### AKS Cluster Shows "Onboarded: No" in CoPilot
+
+After `clusters/*` apply succeeds, the cluster shows under CoPilot → Cloud Workloads → Kubernetes Clusters but with **Onboarded: No**, or the K8s SmartGroups have zero members:
+
+1. **Check that the controller's egress IP is in the AKS API server allowlist.** The controller calls ARM (no IP gating there) to fetch the kubeconfig, then connects to the AKS API server FQDN — the second hop is what fails when the allowlist is wrong.
+   ```bash
+   az aks show -g <cluster-rg> -n <cluster-name> \
+     --query 'apiServerAccessProfile.authorizedIpRanges' -o tsv
+   # Expect to see: <controller_public_ip>/32, <spoke_gw_public_ip>/32, your IP
+   ```
+   If the controller IP is missing, set `aviatrix_controller_public_ip` in the cluster's `terraform.tfvars` and re-apply.
+
+2. **Verify the access account SP has the right Azure RBAC actions.** Subscription-scoped Contributor is sufficient. If it's narrower:
+   ```bash
+   az role assignment list --assignee <arm_ad_client_id> --all \
+     --query '[].{role:roleDefinitionName,scope:scope}' -o tsv
+   # Required actions (covered by Contributor):
+   #   Microsoft.ContainerService/managedClusters/listClusterUserCredential/action
+   #   Microsoft.ContainerService/managedClusters/read
+   #   Microsoft.ResourceGraph/resources/read
+   ```
+
+3. **Check the cluster isn't Entra-ID-only.** The Aviatrix Controller cannot process `exec`-based kubeconfigs. AKS must use Kubernetes RBAC with local accounts:
+   ```bash
+   az aks show -g <cluster-rg> -n <cluster-name> \
+     --query '{aad:aadProfile, localAccount:disableLocalAccounts}'
+   # aadProfile should be null OR have managed:true with azureRbac:true (NOT azureRbac alone)
+   # disableLocalAccounts must be false
+   ```
+
+4. **Confirm the registration exists on the controller** via the API:
+   ```bash
+   CID=$(curl -sk -X POST "https://${AVIATRIX_CONTROLLER_IP}/v1/api" \
+     -d "action=login&username=${AVIATRIX_USERNAME}&password=${AVIATRIX_PASSWORD}" \
+     | python3 -c "import sys,json; print(json.load(sys.stdin)['CID'])")
+   curl -sk -H "Authorization: cid ${CID}" \
+     "https://${AVIATRIX_CONTROLLER_IP}/v2.5/api/k8s/clusters" | python3 -m json.tool
+   ```
+   `resource: null` in this response is **expected** when `use_csp_credentials = true` — that field only populates for custom/self-managed registrations. The presence of the cluster in the list with the right `cluster_id` is the registration confirmation.
+
+### AKS API Update Fails: "NetworkPolicy cilium requires NetworkDataplane cilium"
+
+If `terraform apply` on a cluster layer fails with this error during a cluster modify, the cluster was created before AKS added the cross-validation but the provider now flags drift on `network_data_plane`. The blueprint sets `network_data_plane = "cilium"` explicitly to satisfy the check; if you've stripped it, restore it. The change requires a control-plane update (~10–15 minutes).
+
+### AKS Cluster Plan Errors: "cannot change `node_count` when `auto_scaling_enabled` is set to `true`"
+
+The default node pool is autoscaled (`min_count = 1`, `max_count = 3`), so the live `node_count` drifts from the seed value in tfvars. The blueprint already includes `lifecycle { ignore_changes = [default_node_pool[0].node_count] }` to suppress this. If you've removed it, restore it; otherwise plan-time errors block legitimate changes to other cluster attributes.
 
 ### AppGW Provisioning Fails or Times Out
 
@@ -1086,6 +1220,7 @@ Each layer publishes outputs that the next layer (or operators) consume.
 | `db_vm_private_ip`, `db_vm_name` | string | DB target IP for east-west tests |
 | `pod_cidr`, `service_cidr`, `dns_service_ip` | string | Cluster network plumbing |
 | `dcf_ruleset_uuid`, `smartgroup_*_uuid`, `webgroup_*_uuid` | string | DCF references for K8s CRD policies |
+| `frontend_aks_cluster_id`, `backend_aks_cluster_id` | string | Pre-computed lowercased AKS resource IDs used as `k8s_cluster_id` in K8s SmartGroups (matches what the clusters layer onboards with) |
 
 ### `clusters/{frontend,backend}/`
 
@@ -1097,6 +1232,7 @@ Each layer publishes outputs that the next layer (or operators) consume.
 | `kubelet_identity_object_id`, `aks_identity_principal_id`, `external_dns_client_id` | no | Role assignment + Workload Identity binding |
 | `resource_group_name`, `node_resource_group` | no | The `MC_*` group AKS auto-creates |
 | `kubectl_config_command` | no | Copy/paste-friendly `az aks get-credentials …` |
+| `aviatrix_cluster_id`, `aviatrix_onboarded` | no | Lowercased cluster ID used by `aviatrix_kubernetes_cluster` and onboarding-on toggle |
 
 ### `nodes/{frontend,backend}/`
 
@@ -1107,7 +1243,8 @@ No outputs — this layer only installs Helm releases.
 These are intentional behaviors a deployer should be aware of:
 
 - **DCF egress allowlist is descriptive, not enforcing.** The DCF default action on this controller is PERMIT and the ruleset has no final DENY rule, so destinations not listed in any WebGroup (e.g., `example.com`, `iana.org`) still reach the internet. The blueprint's WebGroup-based PERMIT rules show the intended pattern; converting the allowlist to enforcement requires either changing the default action to DENY or adding a final low-priority DENY. If you do that, also add explicit allows for UDP/53 (DNS) and UDP/123 (NTP) so AKS itself keeps working.
-- **Hostname-based SmartGroups for private FQDNs are not active.** `enable_vpc_dns_server = true` consistently fails the controller's DNS check on Controller 9.0.10 with the modules' default GW DNS configuration, so the blueprint disables it on every gateway. Hostname SmartGroups for the public Internet still work (controller resolves externally), but `frontend.azure.aviatrixdemo.local` / `backend.azure.aviatrixdemo.local` / `db.azure.aviatrixdemo.local` SmartGroups won't resolve targets — east-west enforcement falls through to the VNet-based SmartGroups, which is sufficient for the demonstrated traffic flows.
+- **Hostname-based SmartGroups for private FQDNs are not active.** `enable_vpc_dns_server = true` consistently fails the controller's DNS check on Controller 9.0.10 with the modules' default GW DNS configuration, so the blueprint disables it on every gateway. Hostname SmartGroups for the public Internet still work (controller resolves externally), but `frontend.azure.aviatrixdemo.local` / `backend.azure.aviatrixdemo.local` / `db.azure.aviatrixdemo.local` SmartGroups won't resolve targets — east-west enforcement falls through to the VNet-based SmartGroups, which is sufficient for the demonstrated traffic flows. The K8s-typed SmartGroups (`frontend-cluster`, `backend-cluster`, `frontend-gatus-ns`, `backend-gatus-ns`) sidestep this entirely since they target by cluster/namespace identity rather than by FQDN.
+- **AKS pod-name SmartGroups would match by name, not labels.** Provider 8.2's `k8s_pod` selector takes a pod *name*, so it won't match Deployment-generated names with hashes (e.g., `frontend-7d4c89-xyz12`). Use `k8s_namespace` (and `k8s_service` for services exposed via a Service object) instead. Label-selector matching is not supported in this provider version.
 - **Threat-feed test IP rotates.** Aviatrix ThreatIQ ingests the [ET Open compromised-ips feed](https://rules.emergingthreats.net/blockrules/compromised-ips.txt), which rotates roughly daily. The IP referenced in `k8s-apps/{frontend,backend}/gatus.yaml` is a snapshot from one run and will eventually fall out of the feed. When that happens, pick a current IP from the feed and update both YAMLs:
   ```bash
   curl -s https://rules.emergingthreats.net/blockrules/compromised-ips.txt | grep -vE '^(#|$)' | head -1

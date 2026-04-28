@@ -1,6 +1,11 @@
 # Feature: Onboard AKS Clusters with the Aviatrix Controller
 
-> Status: **Spec / not yet implemented.** This document captures the scope and the open questions so the implementation work can happen in a separate session.
+> Status: **Implemented.** See `clusters/{frontend,backend}/onboarding.tf`, `network/dcf-k8s.tf`, and the README's "AKS Cluster Onboarding" section under *How It Works*. This document is preserved as the original design discussion; **the README is the source of truth for the deployed behavior**, including a few corrections to the spec below.
+>
+> Spec deltas (corrected during implementation):
+> - **No AAD/Entra integration.** The Aviatrix DCF docs ([8.2 K8s onboarding](https://docs.aviatrix.com/docs/enterprise/8.2/guides/security/dcf/kubernetes-onboard#azure-aks)) require Kubernetes RBAC with local accounts; Entra-only auth is unsupported because the kubeconfig returned by ARM contains `exec` entries the controller can't process.
+> - **No in-cluster `view-nodes` ClusterRole.** The kubeconfig from `listClusterUserCredential/action` is admin-equivalent; the AWS-EKS in-cluster RBAC pattern is not needed on Azure.
+> - **No per-cluster role assignment.** Subscription-scoped Contributor on the Aviatrix Azure access account already covers the required ARM action.
 
 ## Background
 

@@ -471,7 +471,28 @@ resource "aviatrix_dcf_ruleset" "aks_demo" {
   }
 
   #############################
-  # PLACEHOLDER: K8s CRD POLICIES (Priority 50-99)
+  # K8s-TYPED DEMO (Priority 50)
+  # Demonstrates that, once clusters are onboarded, DCF can target K8s
+  # namespaces directly. Membership of these SmartGroups (defined in
+  # dcf-k8s.tf) is resolved by the controller from the cluster API.
+  # Empty until enable_aviatrix_onboarding completes in clusters/*.
+  #############################
+
+  rules {
+    name             = "Frontend Gatus to Backend Gatus k8s ns selector"
+    action           = "PERMIT"
+    priority         = 50
+    protocol         = "TCP"
+    logging          = true
+    src_smart_groups = [aviatrix_smart_group.frontend_gatus_ns.uuid]
+    dst_smart_groups = [aviatrix_smart_group.backend_gatus_ns.uuid]
+    port_ranges {
+      lo = 8080
+    }
+  }
+
+  #############################
+  # PLACEHOLDER: K8s CRD POLICIES (Priority 51-99)
   # Inserted programmatically by Aviatrix k8s-firewall controller.
   # See k8s-apps/dcf-crd/ for FirewallPolicy / WebGroupPolicy CRD examples.
   #############################

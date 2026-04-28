@@ -77,3 +77,13 @@ output "kubectl_config_command" {
   description = "Command to configure kubectl for this cluster"
   value       = "az aks get-credentials --resource-group ${azurerm_kubernetes_cluster.aks.resource_group_name} --name ${azurerm_kubernetes_cluster.aks.name} --overwrite-existing"
 }
+
+output "aviatrix_cluster_id" {
+  description = "Lowercased cluster_id used for Aviatrix onboarding (also the SmartGroup k8s_cluster_id selector value)"
+  value       = lower(azurerm_kubernetes_cluster.aks.id)
+}
+
+output "aviatrix_onboarded" {
+  description = "Whether this cluster is registered with the Aviatrix Controller"
+  value       = var.enable_aviatrix_onboarding
+}
