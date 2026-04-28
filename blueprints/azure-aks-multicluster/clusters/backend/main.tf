@@ -109,8 +109,14 @@ resource "azurerm_kubernetes_cluster" "aks" {
     outbound_type = "userDefinedRouting"
   }
 
+  # The spoke GW's public IP is auto-included because AKS nodes egress through
+  # it (UDR 0.0.0.0/0 → spoke GW → SNAT → public IP). Without this the kubelet
+  # CSE step fails with VMExtensionError_K8SAPIServerConnFail.
   api_server_access_profile {
-    authorized_ip_ranges = var.authorized_ip_ranges
+    authorized_ip_ranges = concat(
+      var.authorized_ip_ranges,
+      ["${data.terraform_remote_state.network.outputs.backend_spoke_gateway_public_ip}/32"],
+    )
   }
 
   depends_on = [

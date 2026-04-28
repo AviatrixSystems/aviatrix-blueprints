@@ -5,9 +5,9 @@ variable "azure_region" {
 }
 
 variable "kubernetes_version" {
-  description = "Kubernetes version for the AKS cluster"
+  description = "Kubernetes version for the AKS cluster (avoid LTS-only versions like 1.32 unless on Premium tier)"
   type        = string
-  default     = "1.32"
+  default     = "1.33"
 }
 
 variable "node_pool_config" {
@@ -22,7 +22,10 @@ variable "node_pool_config" {
     node_count = 2
     min_count  = 1
     max_count  = 3
-    vm_size    = "Standard_D2s_v3"
+    # B-series chosen so AKS nodes don't compete with the 4 Aviatrix gateways
+    # for the DSv3 vCPU quota in eastus2 (default 10). B-series is also a
+    # better fit for bursty lab workloads (NGINX, Gatus, sys pods).
+    vm_size = "Standard_B2s"
   }
 }
 
