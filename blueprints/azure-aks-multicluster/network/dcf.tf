@@ -476,18 +476,26 @@ resource "aviatrix_dcf_ruleset" "aks_demo" {
   # namespaces directly. Membership of these SmartGroups (defined in
   # dcf-k8s.tf) is resolved by the controller from the cluster API.
   # Empty until enable_aviatrix_onboarding completes in clusters/*.
+  #
+  # Gated by var.enable_k8s_smartgroup_demo so the rule + the SmartGroups
+  # it references can be removed in a single apply before destroying the
+  # clusters layer (the cluster registration cannot be deleted while a
+  # SmartGroup references its cluster_id).
   #############################
 
-  rules {
-    name             = "Frontend Gatus to Backend Gatus k8s ns selector"
-    action           = "PERMIT"
-    priority         = 50
-    protocol         = "TCP"
-    logging          = true
-    src_smart_groups = [aviatrix_smart_group.frontend_gatus_ns.uuid]
-    dst_smart_groups = [aviatrix_smart_group.backend_gatus_ns.uuid]
-    port_ranges {
-      lo = 8080
+  dynamic "rules" {
+    for_each = var.enable_k8s_smartgroup_demo ? [1] : []
+    content {
+      name             = "Frontend Gatus to Backend Gatus k8s ns selector"
+      action           = "PERMIT"
+      priority         = 50
+      protocol         = "TCP"
+      logging          = true
+      src_smart_groups = [aviatrix_smart_group.frontend_gatus_ns[0].uuid]
+      dst_smart_groups = [aviatrix_smart_group.backend_gatus_ns[0].uuid]
+      port_ranges {
+        lo = 8080
+      }
     }
   }
 

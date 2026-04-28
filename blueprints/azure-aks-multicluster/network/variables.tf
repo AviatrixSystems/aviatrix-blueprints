@@ -96,3 +96,16 @@ variable "private_dns_zone_name" {
   type        = string
   default     = "azure.aviatrixdemo.local"
 }
+
+variable "enable_k8s_smartgroup_demo" {
+  description = <<-EOT
+    Create K8s-typed SmartGroups (per-cluster + per-cluster gatus namespace)
+    and the priority-50 demo DCF rule that references them.
+
+    DESTROY WORKFLOW: set this to false and `terraform apply` BEFORE destroying
+    clusters/{frontend,backend}. The aviatrix_kubernetes_cluster registration
+    cannot be deleted while these SmartGroups reference its cluster_id.
+  EOT
+  type        = bool
+  default     = true
+}

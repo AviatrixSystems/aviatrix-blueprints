@@ -31,7 +31,8 @@ locals {
 #####################
 
 resource "aviatrix_smart_group" "frontend_cluster" {
-  name = "${var.name_prefix}-sg-frontend-cluster"
+  count = var.enable_k8s_smartgroup_demo ? 1 : 0
+  name  = "${var.name_prefix}-sg-frontend-cluster"
   selector {
     match_expressions {
       type           = "k8s"
@@ -41,7 +42,8 @@ resource "aviatrix_smart_group" "frontend_cluster" {
 }
 
 resource "aviatrix_smart_group" "backend_cluster" {
-  name = "${var.name_prefix}-sg-backend-cluster"
+  count = var.enable_k8s_smartgroup_demo ? 1 : 0
+  name  = "${var.name_prefix}-sg-backend-cluster"
   selector {
     match_expressions {
       type           = "k8s"
@@ -56,7 +58,8 @@ resource "aviatrix_smart_group" "backend_cluster" {
 #####################
 
 resource "aviatrix_smart_group" "frontend_gatus_ns" {
-  name = "${var.name_prefix}-sg-frontend-gatus-ns"
+  count = var.enable_k8s_smartgroup_demo ? 1 : 0
+  name  = "${var.name_prefix}-sg-frontend-gatus-ns"
   selector {
     match_expressions {
       type           = "k8s"
@@ -67,7 +70,8 @@ resource "aviatrix_smart_group" "frontend_gatus_ns" {
 }
 
 resource "aviatrix_smart_group" "backend_gatus_ns" {
-  name = "${var.name_prefix}-sg-backend-gatus-ns"
+  count = var.enable_k8s_smartgroup_demo ? 1 : 0
+  name  = "${var.name_prefix}-sg-backend-gatus-ns"
   selector {
     match_expressions {
       type           = "k8s"
@@ -92,11 +96,11 @@ output "backend_aks_cluster_id" {
 }
 
 output "smartgroup_frontend_gatus_ns_uuid" {
-  description = "UUID of the K8s namespace SmartGroup for the frontend gatus namespace"
-  value       = aviatrix_smart_group.frontend_gatus_ns.uuid
+  description = "UUID of the K8s namespace SmartGroup for the frontend gatus namespace (null when enable_k8s_smartgroup_demo=false)"
+  value       = try(aviatrix_smart_group.frontend_gatus_ns[0].uuid, null)
 }
 
 output "smartgroup_backend_gatus_ns_uuid" {
-  description = "UUID of the K8s namespace SmartGroup for the backend gatus namespace"
-  value       = aviatrix_smart_group.backend_gatus_ns.uuid
+  description = "UUID of the K8s namespace SmartGroup for the backend gatus namespace (null when enable_k8s_smartgroup_demo=false)"
+  value       = try(aviatrix_smart_group.backend_gatus_ns[0].uuid, null)
 }

@@ -761,20 +761,28 @@ az network private-dns record-set a add-record \
 
 ## Destroy Instructions
 
-Always destroy in **reverse order**. Kubernetes resources (ingresses, services) must be deleted first so that ExternalDNS can clean up Private DNS records before Terraform removes the DNS zone.
+Always destroy in **reverse order**. Two cross-layer dependencies need explicit cleanup that Terraform doesn't handle automatically:
 
-### Step 1: Delete Kubernetes Resources
+1. **K8s-firewall CRDs orphan controller-side state when the Helm release goes away.** Delete the FirewallPolicy/WebGroupPolicy CRs *before* destroying the nodes layer so the in-cluster controller can run finalizers and clean its controller-side SmartGroups + policy lists.
+2. **K8s SmartGroups in the network layer pin the cluster registrations.** The `aviatrix_kubernetes_cluster` resource cannot be deleted while any SmartGroup references its cluster_id. Toggle them off before destroying clusters via `enable_k8s_smartgroup_demo = false`.
+
+### Step 1: Delete Kubernetes Resources (ingresses, LB services, DCF CRs)
 
 ```bash
 # Frontend cluster
 kubectl delete ingress --all -A --context frontend
 kubectl delete svc -A --field-selector spec.type=LoadBalancer --context frontend
+kubectl delete firewallpolicies.networking.aviatrix.com --all -A --context frontend 2>/dev/null || true
+kubectl delete webgrouppolicies.networking.aviatrix.com --all -A --context frontend 2>/dev/null || true
 
 # Backend cluster
 kubectl delete ingress --all -A --context backend
 kubectl delete svc -A --field-selector spec.type=LoadBalancer --context backend
+kubectl delete firewallpolicies.networking.aviatrix.com --all -A --context backend 2>/dev/null || true
+kubectl delete webgrouppolicies.networking.aviatrix.com --all -A --context backend 2>/dev/null || true
 
-# Wait ~60s for ExternalDNS to remove DNS records
+# Wait ~60s for ExternalDNS to remove DNS records and the k8s-firewall controller
+# to process its CR finalizers (removes controller-side SmartGroups + policy lists).
 sleep 60
 
 # Verify DNS records are cleaned up (only db.* should remain as a Terraform-managed record)
@@ -783,6 +791,8 @@ az network private-dns record-set list \
   --zone-name azure.aviatrixdemo.local \
   --output table
 ```
+
+If you skip the CR cleanup, the k8s-firewall Helm release will be torn down before its controller can finalize its CRs. The controller-side SmartGroups + policy lists become orphans that block the cluster destroy in step 4 with `[AVXERR-SMARTGROUP-0003] ... present in one or more dfw policies`. The recovery procedure (after the fact) is at the end of this section.
 
 ### Step 2: Destroy Node Pools (Parallel)
 
@@ -794,9 +804,21 @@ cd nodes/frontend/ && terraform destroy
 cd nodes/backend/ && terraform destroy
 ```
 
-### Step 3: Destroy AKS Clusters (Parallel)
+### Step 3: Disable K8s SmartGroup Demo
 
-`terraform destroy` removes the `aviatrix_kubernetes_cluster` registration from the controller as well as the AKS cluster itself. After destroy, confirm the registrations are gone (the Aviatrix provider has historically left stale records for some resource types):
+The K8s SmartGroups in `network/dcf-k8s.tf` and the priority-50 demo rule reference the AKS cluster IDs. The Aviatrix Controller refuses to delete the `aviatrix_kubernetes_cluster` registration while any SmartGroup still references it. Disable both via the gating variable:
+
+```bash
+cd network/
+
+# Apply with the demo disabled — destroys the 4 K8s SmartGroups and removes the
+# priority-50 rule from the DCF ruleset. ~10s.
+terraform apply -auto-approve -var enable_k8s_smartgroup_demo=false
+```
+
+### Step 4: Destroy AKS Clusters (Parallel)
+
+`terraform destroy` removes the `aviatrix_kubernetes_cluster` registration from the controller as well as the AKS cluster itself.
 
 ```bash
 # Terminal 1
@@ -814,19 +836,55 @@ curl -sk -H "Authorization: cid ${CID}" \
 # Expected: []  (or no entries for aks-demo-*)
 ```
 
-### Step 4: Destroy Network Layer
+### Step 5: Destroy Network Layer
 
 ```bash
-cd network/ && terraform destroy
+cd network/ && terraform destroy -var enable_k8s_smartgroup_demo=false
 ```
 
-This destroys the K8s SmartGroups (`network/dcf-k8s.tf`) along with the rest of the DCF resources. Their cluster_id selectors point at AKS resources that no longer exist by this stage; the controller deletes them cleanly because they're regular Aviatrix resources, not Azure-side state.
+The `-var` is needed so the destroy plan matches the live state from Step 3 (otherwise Terraform will plan to recreate the K8s SmartGroups before destroying everything).
 
-### Step 5: Clean Up kubectl Contexts (Optional)
+### Step 6: Clean Up kubectl Contexts (Optional)
 
 ```bash
 kubectl config delete-context frontend
 kubectl config delete-context backend
+```
+
+### Recovery: orphaned k8s-firewall controller state
+
+If you skipped Step 1's CR cleanup, the cluster destroy in Step 4 fails with
+`failed to delete kubernetes cluster: HTTP DELETE ... cluster is still used in smart groups: ..., firewallpolicysource--..., webgrouppolicy-target-...`.
+
+These orphans are controller-side records the k8s-firewall controller didn't get a chance to clean up. Remove them via the Controller API:
+
+```bash
+CID=$(curl -sk -X POST "https://${AVIATRIX_CONTROLLER_IP}/v1/api" \
+  -d "action=login&username=${AVIATRIX_USERNAME}&password=${AVIATRIX_PASSWORD}" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['CID'])")
+
+# 1. Find K8s-injected policy lists (metadata.k8s set):
+curl -sk -H "Authorization: cid ${CID}" \
+  "https://${AVIATRIX_CONTROLLER_IP}/v2.5/api/microseg/policy-list3" \
+  | jq '.dcf_policies[] | select(.metadata.k8s) | {uuid, name}'
+
+# 2. For each non-system list (UUID NOT starting with "defa11a1-"), DELETE:
+curl -sk -X DELETE -H "Authorization: cid ${CID}" \
+  "https://${AVIATRIX_CONTROLLER_IP}/v2.5/api/microseg/policy-list3/<uuid>"
+
+# 3. For SYSTEM lists like "K8s Policy List" (defa11a1-3000-6000-4000-...), PUT
+#    with empty policies array to clear injected rules without deleting the list itself:
+curl -sk -X PUT -H "Authorization: cid ${CID}" -H "Content-Type: application/json" \
+  -d '{"name":"K8s Policy List","attach_to":"defa11a1-3000-6000-5000-000000000000","policies":[],"metadata":{"k8s":{"resource-type":"k8s-policylist"}}}' \
+  "https://${AVIATRIX_CONTROLLER_IP}/v2.5/api/microseg/policy-list3/defa11a1-3000-6000-4000-000000000000"
+
+# 4. Now the orphan SmartGroups can be deleted:
+curl -sk -H "Authorization: cid ${CID}" \
+  "https://${AVIATRIX_CONTROLLER_IP}/v2.5/api/app-domains" \
+  | jq '.app_domains[] | select(.name | startswith("firewallpolicysource") or startswith("webgrouppolicy-")) | .uuid'
+# DELETE each via /v2.5/api/app-domains/<uuid>
+
+# 5. Resume Step 4 (cluster destroy).
 ```
 
 ---
