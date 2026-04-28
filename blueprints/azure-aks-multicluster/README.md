@@ -863,10 +863,10 @@ kubectl delete webgrouppolicies.networking.aviatrix.com --all -A --context backe
 sleep 60
 
 # Verify DNS records are cleaned up (only db.* should remain as a Terraform-managed record)
-az network private-dns record-set list \
+az network private-dns record-set a list \
   --resource-group <name_prefix>-shared-rg \
   --zone-name azure.aviatrixdemo.local \
-  --output table
+  --query "[].{name:name, ips:aRecords[].ipv4Address}" -o tsv
 ```
 
 If you skip the CR cleanup, the k8s-firewall Helm release will be torn down before its controller can finalize its CRs. The controller-side SmartGroups + policy lists become orphans that block the cluster destroy in step 4 with `[AVXERR-SMARTGROUP-0003] ... present in one or more dfw policies`. The recovery procedure (after the fact) is at the end of this section.
