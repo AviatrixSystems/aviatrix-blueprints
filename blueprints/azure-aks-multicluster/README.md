@@ -892,6 +892,34 @@ cd network/
 terraform apply -auto-approve -var enable_k8s_smartgroup_demo=false
 ```
 
+> [!IMPORTANT]
+> If the apply fails with `[AVXERR-SMARTGROUP-0003] Smart Group ... present in one or more dfw policies`, the priority-50 rule was not removed before Terraform attempted the SG delete. The `depends_on` in `dcf.tf` should prevent this on most controller versions, but eventual-consistency can still bite. Recovery:
+>
+> ```bash
+> # Find the policy list UUID for our ruleset and the priority-50 rule's parent.
+> CID=$(curl -sk -X POST "https://${AVIATRIX_CONTROLLER_IP}/v1/api" \
+>   -d "action=login&username=${AVIATRIX_USERNAME}&password=${AVIATRIX_PASSWORD}" \
+>   | python3 -c "import sys,json; print(json.load(sys.stdin)['CID'])")
+>
+> # Build a pruned copy of the policy list (priority-50 removed) and PUT it back.
+> curl -sk -H "Authorization: cid ${CID}" \
+>   "https://${AVIATRIX_CONTROLLER_IP}/v2.5/api/microseg/policy-list3" \
+>   | python3 -c "
+> import sys, json
+> d = json.load(sys.stdin)
+> for pl in d.get('dcf_policies', []):
+>     if pl.get('name') == '<name_prefix>-aks-multicluster':
+>         pl['policies'] = [p for p in pl.get('policies', []) if p.get('priority') != 50]
+>         print(json.dumps(pl)); break" > /tmp/aks-prune.json
+> LIST_UUID=$(python3 -c "import json; print(json.load(open('/tmp/aks-prune.json'))['uuid'])")
+> curl -sk -X PUT -H "Authorization: cid ${CID}" -H "Content-Type: application/json" \
+>   --data-binary @/tmp/aks-prune.json \
+>   "https://${AVIATRIX_CONTROLLER_IP}/v2.5/api/microseg/policy-list3/${LIST_UUID}"
+>
+> # Then re-run the apply — Terraform will reconcile state and complete the SG destroys.
+> terraform apply -auto-approve -var enable_k8s_smartgroup_demo=false
+> ```
+
 ### Step 4: Destroy AKS Clusters (Parallel)
 
 `terraform destroy` removes the `aviatrix_kubernetes_cluster` registration from the controller as well as the AKS cluster itself.

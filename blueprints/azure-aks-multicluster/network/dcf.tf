@@ -505,11 +505,22 @@ resource "aviatrix_dcf_ruleset" "aks_demo" {
   # See k8s-apps/dcf-crd/ for FirewallPolicy / WebGroupPolicy CRD examples.
   #############################
 
+  # Explicit dependency on the K8s-typed SmartGroups so Terraform sequences
+  # the priority-50 rule removal BEFORE destroying the SGs when
+  # var.enable_k8s_smartgroup_demo flips from true → false. Without this,
+  # the dynamic "rules" block above evaluates to empty and the implicit
+  # dep edge disappears from the plan graph; Terraform then attempts the
+  # SG destroy in parallel with the ruleset update and the controller
+  # rejects it with [AVXERR-SMARTGROUP-0003]. count=0 SGs are valid here.
   depends_on = [
     aviatrix_distributed_firewalling_config.enable,
     module.frontend_spoke,
     module.backend_spoke,
     module.db_spoke,
+    aviatrix_smart_group.frontend_gatus_ns,
+    aviatrix_smart_group.backend_gatus_ns,
+    aviatrix_smart_group.frontend_cluster,
+    aviatrix_smart_group.backend_cluster,
   ]
 }
 
