@@ -4,12 +4,12 @@
 
 output "transit_gateway_name" {
   description = "Aviatrix transit gateway name"
-  value       = module.azure_transit.transit_gateway.gw_name
+  value       = nonsensitive(module.azure_transit.transit_gateway.gw_name)
 }
 
 output "transit_vnet_id" {
   description = "Transit VNet ID"
-  value       = module.azure_transit.vpc.id
+  value       = nonsensitive(module.azure_transit.vpc.id)
 }
 
 #####################
@@ -58,12 +58,17 @@ output "frontend_system_subnet_cidr" {
 
 output "frontend_spoke_gateway_name" {
   description = "Frontend Aviatrix spoke gateway name"
-  value       = module.frontend_spoke.spoke_gateway.gw_name
+  value       = nonsensitive(module.frontend_spoke.spoke_gateway.gw_name)
 }
 
 output "frontend_spoke_gateway_private_ip" {
   description = "Frontend Aviatrix spoke gateway private IP"
-  value       = module.frontend_spoke.spoke_gateway.private_ip
+  value       = nonsensitive(module.frontend_spoke.spoke_gateway.private_ip)
+}
+
+output "frontend_spoke_gateway_public_ip" {
+  description = "Frontend Aviatrix spoke gateway public IP (egress NAT for AKS nodes — must be in AKS authorized_ip_ranges)"
+  value       = nonsensitive(module.frontend_spoke.spoke_gateway.public_ip)
 }
 
 output "frontend_route_table_id" {
@@ -122,12 +127,17 @@ output "backend_system_subnet_cidr" {
 
 output "backend_spoke_gateway_name" {
   description = "Backend Aviatrix spoke gateway name"
-  value       = module.backend_spoke.spoke_gateway.gw_name
+  value       = nonsensitive(module.backend_spoke.spoke_gateway.gw_name)
 }
 
 output "backend_spoke_gateway_private_ip" {
   description = "Backend Aviatrix spoke gateway private IP"
-  value       = module.backend_spoke.spoke_gateway.private_ip
+  value       = nonsensitive(module.backend_spoke.spoke_gateway.private_ip)
+}
+
+output "backend_spoke_gateway_public_ip" {
+  description = "Backend Aviatrix spoke gateway public IP (egress NAT for AKS nodes — must be in AKS authorized_ip_ranges)"
+  value       = nonsensitive(module.backend_spoke.spoke_gateway.public_ip)
 }
 
 output "backend_route_table_id" {

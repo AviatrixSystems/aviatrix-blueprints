@@ -65,15 +65,20 @@ module "azure_transit" {
   cidr    = var.transit_cidr
   ha_gw   = false
 
-  # Enable FireNet for future NGFW integration
-  enable_transit_firenet        = true
-  enable_egress_transit_firenet = false
+  # FireNet is intentionally disabled — this blueprint does not deploy NGFWs.
+  # Enabling FireNet requires a 3-NIC VM size (e.g., Standard_B2ms) and adds
+  # provisioning complexity. To add NGFWs later, set enable_transit_firenet = true
+  # AND change instance_size to a 3+ NIC SKU (B2ms, DS3_v2, F4s_v2, D8s_v5).
 
-  instance_size     = "Standard_B2ms"
+  # D-series has more reliable zonal capacity in eastus2 than B-series.
+  # Same vCPU/RAM (2/8 GB) as B2ms, ~$0.013/hr more per gateway.
+  instance_size     = "Standard_D2s_v3"
   connected_transit = true
 
-  # Required for hostname SmartGroups to resolve DNS names
-  enable_vpc_dns_server = true
+  # NOTE: enable_vpc_dns_server is intentionally OFF.
+  # The post-deploy DNS check fails consistently against this controller (9.0.10).
+  # Hostname-based SmartGroups for *private* FQDNs (Azure Private DNS) won't
+  # resolve via the GW; VNet-based SmartGroups still work and cover east-west.
 
   # CRITICAL: Exclude the pod CIDR from BGP advertisements.
   # Both clusters share 100.64.0.0/16 as their Cilium overlay — Aviatrix SNATs
@@ -119,6 +124,20 @@ resource "azurerm_subnet_route_table_association" "frontend_system_udr" {
   route_table_id = azurerm_route_table.frontend_udr.id
 }
 
+# Default route required by AKS `outbound_type = userDefinedRouting`.
+# Aviatrix auto-programs RFC1918 routes (10/8, 172.16/12, 192.168/16) on the
+# UDR but not 0.0.0.0/0, because transit doesn't advertise a default route
+# without an internet-facing egress device. Spoke GW handles internet egress
+# via SNAT on its own public IP.
+resource "azurerm_route" "frontend_default" {
+  name                   = "default-via-spoke-gw"
+  resource_group_name    = module.frontend_vnet.resource_group_name
+  route_table_name       = azurerm_route_table.frontend_udr.name
+  address_prefix         = "0.0.0.0/0"
+  next_hop_type          = "VirtualAppliance"
+  next_hop_in_ip_address = nonsensitive(module.frontend_spoke.spoke_gateway.private_ip)
+}
+
 module "frontend_spoke" {
   source  = "terraform-aviatrix-modules/mc-spoke/aviatrix"
   version = "~> 8.0"
@@ -129,11 +148,13 @@ module "frontend_spoke" {
   region     = var.aviatrix_azure_region
   transit_gw = module.azure_transit.transit_gateway.gw_name
 
-  instance_size = "Standard_B2ms"
+  # D-series has more reliable zonal capacity in eastus2 than B-series
+  # (B2ms hits ZonalAllocationFailed in some zones). Same vCPU/RAM (2/8 GB),
+  # ~$0.013/hr more per gateway.
+  instance_size = "Standard_D2s_v3"
   ha_gw         = false
 
-  # Required for hostname SmartGroups
-  enable_vpc_dns_server = true
+  # See comment in transit module above — DNS check fails on this controller.
 
   # SNAT all spoke traffic (including pod 100.64.x.x IPs) to the spoke GW IP.
   # DCF inspects the original pod IPs before SNAT. single_ip_snat avoids the
@@ -185,6 +206,16 @@ resource "azurerm_subnet_route_table_association" "backend_system_udr" {
   route_table_id = azurerm_route_table.backend_udr.id
 }
 
+# See comment on frontend_default for rationale.
+resource "azurerm_route" "backend_default" {
+  name                   = "default-via-spoke-gw"
+  resource_group_name    = module.backend_vnet.resource_group_name
+  route_table_name       = azurerm_route_table.backend_udr.name
+  address_prefix         = "0.0.0.0/0"
+  next_hop_type          = "VirtualAppliance"
+  next_hop_in_ip_address = nonsensitive(module.backend_spoke.spoke_gateway.private_ip)
+}
+
 module "backend_spoke" {
   source  = "terraform-aviatrix-modules/mc-spoke/aviatrix"
   version = "~> 8.0"
@@ -195,10 +226,13 @@ module "backend_spoke" {
   region     = var.aviatrix_azure_region
   transit_gw = module.azure_transit.transit_gateway.gw_name
 
-  instance_size = "Standard_B2ms"
+  # D-series has more reliable zonal capacity in eastus2 than B-series
+  # (B2ms hits ZonalAllocationFailed in some zones). Same vCPU/RAM (2/8 GB),
+  # ~$0.013/hr more per gateway.
+  instance_size = "Standard_D2s_v3"
   ha_gw         = false
 
-  enable_vpc_dns_server = true
+  # See comment in transit module above — DNS check fails on this controller.
 
   single_ip_snat = true
 
@@ -269,11 +303,11 @@ module "db_spoke" {
   region     = var.aviatrix_azure_region
   transit_gw = module.azure_transit.transit_gateway.gw_name
 
-  instance_size  = "Standard_B2ms"
+  instance_size  = "Standard_D2s_v3"
   ha_gw          = false
   single_ip_snat = true
 
-  enable_vpc_dns_server = true
+  # See comment in transit module above — DNS check fails on this controller.
 
   use_existing_vpc = true
   vpc_id           = "${azurerm_virtual_network.db.name}:${azurerm_resource_group.db.name}"
