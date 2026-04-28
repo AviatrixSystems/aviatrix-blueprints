@@ -59,8 +59,6 @@ Blueprints are **complete, deployable lab environments** that demonstrate Aviatr
 | [k8s-namespace-aas](blueprints/k8s-namespace-aas/) | Pattern B — single shared cluster, namespace per team (DCF + RBAC isolation) | AWS, Azure, GCP | — | 🚧 Work in progress |
 | [k8s-prod-nonprod-hybrid](blueprints/k8s-prod-nonprod-hybrid/) | Pattern C — separate prod and nonprod clusters, namespace-as-a-service inside each | AWS, Azure, GCP | — | 🚧 Work in progress |
 | [agentcore-aws](blueprints/agentcore-aws/) | AWS Bedrock AgentCore Runtime fronted by Aviatrix DCF | AWS | — | 🚧 Work in progress |
-| [azure-centralized-ingress](blueprints/azure-centralized-ingress/) | Centralized public ingress in Azure via Aviatrix spoke (DNAT + AppGW WAF) | Azure | — | 🚧 Work in progress |
-| [secure-enterprise-ai-chat-aws](blueprints/secure-enterprise-ai-chat-aws/) | Secured enterprise AI chat (LibreChat) on EKS with DCF egress controls | AWS | — | 🚧 Work in progress |
 
 ## Manual Deployment
 
