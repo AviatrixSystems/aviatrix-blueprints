@@ -4,6 +4,30 @@ variable "name_prefix" {
   default     = "aks-demo"
 }
 
+# Aviatrix Controller credentials. These are referenced by the aviatrix
+# provider block so `terraform validate` passes without env vars set. At
+# plan/apply time, leave them empty in tfvars and export the standard
+# AVIATRIX_CONTROLLER_IP / AVIATRIX_USERNAME / AVIATRIX_PASSWORD env vars.
+
+variable "aviatrix_controller_ip" {
+  description = "Aviatrix Controller IP/hostname (or set AVIATRIX_CONTROLLER_IP env var)"
+  type        = string
+  default     = null
+}
+
+variable "aviatrix_username" {
+  description = "Aviatrix Controller username (or set AVIATRIX_USERNAME env var)"
+  type        = string
+  default     = null
+}
+
+variable "aviatrix_password" {
+  description = "Aviatrix Controller password (or set AVIATRIX_PASSWORD env var)"
+  type        = string
+  sensitive   = true
+  default     = null
+}
+
 variable "aviatrix_azure_account_name" {
   description = "Aviatrix access account name for Azure (configured in Aviatrix Controller)"
   type        = string

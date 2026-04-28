@@ -1067,6 +1067,41 @@ Data Transfer            ░░░░░░░░░░░░░░░░░░�
 
 ---
 
+## Outputs
+
+Each layer publishes outputs that the next layer (or operators) consume.
+
+### `network/`
+
+| Output | Type | Source / use |
+|---|---|---|
+| `frontend_appgw_public_ip`, `backend_appgw_public_ip` | string | Open Gatus dashboards |
+| `frontend_spoke_gateway_private_ip`, `backend_spoke_gateway_private_ip` | string | Used by `azurerm_route` for the AKS UDR default route |
+| `frontend_spoke_gateway_public_ip`, `backend_spoke_gateway_public_ip` | string | Auto-included in AKS `authorized_ip_ranges` |
+| `transit_gateway_name`, `transit_vnet_id` | string | Reference / docs |
+| `frontend_vnet_id`, `frontend_resource_group_name`, `frontend_nodes_subnet_id`, `frontend_system_subnet_id` (and `backend_*` equivalents) | string | Read by clusters/ layer |
+| `frontend_route_table_id`, `backend_route_table_id` | string | Read by clusters/ for AKS identity role assignment |
+| `frontend_cluster_name`, `backend_cluster_name` | string | Names AKS adopts |
+| `private_dns_zone_id`, `private_dns_zone_name`, `dns_resource_group_name` | string | Workload Identity for ExternalDNS |
+| `db_vm_private_ip`, `db_vm_name` | string | DB target IP for east-west tests |
+| `pod_cidr`, `service_cidr`, `dns_service_ip` | string | Cluster network plumbing |
+| `dcf_ruleset_uuid`, `smartgroup_*_uuid`, `webgroup_*_uuid` | string | DCF references for K8s CRD policies |
+
+### `clusters/{frontend,backend}/`
+
+| Output | Sensitive | Use |
+|---|---|---|
+| `cluster_name`, `cluster_id`, `cluster_fqdn` | no | Names / Azure resource ID |
+| `host`, `client_certificate`, `client_key`, `cluster_ca_certificate`, `kube_config_raw` | yes | Consumed by nodes/ Helm + kubernetes providers |
+| `oidc_issuer_url` | no | Workload Identity federation |
+| `kubelet_identity_object_id`, `aks_identity_principal_id`, `external_dns_client_id` | no | Role assignment + Workload Identity binding |
+| `resource_group_name`, `node_resource_group` | no | The `MC_*` group AKS auto-creates |
+| `kubectl_config_command` | no | Copy/paste-friendly `az aks get-credentials …` |
+
+### `nodes/{frontend,backend}/`
+
+No outputs — this layer only installs Helm releases.
+
 ## Known Limitations
 
 These are intentional behaviors a deployer should be aware of:
