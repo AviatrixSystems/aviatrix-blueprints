@@ -11,18 +11,6 @@
 #   - Layer 2 (clusters/) — GKE control plane, Workload Identity Federation
 #####################
 
-terraform {
-  required_version = ">= 1.5"
-
-  required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = "~> 6.0"
-    }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.0"
-    }
     helm = {
       source  = "hashicorp/helm"
       version = "~> 2.0"
@@ -40,6 +28,9 @@ provider "google" {
 }
 
 provider "aviatrix" {
+  controller_ip           = var.controller_ip
+  username                = var.controller_username
+  password                = var.controller_password
   skip_version_validation = true
 }
 

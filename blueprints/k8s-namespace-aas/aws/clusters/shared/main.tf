@@ -12,18 +12,6 @@
 #   - AWS: AWS_PROFILE or AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY env vars
 #####################
 
-terraform {
-  required_version = ">= 1.5"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-    aviatrix = {
-      source  = "AviatrixSystems/aviatrix"
-      version = "~> 8.2.0"
-    }
   }
 }
 
@@ -32,6 +20,9 @@ provider "aws" {
 }
 
 provider "aviatrix" {
+  controller_ip           = var.controller_ip
+  username                = var.controller_username
+  password                = var.controller_password
   skip_version_validation = true
 }
 

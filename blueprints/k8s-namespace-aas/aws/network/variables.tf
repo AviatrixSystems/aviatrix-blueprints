@@ -108,3 +108,28 @@ variable "manage_dcf" {
   type        = bool
   default     = true
 }
+
+variable "k8s_cluster_id" {
+  description = "EKS cluster ARN for Aviatrix DCF SmartGroup k8s_cluster_id. Get from clusters/shared/ output 'cluster_arn' after applying that layer. Format: arn:aws:eks:{region}:{account}:cluster/{name}"
+  type        = string
+  default     = ""
+}
+
+variable "controller_ip" {
+  description = "IP address or hostname of the Aviatrix Controller"
+  type        = string
+  default     = null
+}
+
+variable "controller_username" {
+  description = "Admin username for the Aviatrix Controller"
+  type        = string
+  default     = "admin"
+}
+
+variable "controller_password" {
+  description = "Admin password for the Aviatrix Controller"
+  type        = string
+  sensitive   = true
+  default     = null
+}
