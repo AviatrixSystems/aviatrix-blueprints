@@ -1,0 +1,8 @@
+# All variables in this layer have defaults. Copying this file is optional —
+# `terraform init && terraform apply` works as-is for the standard blueprint.
+# Override only if you need to pin different chart versions or change region.
+
+# azure_region                = "eastus2"
+# nginx_ingress_chart_version = "4.12.0"
+# external_dns_chart_version  = "1.15.0"
+# k8s_firewall_chart_version  = "8.2.0"

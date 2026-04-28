@@ -43,19 +43,39 @@ aviatrix_azure_region       = "East US 2"
 
 # ----------------------------
 # clusters/{frontend,backend}/terraform.tfvars
+# (each cluster directory also has its own terraform.tfvars.example —
+#  prefer copying that one instead of this section)
 # ----------------------------
 
 # azure_region        = "eastus2"
-# kubernetes_version  = "1.32"
+# kubernetes_version  = "1.33"
 
 # node_pool_config = {
 #   node_count = 2
 #   min_count  = 1
 #   max_count  = 3
-#   vm_size    = "Standard_D2s_v3"
+#   vm_size    = "Standard_B2s"   # B-family avoids the DSv3 quota shared with Aviatrix GWs
 # }
 
 # Restrict to your IP (recommended):
 # Run: curl -s ifconfig.me
 # authorized_ip_ranges = ["<YOUR_IP>/32"]
 # authorized_ip_ranges = ["0.0.0.0/0"]   # Allow all (demo only)
+
+# Onboard each AKS cluster with the Aviatrix Controller (default true).
+# Required for K8s-typed DCF SmartGroups.
+# enable_aviatrix_onboarding = true
+
+# Public egress IP of the Aviatrix Controller. Only needed if
+# authorized_ip_ranges is restricted (not 0.0.0.0/0). For SaaS/Cloud Fabric
+# this equals AVIATRIX_CONTROLLER_IP.
+# aviatrix_controller_public_ip = "1.2.3.4"
+
+# ----------------------------
+# nodes/{frontend,backend}/terraform.tfvars  (all variables have defaults)
+# ----------------------------
+
+# azure_region                = "eastus2"
+# nginx_ingress_chart_version = "4.12.0"
+# external_dns_chart_version  = "1.15.0"
+# k8s_firewall_chart_version  = "8.2.0"

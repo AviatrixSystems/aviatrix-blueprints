@@ -17,7 +17,7 @@ Before deploying this infrastructure, ensure you have the following prerequisite
 |-----------|-------------|-------|
 | **Aviatrix Controller** | Version compatible with provider ~> 8.2 | Must be deployed and accessible |
 | **Aviatrix CoPilot** | Recommended | Required for DCF visualization and SmartGroups UI |
-| **Azure Account Onboarded** | Account registered in Controller | Use the exact account name in `terraform.tfvars` |
+| **Azure Account Onboarded** | Account registered in Controller | Use the exact account name in `terraform.tfvars`. See [Onboard an Azure account](https://docs.aviatrix.com/documentation/latest/network-security/onboarding-azure.html) if you don't have one yet. |
 
 ### Local Tools
 
@@ -55,6 +55,18 @@ This blueprint deploys 9 VMs across two vCPU families. **Default subscription qu
 Check current usage and limits:
 ```bash
 az vm list-usage -l eastus2 -o table | grep -E "Total Regional|Standard DSv3|Standard BS Family"
+```
+
+**Fail-fast pre-flight check** (run before `terraform apply`):
+```bash
+REGION=eastus2
+az vm list-usage -l "$REGION" --query "[?contains(name.value,'cores') || contains(name.value,'standardDSv3Family') || contains(name.value,'standardBSFamily')].{name:localName, used:currentValue, limit:limit}" -o tsv | \
+  awk -v OFS='\t' '
+    /Total Regional vCPUs/   { if ($3 < 30) { print "FAIL", $0; bad++ } }
+    /Standard DSv3 Family/   { if ($3 < 16) { print "FAIL", $0; bad++ } }
+    /Standard BSv?2? Family/ { if ($3 < 16) { print "FAIL", $0; bad++ } }
+    END { if (bad) { print "Increase the failed quotas above before deploying."; exit 1 } else { print "Quota OK" } }
+  '
 ```
 
 Request a quota increase via Azure Portal (Subscriptions → Usage + quotas → Request increase) or programmatically:
@@ -147,34 +159,34 @@ Both clusters use **Azure CNI Powered by Cilium** with an RFC 6598 overlay CIDR 
 ```
 azure-aks-multicluster/
 ├── network/                    # Layer 1: Network foundation
-│   ├── main.tf                 # Transit, spoke GWs, VNets, AppGWs, DB VM, DNS zone
+│   ├── main.tf                 # Transit, spoke GWs, VNets, AppGWs, DB VM, DNS zone (also pins providers)
+│   ├── dcf.tf                  # DCF SmartGroups, WebGroups, ruleset
+│   ├── dcf-k8s.tf              # K8s-typed SmartGroups + demo rule (gated by enable_k8s_smartgroup_demo)
 │   ├── variables.tf
 │   ├── outputs.tf              # VNet IDs, subnet IDs, AppGW IPs, NGINX LB IPs
-│   ├── versions.tf
 │   └── modules/
 │       ├── aks-vnet/           # VNet + subnet module (nodes, system, Aviatrix GW subnets)
 │       └── linux-vm/           # Linux test VM module (DB spoke)
 │
 ├── clusters/
 │   ├── frontend/               # Layer 2: Frontend AKS control plane
-│   │   ├── main.tf             # AKS cluster, managed identities, role assignments, OIDC
+│   │   ├── main.tf             # AKS cluster, managed identities, role assignments, OIDC, providers
+│   │   ├── onboarding.tf       # aviatrix_kubernetes_cluster registration
 │   │   ├── data.tf             # Read network state
 │   │   ├── variables.tf
-│   │   ├── outputs.tf
-│   │   └── versions.tf
+│   │   └── outputs.tf
 │   │
 │   └── backend/                # Layer 2: Backend AKS control plane (parallel)
 │
 ├── nodes/
-│   ├── frontend/               # Layer 3: Frontend node pool and Helm add-ons
-│   │   ├── main.tf             # Node pool configuration
+│   ├── frontend/               # Layer 3: Frontend Helm add-ons
+│   │   ├── main.tf             # Provider blocks (helm, kubernetes)
 │   │   ├── helm.tf             # NGINX Ingress, ExternalDNS, Aviatrix k8s-firewall
 │   │   ├── data.tf             # Read network + cluster state
 │   │   ├── variables.tf
-│   │   ├── outputs.tf
-│   │   └── versions.tf
+│   │   └── outputs.tf
 │   │
-│   └── backend/                # Layer 3: Backend node pool and Helm add-ons (parallel)
+│   └── backend/                # Layer 3: Backend Helm add-ons (parallel)
 │
 ├── k8s-apps/                   # Layer 4: Kubernetes application manifests (kubectl apply)
 │   ├── frontend/               # Gatus health dashboard — Frontend cluster
@@ -209,27 +221,51 @@ Each layer reads the previous layer's state via `data "terraform_remote_state" "
 ## Complete Deployment Guide
 
 > **Note:** Complete all items in the [Prerequisites](#prerequisites) section before proceeding.
+>
+> **Total deploy time:** ~50–70 minutes wall-clock when running same-level layers in parallel (network ~15-20m → clusters ~15m parallel → nodes ~10m parallel → kubectl/Gatus ~5m).
+
+### Step 0: Get the Source
+
+```bash
+# Clone the repository (or use your existing checkout)
+git clone https://github.com/AviatrixSystems/aviatrix-blueprints.git
+cd aviatrix-blueprints/blueprints/azure-aks-multicluster
+```
+
+All subsequent `cd` paths in this guide are relative to `blueprints/azure-aks-multicluster/`.
 
 ### Step 1: Set Environment Variables
 
 ```bash
-# Aviatrix Controller credentials
+# Aviatrix Controller credentials (always required)
 export AVIATRIX_CONTROLLER_IP="<controller-ip>"
 export AVIATRIX_USERNAME="<username>"
 export AVIATRIX_PASSWORD="<password>"
+```
 
-# Azure Service Principal credentials
+**Azure authentication** — pick one path:
+
+```bash
+# Option A: Service Principal (recommended for CI / non-interactive runs)
 export ARM_SUBSCRIPTION_ID="<subscription-id>"
 export ARM_TENANT_ID="<tenant-id>"
 export ARM_CLIENT_ID="<client-id>"
 export ARM_CLIENT_SECRET="<client-secret>"
 
-# Verify Azure access
+# Option B: Azure CLI user account (simplest for interactive lab use)
+az login
+az account set --subscription "<subscription-id>"
+
+# Verify access (works for both options)
 az account show
 ```
 
+> The AzureRM provider auto-detects whichever option is configured. Do not set both — `ARM_*` env vars take precedence over `az login` and the mismatch is a common source of confusion.
+
 > [!IMPORTANT]
-> When the cluster layers run with `enable_aviatrix_onboarding = true` (default), the Aviatrix Controller calls each AKS API server directly after fetching the kubeconfig from ARM. Set `aviatrix_controller_public_ip` in `clusters/*/terraform.tfvars` (typically the same as `AVIATRIX_CONTROLLER_IP`) so it's appended to `authorized_ip_ranges`. Without this, the controller will be blocked from the API server even though registration succeeds.
+> When the cluster layers run with `enable_aviatrix_onboarding = true` (default), the Aviatrix Controller calls each AKS API server directly after fetching the kubeconfig from ARM. The controller's public egress IP must clear the API server's `authorized_ip_ranges`:
+> - **If you set `authorized_ip_ranges = ["0.0.0.0/0"]`** (the example default): no extra config needed.
+> - **If you restrict `authorized_ip_ranges` to your own IP**: also set `aviatrix_controller_public_ip` in `clusters/*/terraform.tfvars` so the controller IP gets appended automatically. For SaaS / Cloud Fabric controllers this is the same value as `AVIATRIX_CONTROLLER_IP`; for self-hosted controllers behind NAT, use the controller's public egress IP (not its management IP).
 
 ### Step 2: Deploy Network Infrastructure
 
@@ -362,6 +398,9 @@ Steps 5 and 6 can run in parallel in separate terminals.
 
 ### Step 7: Configure kubectl for Both Clusters
 
+> [!NOTE]
+> The `--overwrite-existing` flag silently replaces any existing kubectl context named `frontend` or `backend`. If you have other clusters using those names, back up `~/.kube/config` first or use `--context` values that won't collide (e.g., `aks-demo-frontend`).
+
 ```bash
 # Frontend cluster
 az aks get-credentials \
@@ -385,7 +424,7 @@ kubectl get nodes --context backend
 **Expected output:**
 ```
 NAME                             STATUS   ROLES    AGE   VERSION
-aks-system-35398034-vmss000001   Ready    <none>   10m   v1.32.x
+aks-system-35398034-vmss000001   Ready    <none>   10m   v1.33.x
 ```
 
 You can also retrieve the exact command from Terraform output:

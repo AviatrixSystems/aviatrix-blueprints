@@ -1,15 +1,17 @@
 # Azure region — must match network layer
 azure_region = "eastus2"
 
-# Kubernetes version
-# kubernetes_version = "1.31"
+# Kubernetes version (default in variables.tf is 1.33, matches "Tested With")
+# kubernetes_version = "1.33"
 
-# Node pool sizing
+# Node pool sizing — Standard_B2s is intentional. AKS nodes share the
+# regional vCPU pool with the 4 Aviatrix gateways (Standard_D2s_v3); using a
+# different VM family avoids saturating the DSv3 quota in eastus2.
 node_pool_config = {
   node_count = 2
   min_count  = 1
   max_count  = 3
-  vm_size    = "Standard_D2s_v3"
+  vm_size    = "Standard_B2s"
 }
 
 # Restrict API server access to your IP for security (recommended)
@@ -30,5 +32,10 @@ enable_aviatrix_onboarding = true
 
 # Controller public egress IP — appended to authorized_ip_ranges so the
 # controller can reach the AKS API server after fetching the kubeconfig.
-# Leave unset if authorized_ip_ranges already covers the controller (e.g., 0.0.0.0/0).
+# REQUIRED if authorized_ip_ranges is restricted (e.g., your IP only) and
+# enable_aviatrix_onboarding = true. Not required when authorized_ip_ranges
+# is ["0.0.0.0/0"] (the default in this example).
+# For SaaS / Cloud Fabric controllers this is the same value as
+# AVIATRIX_CONTROLLER_IP. For self-hosted controllers behind NAT, use the
+# controller's public egress IP (not its management IP).
 # aviatrix_controller_public_ip = "1.2.3.4"
