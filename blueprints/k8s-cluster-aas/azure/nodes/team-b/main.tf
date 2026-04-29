@@ -2,12 +2,9 @@
 # AKS Node Layer (Layer 3) - Team-B
 #####################
 
-    helm       = { source = "hashicorp/helm", version = "~> 2.0" }
-    aviatrix   = { source = "AviatrixSystems/aviatrix", version = "~> 8.2.0" }
-  }
+provider "azurerm" {
+  features {}
 }
-
-provider "azurerm" { features {} }
 
 provider "aviatrix" {
   controller_ip           = var.controller_ip
@@ -22,7 +19,7 @@ provider "kubernetes" {
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
     command     = "az"
-    args = ["aks", "get-credentials", "--resource-group", data.terraform_remote_state.network.outputs.team_b_resource_group_name, "--name", data.terraform_remote_state.cluster.outputs.cluster_name, "--format", "exec-credential"]
+    args        = ["aks", "get-credentials", "--resource-group", data.terraform_remote_state.network.outputs.team_b_resource_group_name, "--name", data.terraform_remote_state.cluster.outputs.cluster_name, "--format", "exec-credential"]
   }
 }
 
@@ -33,7 +30,7 @@ provider "helm" {
     exec {
       api_version = "client.authentication.k8s.io/v1beta1"
       command     = "az"
-      args = ["aks", "get-credentials", "--resource-group", data.terraform_remote_state.network.outputs.team_b_resource_group_name, "--name", data.terraform_remote_state.cluster.outputs.cluster_name, "--format", "exec-credential"]
+      args        = ["aks", "get-credentials", "--resource-group", data.terraform_remote_state.network.outputs.team_b_resource_group_name, "--name", data.terraform_remote_state.cluster.outputs.cluster_name, "--format", "exec-credential"]
     }
   }
 }

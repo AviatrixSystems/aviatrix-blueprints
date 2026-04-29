@@ -299,7 +299,7 @@ resource "aviatrix_web_group" "sandbox_relaxed_egress" {
 resource "aviatrix_dcf_ruleset" "pattern_c" {
   depends_on = [time_sleep.wait_for_dcf]
   name       = "${local.name_prefix}-prod-nonprod-hybrid-azure"
-  attach_to  = "defa11a1-3000-4002-0000-000000000000"  # TERRAFORM_AFTER_UI_MANAGED
+  attach_to  = "defa11a1-3000-4002-0000-000000000000" # TERRAFORM_AFTER_UI_MANAGED
 
   rules {
     # ----- Priority 0: Geo-blocking (IR, KP, RU) -----

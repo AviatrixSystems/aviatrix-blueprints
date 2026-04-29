@@ -410,11 +410,11 @@ resource "aviatrix_dcf_ruleset" "pattern_c" {
   }
 
   rules {
-    name             = "${local.name_prefix}-monitoring-scrape"
-    action           = "PERMIT"
-    priority         = 32
-    protocol         = "TCP"
-    logging          = true
+    name     = "${local.name_prefix}-monitoring-scrape"
+    action   = "PERMIT"
+    priority = 32
+    protocol = "TCP"
+    logging  = true
     src_smart_groups = [
       aviatrix_smart_group.monitoring_prod.uuid,
       aviatrix_smart_group.monitoring_nonprod.uuid,

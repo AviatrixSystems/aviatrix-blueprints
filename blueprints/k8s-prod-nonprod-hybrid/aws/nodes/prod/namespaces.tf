@@ -11,8 +11,8 @@ resource "kubernetes_namespace" "team_a_prod" {
   metadata {
     name = "team-a-prod"
     labels = {
-      environment           = "production"
-      team                  = "team-a"
+      environment            = "production"
+      team                   = "team-a"
       "aviatrix.io/enforced" = "true"
     }
   }
@@ -22,8 +22,8 @@ resource "kubernetes_namespace" "team_b_prod" {
   metadata {
     name = "team-b-prod"
     labels = {
-      environment           = "production"
-      team                  = "team-b"
+      environment            = "production"
+      team                   = "team-b"
       "aviatrix.io/enforced" = "true"
     }
   }
@@ -33,8 +33,8 @@ resource "kubernetes_namespace" "monitoring_prod" {
   metadata {
     name = "monitoring"
     labels = {
-      environment           = "production"
-      purpose               = "observability"
+      environment            = "production"
+      purpose                = "observability"
       "aviatrix.io/enforced" = "true"
     }
   }

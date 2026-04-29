@@ -54,13 +54,13 @@ resource "aviatrix_transit_gateway" "main" {
   gw_size      = var.transit_gw_size
   subnet       = var.transit_cidr
 
-  enable_transit_firenet              = false
-  enable_segmentation                 = true
+  enable_transit_firenet               = false
+  enable_segmentation                  = true
   enable_transit_summarize_cidr_to_tgw = false
-  connected_transit                   = true
-  ha_gw_size                          = var.enable_ha ? var.transit_gw_size : null
-  ha_subnet                           = var.enable_ha ? var.transit_cidr : null
-  ha_zone                             = var.enable_ha ? "${var.gcp_region}-b" : null
+  connected_transit                    = true
+  ha_gw_size                           = var.enable_ha ? var.transit_gw_size : null
+  ha_subnet                            = var.enable_ha ? var.transit_cidr : null
+  ha_zone                              = var.enable_ha ? "${var.gcp_region}-b" : null
 }
 
 # ---------------------------------------------------------------------------

@@ -2,17 +2,6 @@
 # EKS Node Layer (Layer 3) - Team-C
 #####################
 
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.0"
-    }
-    aviatrix = {
-      source  = "AviatrixSystems/aviatrix"
-      version = "~> 8.2.0"
-    }
-  }
-}
-
 provider "aviatrix" {
   controller_ip           = var.controller_ip
   username                = var.controller_username

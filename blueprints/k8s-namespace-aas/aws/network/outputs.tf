@@ -2,10 +2,6 @@
 # Pattern B: Namespace-as-a-Service — AWS Network Outputs
 #####################
 
-#####################
-# Transit Gateway
-#####################
-
 output "transit_gateway_name" {
   description = "Aviatrix transit gateway name"
   value       = module.aws_transit.transit_gateway.gw_name

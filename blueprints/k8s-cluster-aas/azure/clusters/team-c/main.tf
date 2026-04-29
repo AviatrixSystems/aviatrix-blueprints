@@ -2,13 +2,6 @@
 # AKS Cluster Layer (Layer 2) - Team-C
 #####################
 
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.0"
-    }
-  }
-}
-
 provider "azurerm" {
   features {}
   subscription_id = data.terraform_remote_state.network.outputs.azure_subscription_id

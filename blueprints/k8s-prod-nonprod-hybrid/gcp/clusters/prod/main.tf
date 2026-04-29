@@ -40,13 +40,13 @@ module "gke_prod" {
 
   # Default node pool
   default_node_pool = {
-    name           = "prod-default"
-    machine_type   = var.node_machine_type
-    min_count      = var.node_min_count
-    max_count      = var.node_max_count
-    initial_count  = var.initial_node_count
-    disk_size_gb   = 100
-    disk_type      = "pd-ssd"
+    name          = "prod-default"
+    machine_type  = var.node_machine_type
+    min_count     = var.node_min_count
+    max_count     = var.node_max_count
+    initial_count = var.initial_node_count
+    disk_size_gb  = 100
+    disk_type     = "pd-ssd"
     node_labels = {
       "environment" = "production"
       "cluster"     = "prod"
@@ -54,8 +54,8 @@ module "gke_prod" {
   }
 
   # Private cluster
-  enable_private_nodes    = true
-  enable_private_endpoint = false
+  enable_private_nodes       = true
+  enable_private_endpoint    = false
   master_authorized_networks = []
 
   labels = {

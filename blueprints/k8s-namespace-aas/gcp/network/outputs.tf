@@ -2,10 +2,6 @@
 # Pattern B: Namespace-as-a-Service — GCP Network Outputs
 #####################
 
-#####################
-# Transit Gateway
-#####################
-
 output "transit_gateway_name" {
   description = "Aviatrix transit gateway name"
   value       = module.gcp_transit.transit_gateway.gw_name

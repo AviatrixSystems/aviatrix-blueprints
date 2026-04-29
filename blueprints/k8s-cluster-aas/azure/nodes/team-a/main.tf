@@ -8,17 +8,6 @@
 #   - NGINX Ingress Controller + ExternalDNS (via helm.tf)
 #####################
 
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.0"
-    }
-    aviatrix = {
-      source  = "AviatrixSystems/aviatrix"
-      version = "~> 8.2.0"
-    }
-  }
-}
-
 provider "azurerm" {
   features {}
 }

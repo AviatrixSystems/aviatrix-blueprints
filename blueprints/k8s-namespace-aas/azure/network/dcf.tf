@@ -10,10 +10,6 @@
 # RBAC is NOT a hard security boundary — DCF is the primary network isolation.
 #####################
 
-#####################
-# Enable Distributed Cloud Firewall
-#####################
-
 resource "aviatrix_distributed_firewalling_config" "main" {
   count                          = var.manage_dcf ? 1 : 0
   enable_distributed_firewalling = true

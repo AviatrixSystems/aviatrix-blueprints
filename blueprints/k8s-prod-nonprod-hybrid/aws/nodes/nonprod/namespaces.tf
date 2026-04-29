@@ -11,8 +11,8 @@ resource "kubernetes_namespace" "team_a_dev" {
   metadata {
     name = "team-a-dev"
     labels = {
-      environment           = "development"
-      team                  = "team-a"
+      environment            = "development"
+      team                   = "team-a"
       "aviatrix.io/enforced" = "true"
     }
   }
@@ -22,8 +22,8 @@ resource "kubernetes_namespace" "team_b_staging" {
   metadata {
     name = "team-b-staging"
     labels = {
-      environment           = "staging"
-      team                  = "team-b"
+      environment            = "staging"
+      team                   = "team-b"
       "aviatrix.io/enforced" = "true"
     }
   }
@@ -33,10 +33,10 @@ resource "kubernetes_namespace" "sandbox" {
   metadata {
     name = "sandbox"
     labels = {
-      environment           = "sandbox"
-      purpose               = "experimentation"
+      environment            = "sandbox"
+      purpose                = "experimentation"
       "aviatrix.io/enforced" = "true"
-      "egress-policy"       = "relaxed"
+      "egress-policy"        = "relaxed"
     }
   }
 }
@@ -45,8 +45,8 @@ resource "kubernetes_namespace" "monitoring_nonprod" {
   metadata {
     name = "monitoring"
     labels = {
-      environment           = "non-production"
-      purpose               = "observability"
+      environment            = "non-production"
+      purpose                = "observability"
       "aviatrix.io/enforced" = "true"
     }
   }

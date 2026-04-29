@@ -2,10 +2,6 @@
 # GKE Cluster Layer (Layer 2) - Team-C
 #####################
 
-    kubernetes  = { source = "hashicorp/kubernetes", version = "~> 2.0" }
-  }
-}
-
 provider "google" {
   project = local.gcp_project
   region  = local.gcp_region
@@ -38,10 +34,10 @@ module "team_c_gke" {
   project      = local.gcp_project
   region       = local.gcp_region
 
-  network              = data.terraform_remote_state.network.outputs.team_c_network_name
-  subnetwork           = data.terraform_remote_state.network.outputs.team_c_gke_nodes_subnet_name
-  pod_range_name       = data.terraform_remote_state.network.outputs.team_c_pod_range_name
-  services_range_name  = data.terraform_remote_state.network.outputs.team_c_services_range_name
+  network                = data.terraform_remote_state.network.outputs.team_c_network_name
+  subnetwork             = data.terraform_remote_state.network.outputs.team_c_gke_nodes_subnet_name
+  pod_range_name         = data.terraform_remote_state.network.outputs.team_c_pod_range_name
+  services_range_name    = data.terraform_remote_state.network.outputs.team_c_services_range_name
   master_ipv4_cidr_block = data.terraform_remote_state.network.outputs.team_c_master_cidr
 
   dns_zone_name     = data.terraform_remote_state.network.outputs.dns_zone_name

@@ -12,13 +12,6 @@
 #   - GCP: gcloud auth application-default login or GOOGLE_CREDENTIALS env var
 #####################
 
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.0"
-    }
-  }
-}
-
 provider "google" {
   project = local.gcp_project
   region  = local.gcp_region
@@ -64,10 +57,10 @@ module "shared_gke" {
   region       = local.gcp_region
 
   # Network configuration from Layer 1
-  network              = data.terraform_remote_state.network.outputs.shared_network_name
-  subnetwork           = data.terraform_remote_state.network.outputs.shared_gke_nodes_subnet_name
-  pod_range_name       = data.terraform_remote_state.network.outputs.shared_pod_range_name
-  services_range_name  = data.terraform_remote_state.network.outputs.shared_services_range_name
+  network                = data.terraform_remote_state.network.outputs.shared_network_name
+  subnetwork             = data.terraform_remote_state.network.outputs.shared_gke_nodes_subnet_name
+  pod_range_name         = data.terraform_remote_state.network.outputs.shared_pod_range_name
+  services_range_name    = data.terraform_remote_state.network.outputs.shared_services_range_name
   master_ipv4_cidr_block = data.terraform_remote_state.network.outputs.master_ipv4_cidr_block
 
   # Cloud DNS configuration for ExternalDNS

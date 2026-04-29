@@ -7,12 +7,12 @@
 # ---------------------------------------------------------------------------
 
 resource "helm_release" "gateway_api" {
-  name       = "gateway-api"
-  namespace  = "gateway-system"
+  name             = "gateway-api"
+  namespace        = "gateway-system"
   create_namespace = true
-  repository = "https://kubernetes-sigs.github.io/gateway-api"
-  chart      = "gateway-api"
-  version    = "1.0.0"
+  repository       = "https://kubernetes-sigs.github.io/gateway-api"
+  chart            = "gateway-api"
+  version          = "1.0.0"
 }
 
 # ---------------------------------------------------------------------------

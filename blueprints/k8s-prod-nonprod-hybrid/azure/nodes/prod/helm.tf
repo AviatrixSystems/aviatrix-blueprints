@@ -35,11 +35,11 @@ resource "helm_release" "nginx_ingress" {
 # ---------------------------------------------------------------------------
 
 resource "helm_release" "external_dns" {
-  name             = "external-dns"
-  namespace        = "kube-system"
-  repository       = "https://kubernetes-sigs.github.io/external-dns"
-  chart            = "external-dns"
-  version          = "1.14.3"
+  name       = "external-dns"
+  namespace  = "kube-system"
+  repository = "https://kubernetes-sigs.github.io/external-dns"
+  chart      = "external-dns"
+  version    = "1.14.3"
 
   set {
     name  = "provider"

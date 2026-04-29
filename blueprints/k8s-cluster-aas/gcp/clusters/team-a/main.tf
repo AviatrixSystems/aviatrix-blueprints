@@ -5,10 +5,6 @@
 # deletion_protection = false for demo environments.
 #####################
 
-    kubernetes  = { source = "hashicorp/kubernetes", version = "~> 2.0" }
-  }
-}
-
 provider "google" {
   project = local.gcp_project
   region  = local.gcp_region
@@ -47,10 +43,10 @@ module "team_a_gke" {
   project      = local.gcp_project
   region       = local.gcp_region
 
-  network              = data.terraform_remote_state.network.outputs.team_a_network_name
-  subnetwork           = data.terraform_remote_state.network.outputs.team_a_gke_nodes_subnet_name
-  pod_range_name       = data.terraform_remote_state.network.outputs.team_a_pod_range_name
-  services_range_name  = data.terraform_remote_state.network.outputs.team_a_services_range_name
+  network                = data.terraform_remote_state.network.outputs.team_a_network_name
+  subnetwork             = data.terraform_remote_state.network.outputs.team_a_gke_nodes_subnet_name
+  pod_range_name         = data.terraform_remote_state.network.outputs.team_a_pod_range_name
+  services_range_name    = data.terraform_remote_state.network.outputs.team_a_services_range_name
   master_ipv4_cidr_block = data.terraform_remote_state.network.outputs.team_a_master_cidr
 
   dns_zone_name     = data.terraform_remote_state.network.outputs.dns_zone_name

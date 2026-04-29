@@ -5,9 +5,6 @@
 # Node groups are managed separately in Layer 3 (nodes/).
 #####################
 
-  }
-}
-
 provider "aws" {
   region = data.terraform_remote_state.network.outputs.aws_region
 }

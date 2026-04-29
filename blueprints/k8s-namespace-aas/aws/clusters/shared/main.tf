@@ -12,9 +12,6 @@
 #   - AWS: AWS_PROFILE or AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY env vars
 #####################
 
-  }
-}
-
 provider "aws" {
   region = data.terraform_remote_state.network.outputs.aws_region
 }

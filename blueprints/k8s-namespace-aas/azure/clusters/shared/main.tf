@@ -12,13 +12,6 @@
 #   - Azure: az login or service principal env vars (ARM_*)
 #####################
 
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.0"
-    }
-  }
-}
-
 provider "azurerm" {
   features {}
   subscription_id = data.terraform_remote_state.network.outputs.azure_subscription_id

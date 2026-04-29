@@ -13,10 +13,6 @@
 #   - Do NOT use 0.0.0.0/0 as default deny destination (blocks RFC1918 too)
 #####################
 
-#####################
-# Enable Distributed Cloud Firewall
-#####################
-
 resource "aviatrix_distributed_firewalling_config" "main" {
   count                          = var.manage_dcf ? 1 : 0
   enable_distributed_firewalling = true
@@ -232,7 +228,7 @@ data "aviatrix_dcf_attachment_point" "pre_hook" {
 resource "aviatrix_dcf_ruleset" "caas" {
   depends_on = [time_sleep.wait_for_dcf]
   name       = "${local.name_prefix}-caas"
-  attach_to = data.aviatrix_dcf_attachment_point.pre_hook.id
+  attach_to  = data.aviatrix_dcf_attachment_point.pre_hook.id
 
   #############################
   # THREAT PREVENTION (Priority 0-1)

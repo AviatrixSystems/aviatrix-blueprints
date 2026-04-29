@@ -238,7 +238,7 @@ resource "aviatrix_dcf_policy_group" "namespace_isolation" {
 resource "aviatrix_dcf_ruleset" "namespace_isolation" {
   depends_on = [time_sleep.wait_for_dcf]
 
-  name      = "${local.name_prefix}-namespace-isolation"
+  name = "${local.name_prefix}-namespace-isolation"
 
   #############################
   # THREAT PREVENTION (Priority 0-1)

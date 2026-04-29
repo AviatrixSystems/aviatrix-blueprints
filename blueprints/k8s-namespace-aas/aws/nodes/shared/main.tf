@@ -12,17 +12,6 @@
 #   - Layer 2 (clusters/) — EKS control plane, IRSA setup
 #####################
 
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.0"
-    }
-    aviatrix = {
-      source  = "AviatrixSystems/aviatrix"
-      version = "~> 8.2.0"
-    }
-  }
-}
-
 provider "aws" {
   region = data.terraform_remote_state.network.outputs.aws_region
 }
