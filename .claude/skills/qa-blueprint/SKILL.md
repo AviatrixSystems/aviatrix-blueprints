@@ -247,3 +247,29 @@ For each step in the parsed Deployment Guide:
 
    Successful retry → informational note in report (only a gap if the README didn't already document the transient). Second failure → log gap "deploy step <N> failed: <error>", **abort Phase 3, jump to Phase 5 (destroy)**.
 6. **Per-step verification.** Some steps include `# Verify` sub-blocks. Run these and log their pass/fail. Failures are gaps.
+
+### Phase 4 — Run test scenarios
+
+For each scenario identified in Phase 1's parse:
+
+1. **Read the scenario's code blocks and prose.** Some scenarios are pure CLI checks (curl, kubectl); some require manual UI inspection (e.g., CoPilot SmartGroup Members). For UI-only scenarios, mark as `MANUAL` in the scenario table — do not log a gap unless the README claims the API/CLI exposes the same data.
+2. **Execute each command in the scenario's code block in order.** Capture exit codes, stdout, stderr.
+3. **Verify expected output.** The README often includes `# Expected: 200` or similar comments. Match the actual output against expected. Mismatch → gap (category: `wrong-expected-output`), but **continue** — failed scenarios are documentation, not deploy aborts.
+4. **For Gatus-based scenarios**, query Gatus's `/api/v1/endpoints/statuses` JSON endpoint via the public AppGW IP rather than relying on visual dashboard inspection. Parse the JSON; for each endpoint, check `success` matches the documented expectation (Egress = true, Threats = false).
+5. **Log per-scenario result** to `$RUN_DIR/phase-4-test.log` and the running scenario table in `report.md`.
+
+### Phase 5 — Destroy (always runs after Phase 3 starts)
+
+Walk the README's Destroy Instructions in order (the README's destroy section is already in reverse-deploy order).
+
+1. **Per-step transient-retry policy is the same as Phase 3.** Once retried failures are still failures.
+2. **Documented recovery procedures are first-class steps.** When the README says `> [!IMPORTANT] If you hit X, do Y…`, treat that as a *known* recovery path. If step X fails with the matching signature, run the documented recovery Y, then re-run step X. If recovery succeeds, log informational note "documented recovery used"; if recovery fails, log a gap (category: `missing-recovery`) and continue best-effort.
+3. **Always-run guarantee.** Even if Phase 3 aborted partway, attempt every destroy step that targets a layer Terraform created. Use `terraform state list` to determine which layers have non-empty state.
+4. **Orphan check at end.**
+   - Cloud-side: query for resources tagged or named with the blueprint's `name_prefix`. Examples:
+     - Azure: `az group list --query "[?contains(name, '<name_prefix>')].name" -o tsv`
+     - AWS: `aws ec2 describe-vpcs --filters "Name=tag:Blueprint,Values=<name>" --query "Vpcs[].VpcId" --output text`
+   - Terraform-side: every leaf dir's `terraform state list | wc -l` should return 0.
+5. **Report.** Add a "Resources verified clean" line per cloud + the state-list summary to `report.md`.
+
+If destroy fails entirely (orphan resources remain), do not abort the run — proceed to Phase 6 with the gap logged. The PR will document the orphans and include manual cleanup commands in the body.
