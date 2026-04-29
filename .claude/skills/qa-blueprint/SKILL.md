@@ -327,3 +327,52 @@ If destroy fails entirely (orphan resources remain), do not abort the run — pr
 
 - **Full success** (every prior phase exit-clean, fixes pushed, PR opened) → `rm -rf "$RUN_DIR"` and print one-line summary.
 - **Partial failure** anywhere from Phase 3 onward → leave `$RUN_DIR` in place, print its path so the user can resume / investigate.
+
+## Failure Handling (cross-phase rules)
+
+### Transient retry policy
+
+Retry-once errors:
+
+- `connection reset by peer`
+- `502 Bad Gateway`
+- `i/o timeout`
+- `ResourceGroupBeingDeleted`
+- `listClusterUserCredential.*404`
+
+Retry behavior is identical for `terraform apply` (Phase 3) and `terraform destroy` (Phase 5). One retry, same args, no escalation. Succeeded retry → informational note in `report.md` (only logged as a gap if the README didn't already mention the transient).
+
+### Per-phase fatal-failure summary
+
+| Phase | On fatal failure |
+|---|---|
+| 0 — bootstrap | Abort. No cloud touched. Print remediation. State dir not created. |
+| 1 — parse | Abort. Likely malformed README. Print parse failure. |
+| 2 — pre-flight | Continue. Pre-flight failures are gaps, not aborts. |
+| 3 — deploy | Skip Phase 4. **Always run Phase 5.** Log gap "deploy failed at <step>". |
+| 4 — test | Continue. Failed scenarios are gaps. |
+| 5 — destroy | Best-effort. Orphan resources reported with explicit cleanup commands. State dir kept. |
+| 6 — fix | If fmt-check fails after edits, revert edits for affected files, log conflict, do not commit. State dir kept. |
+| 7 — commit/PR | If push or `gh` fails, fixes stay on the local branch with the commit; user pushes manually. |
+
+### Always-run guarantees
+
+- **Phase 5 always runs after Phase 3 starts.** If the agent crashes mid-deploy, the next invocation of `/qa-blueprint <name>` detects an existing `/tmp/qa-blueprint-<name>-*` dir and prompts the user before starting fresh.
+- **State dir never deleted on failure.** Cleanup happens only on full success.
+
+### Self-failure path
+
+If the agent itself errors out (LSP died, an unexpected tool error), print:
+
+```
+QA run aborted. State preserved at /tmp/qa-blueprint-<name>-<ts>/
+
+Resources may still be deployed. Verify with:
+  <cloud-specific check derived from the parsed README>
+  e.g. Azure: az group list --query "[?contains(name, '<name_prefix>')].name" -o tsv
+
+To clean up, re-run /qa-blueprint <name> or destroy manually:
+  <cloud-specific destroy command derived from the parsed README's destroy section>
+```
+
+The remediation hints come from the parsed Phase 1 plan, not hardcoded.
