@@ -43,28 +43,37 @@ The built-in **Contributor** role at the subscription scope is sufficient for a 
 
 ### Azure Subscription Quotas
 
-This blueprint deploys 9 VMs across two vCPU families. **Default subscription quota of 10 regional vCPUs is not enough.** Verify and request increases before deploying:
+This blueprint deploys 9 VMs across two vCPU families. The defaults on a clean subscription are usually enough — what matters is **available** capacity (limit − currently used), not the limit alone. If you already have other VMs running you may need a quota increase.
 
-| Quota | Used by blueprint | Recommended limit |
-|-------|-------------------|-------------------|
-| **Total Regional vCPUs** | 17 (transit + 3 spoke GWs + 4 AKS nodes + DB VM) | **≥ 30** |
-| **Standard DSv3 Family vCPUs** | 8 (4 Aviatrix gateways × 2 vCPU each) | ≥ 16 |
-| **Standard BS Family vCPUs** | 9 (4 AKS nodes × 2 vCPU + DB VM × 1 vCPU) | ≥ 16 |
-| **Standard Public IP Addresses** | 2 (one per Application Gateway) | default sufficient |
+| Quota | Needed by blueprint | Default per-region limit | Headroom (recommended) |
+|-------|---------------------|--------------------------|------------------------|
+| **Total Regional vCPUs** | 17 (transit + 3 spoke GWs + 4 AKS nodes + DB VM) | varies (often 20–30) | ≥ 30 |
+| **Standard DSv3 Family vCPUs** | 8 (4 Aviatrix gateways × 2 vCPU each) | 10 | ≥ 16 |
+| **Standard BS Family vCPUs** | 9 (4 AKS nodes × 2 vCPU + DB VM × 1 vCPU) | 10 | ≥ 16 |
+| **Standard Public IP Addresses** | 2 (one per Application Gateway) | default sufficient | — |
 
 Check current usage and limits:
 ```bash
 az vm list-usage -l eastus2 -o table | grep -E "Total Regional|Standard DSv3|Standard BS Family"
 ```
 
-**Fail-fast pre-flight check** (run before `terraform apply`):
+**Fail-fast pre-flight check** — verifies available (limit − used) ≥ blueprint requirement, run before `terraform apply`:
 ```bash
 REGION=eastus2
 az vm list-usage -l "$REGION" --query "[?contains(name.value,'cores') || contains(name.value,'standardDSv3Family') || contains(name.value,'standardBSFamily')].{name:localName, used:currentValue, limit:limit}" -o tsv | \
   awk -F '\t' '
-    /^Total Regional vCPUs\t/   { if (($3+0) < 30) { print "FAIL", $0; bad++ } }
-    /^Standard DSv3 Family/     { if (($3+0) < 16) { print "FAIL", $0; bad++ } }
-    /^Standard BSv?2? Family/   { if (($3+0) < 16) { print "FAIL", $0; bad++ } }
+    function check(name, used, limit, need) {
+      avail = limit - used
+      if (avail < need) {
+        printf "FAIL  %-35s available=%d (limit %d − used %d) < %d needed\n", name, avail, limit, used, need
+        bad++
+      } else {
+        printf "OK    %-35s available=%d (limit %d − used %d) ≥ %d needed\n", name, avail, limit, used, need
+      }
+    }
+    /^Total Regional vCPUs\t/   { check($1, $2, $3, 17) }
+    /^Standard DSv3 Family/     { check($1, $2, $3, 8) }
+    /^Standard BSv?2? Family/   { check($1, $2, $3, 9) }
     END { if (bad) { print "Increase the failed quotas above before deploying."; exit 1 } else { print "Quota OK" } }
   '
 ```
@@ -383,7 +392,7 @@ terraform apply
 - ExternalDNS — creates Private DNS A records for annotated Services and Ingresses
 - Aviatrix k8s-firewall — installs `FirewallPolicy` and `WebgroupPolicy` CRDs
 
-After this step, the frontend AppGW backend probe will become **Healthy** within ~60 seconds.
+After this step the frontend NGINX is up at `10.10.0.200`, but the AppGW backend will still show **Unhealthy** until Gatus is deployed in Step 8 — without Gatus the NGINX has no Ingress matching `/health`, so the AppGW probe gets a 404. Healthy follows ~60 seconds after `kubectl apply -f k8s-apps/frontend/gatus.yaml`.
 
 ### Step 6: Deploy Backend Helm Add-ons (Parallel with Step 5)
 
@@ -448,13 +457,14 @@ kubectl get svc -n ingress-nginx --context backend
 # EXTERNAL-IP should be 10.20.0.200
 ```
 
-**Verify AppGW backend health:**
+**Verify AppGW backend health** — note this stays **Unhealthy** until Gatus is deployed in Step 8 (NGINX has no `/health` Ingress without Gatus, so the AppGW probe gets a 404). Re-run after Step 8 to see `Healthy`:
 ```bash
 az network application-gateway show-backend-health \
   --resource-group <name_prefix>-frontend-rg \
   --name <name_prefix>-frontend-appgw \
   --query "backendAddressPools[0].backendHttpSettingsCollection[0].servers[0].health" -o tsv
-# Expected: Healthy
+# Expected at this stage: Unhealthy
+# Expected after Step 8 (Gatus deployed): Healthy
 ```
 
 **Verify DCF CRDs are installed:**
@@ -561,9 +571,12 @@ Gatus monitors several allowed egress endpoints. Verify these show green:
 Gatus monitors two threat endpoints that **should be blocked** by DCF. They appear as red/failed in the dashboard, which is the correct behavior:
 
 - `icmp://www.irna.ir` — GeoBlock (Iran)
-- `icmp://102.130.117.167` — ThreatGuard feed IP
+- `icmp://185.38.148.2` — ThreatGuard feed IP (same value used in `k8s-apps/{frontend,backend}/gatus.yaml`)
 
-> **Note:** The threat IP `102.130.117.167` must be present in your active Aviatrix ThreatGuard feed for blocking to work. If your feed differs, verify and update the IP in `k8s-apps/frontend/gatus.yaml` and `k8s-apps/backend/gatus.yaml`.
+> **Note:** The threat IP must be present in your active Aviatrix ThreatGuard feed for blocking to work. The feed (Emerging Threats Open compromised-ips) rotates roughly daily — if this scenario shows green/connected instead of red, the IP rolled out of the feed. Pull a current one from the live feed and update the IP in **both** `k8s-apps/frontend/gatus.yaml` and `k8s-apps/backend/gatus.yaml` (the `Threat Feed - Malicious IP` endpoint):
+> ```bash
+> curl -s https://rules.emergingthreats.net/blockrules/compromised-ips.txt | grep -vE '^(#|$)' | head -1
+> ```
 
 ### Scenario 5: K8s-Typed SmartGroup Membership
 
@@ -599,10 +612,13 @@ The priority-50 DCF rule ("Frontend Gatus to Backend Gatus k8s ns selector") ref
 Apply example CRD policies to test Kubernetes-native policy management:
 
 ```bash
-# Apply the InfoSec namespace FirewallPolicy (allows VirusTotal access for pods labeled app=infosec)
+# Apply the InfoSec namespace FirewallPolicy (allows VirusTotal access for pods labeled app=infosec).
+# Lives in the existing `gatus` namespace, so no namespace creation needed.
 kubectl apply -f k8s-apps/dcf-crd/firewallpolicy-infosec.yaml --context frontend
 
-# Apply the Dev namespace WebGroupPolicy (allows broader package registry access for dev pods)
+# Apply the Dev namespace WebGroupPolicy (allows broader package registry access for dev pods).
+# Create the dev namespace first — it's not deployed by Terraform.
+kubectl create namespace dev --context frontend
 kubectl apply -f k8s-apps/dcf-crd/webgrouppolicy-dev.yaml --context frontend
 
 # Verify policies are accepted
@@ -753,7 +769,7 @@ Each AKS cluster is registered with the Aviatrix Controller via the `aviatrix_ku
 
 | Concern | EKS | AKS |
 |---|---|---|
-| Cluster auth model | IAM access entry → AAD-style RBAC | **Kubernetes RBAC with local accounts only.** Entra-ID-only auth is *not supported* — the kubeconfig from ARM contains `exec` entries the controller cannot process. |
+| Cluster auth model | IAM access entry mapped to in-cluster RBAC | **Kubernetes RBAC with local accounts only.** Entra-ID-only auth is *not supported* — the kubeconfig from ARM contains `exec` entries the controller cannot process. |
 | In-cluster RBAC | `view-nodes` ClusterRole + binding required | Not required — the kubeconfig from `listClusterUserCredential` is admin-equivalent. |
 | Per-cluster role assignment | EKS access entry + `AmazonEKSViewPolicy` | None per-cluster — subscription-scoped Contributor on the access account SP covers it. |
 
@@ -894,9 +910,13 @@ terraform apply -auto-approve -var enable_k8s_smartgroup_demo=false
 ```
 
 > [!IMPORTANT]
-> If the apply fails with `[AVXERR-SMARTGROUP-0003] Smart Group ... present in one or more dfw policies`, the priority-50 rule was not removed before Terraform attempted the SG delete. The `depends_on` in `dcf.tf` should prevent this on most controller versions, but eventual-consistency can still bite. Recovery:
+> **This step often fails the first time** with `[AVXERR-SMARTGROUP-0003] Smart Group ... present in one or more dfw policies`. The `depends_on` in `dcf.tf` is supposed to remove the priority-50 rule from the policy list before the SG delete, but eventual-consistency on the controller (verified on 9.0.10) drops the dependency edge through the `dynamic "rules"` block — Terraform attempts the SG delete in parallel with the rule removal. The recovery is mechanical and you'll be done in ~30 seconds:
 >
 > ```bash
+> # Set this to your name_prefix value from network/terraform.tfvars (the example uses "aks-demo").
+> # The DCF policy list this blueprint creates is named "<name_prefix>-aks-multicluster".
+> NAME_PREFIX=aks-demo
+>
 > # Find the policy list UUID for our ruleset and the priority-50 rule's parent.
 > CID=$(curl -sk -X POST "https://${AVIATRIX_CONTROLLER_IP}/v1/api" \
 >   -d "action=login&username=${AVIATRIX_USERNAME}&password=${AVIATRIX_PASSWORD}" \
@@ -905,11 +925,12 @@ terraform apply -auto-approve -var enable_k8s_smartgroup_demo=false
 > # Build a pruned copy of the policy list (priority-50 removed) and PUT it back.
 > curl -sk -H "Authorization: cid ${CID}" \
 >   "https://${AVIATRIX_CONTROLLER_IP}/v2.5/api/microseg/policy-list3" \
->   | python3 -c "
-> import sys, json
+>   | NAME_PREFIX="$NAME_PREFIX" python3 -c "
+> import sys, json, os
+> target = os.environ['NAME_PREFIX'] + '-aks-multicluster'
 > d = json.load(sys.stdin)
 > for pl in d.get('dcf_policies', []):
->     if pl.get('name') == '<name_prefix>-aks-multicluster':
+>     if pl.get('name') == target:
 >         pl['policies'] = [p for p in pl.get('policies', []) if p.get('priority') != 50]
 >         print(json.dumps(pl)); break" > /tmp/aks-prune.json
 > LIST_UUID=$(python3 -c "import json; print(json.load(open('/tmp/aks-prune.json'))['uuid'])")

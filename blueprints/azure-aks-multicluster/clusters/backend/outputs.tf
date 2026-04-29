@@ -74,8 +74,8 @@ output "external_dns_client_id" {
 }
 
 output "kubectl_config_command" {
-  description = "Command to configure kubectl for this cluster"
-  value       = "az aks get-credentials --resource-group ${azurerm_kubernetes_cluster.aks.resource_group_name} --name ${azurerm_kubernetes_cluster.aks.name} --overwrite-existing"
+  description = "Command to configure kubectl for this cluster — context name matches what the README uses (`backend`) so subsequent `kubectl ... --context backend` commands work as documented"
+  value       = "az aks get-credentials --resource-group ${azurerm_kubernetes_cluster.aks.resource_group_name} --name ${azurerm_kubernetes_cluster.aks.name} --context backend --overwrite-existing"
 }
 
 output "aviatrix_cluster_id" {
