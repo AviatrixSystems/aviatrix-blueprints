@@ -273,3 +273,57 @@ Walk the README's Destroy Instructions in order (the README's destroy section is
 5. **Report.** Add a "Resources verified clean" line per cloud + the state-list summary to `report.md`.
 
 If destroy fails entirely (orphan resources remain), do not abort the run — proceed to Phase 6 with the gap logged. The PR will document the orphans and include manual cleanup commands in the body.
+
+### Phase 6 — Gap consolidation + fix
+
+1. **Read** `$RUN_DIR/gaps.md`.
+2. **Group gaps by `file:`** — every gap targets one or more files via `files_to_edit`. Build a per-file list.
+3. **For each file**, generate a single consolidated set of Edits:
+   1. Re-read the file fully (so line numbers are current — earlier fixes in this run may have shifted them).
+   2. For each gap touching this file, derive the exact Edit (old_string / new_string) from `fix_proposal`. Use unique-anchor strings, not line numbers.
+   3. Apply all edits to this file in one logical batch.
+4. **Validate** with `terraform fmt -check -recursive blueprints/<name>/`. Non-zero exit → **revert the edits for the offending file** (`git checkout -- <file>`), log "fmt conflict for `<file>`: <output>" to `$RUN_DIR/phase-6-fix-plan.md`, **do not commit**.
+5. **Write `$RUN_DIR/phase-6-fix-plan.md`** with one section per fixed file (gap IDs + diff summary). This is for the human reviewing the PR.
+
+### Phase 7 — Commit + PR
+
+1. **Generate `$RUN_DIR/report.md`** per the schema in the Gap-Tracking Format section.
+2. **Stage only files that gaps touched.** Do not `git add -A` (avoids staging unrelated working-tree changes).
+3. **Commit** on the current branch:
+
+   ```bash
+   git commit -m "$(cat <<'EOF'
+   <blueprint>: QA pass — <N> gap fix(es)
+
+   <one-line summary per gap>
+   - <gap #1 summary>
+   - <gap #2 summary>
+
+   Run report: $RUN_DIR/report.md
+
+   Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+   EOF
+   )"
+   ```
+
+   No `--no-verify`. If a hook fails, surface the error and abort Phase 7 — fixes stay uncommitted, state dir kept.
+
+4. **Push.** `git push -u origin <branch>`. If the upstream is already set, just `git push`.
+5. **Open PR.**
+
+   ```bash
+   default_branch=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name)
+   gh pr create \
+     --base "$default_branch" \
+     --title "<blueprint>: QA pass YYYY-MM-DD" \
+     --body-file "$RUN_DIR/report.md"
+   ```
+
+   No labels, milestones, assignees, or auto-merge in v1.
+
+6. **Print PR URL** to stdout.
+
+### Phase 8 — Cleanup
+
+- **Full success** (every prior phase exit-clean, fixes pushed, PR opened) → `rm -rf "$RUN_DIR"` and print one-line summary.
+- **Partial failure** anywhere from Phase 3 onward → leave `$RUN_DIR` in place, print its path so the user can resume / investigate.
