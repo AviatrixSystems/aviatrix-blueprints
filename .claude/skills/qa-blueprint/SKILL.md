@@ -183,3 +183,67 @@ Generated at end of run. Used as PR body. Format:
 ```
 
 The skill writes this file before opening the PR; `gh pr create --body @<report-path>` consumes it directly.
+
+## Lifecycle Phases
+
+The skill walks the README from top to bottom, treating each section as ground truth. Phases run in order:
+
+### Phase 0 — Bootstrap (no cloud touched)
+
+1. **Determine blueprint path.** First arg is `<blueprint-name>`. Resolve to `blueprints/<arg>/`. If that directory doesn't exist, abort with: `Blueprint not found: blueprints/<arg>/`.
+2. **Branch handling.**
+   - Run `git rev-parse --abbrev-ref HEAD`.
+   - If on `main` (or whatever `gh repo view --json defaultBranchRef -q .defaultBranchRef.name` returns), construct branch name `qa/<blueprint-name>-$(date +%Y-%m-%d)-<n>` where `<n>` is the lowest unused integer (check both local `git branch --list` and remote `git ls-remote --heads origin`). Run `git checkout -b <branch>`.
+   - Otherwise, stay on the current branch (lets the user stack QA on top of a feature branch).
+3. **Source Aviatrix env.** Resolve `${AVIATRIX_ENV_FILE:-$HOME/Documents/Scripting/chris-avx-lab/controller_env_ga.sh}`. Verify file exists (`test -f`). Source it. Verify `AVIATRIX_CONTROLLER_IP`, `AVIATRIX_USERNAME`, `AVIATRIX_PASSWORD` are now set.
+4. **Detect target cloud(s).** `grep -lE "provider \"(azurerm|aws|google)\"" blueprints/<name>/**/*.tf` — collect the union of provider blocks across all `.tf` files in the blueprint.
+5. **Verify cloud auth** for each detected cloud:
+   - Azure: `az account show --query id -o tsv` — non-empty
+   - AWS: `aws sts get-caller-identity --query Account --output text` — non-empty
+   - GCP: `gcloud auth list --filter=status:ACTIVE --format="value(account)"` — non-empty
+6. **Verify `gh` auth.** `gh auth status` exits 0.
+7. **Create run state dir.** `RUN_DIR=/tmp/qa-blueprint-<name>-$(date +%Y%m%d-%H%M%S); mkdir -p "$RUN_DIR"; touch "$RUN_DIR/gaps.md"`.
+
+If any step in Phase 0 fails, abort with a specific remediation message. **No cloud resources have been touched yet, so no destroy is required.**
+
+### Phase 1 — Parse README + dry-run
+
+1. Read `blueprints/<name>/README.md`.
+2. Identify these sections (by `## ` headers):
+   - Prerequisites
+   - Deployment Guide (or "Complete Deployment Guide", "Deploy", or similar)
+   - Test Scenarios
+   - Destroy Instructions (or "Destroy", "Cleanup", "Teardown")
+3. Within the Deployment Guide section, identify each `### Step N:` as a phase to execute. Note which steps are described as "parallel with step N+1" or "in parallel" — those are parallelism opportunities.
+4. Within Test Scenarios, identify each `### Scenario N:` as a test to run.
+5. Within Destroy Instructions, identify each `### Step N:` as a destroy phase to execute in order. Note any `> [!IMPORTANT]` callouts inside destroy steps — those usually flag known eventual-consistency issues with documented recovery.
+6. Build the phase plan as a markdown summary in `$RUN_DIR/phase-plan.md`.
+7. **If `--dry-run` was passed**, print `phase-plan.md` to stdout and exit 0. Do not proceed to Phase 2.
+
+### Phase 2 — Pre-flight
+
+1. **Run any pre-flight scripts the README contains.** Heuristic: search the Prerequisites section for fenced bash blocks that contain comments like `# Fail-fast pre-flight check` or are described as "preflight" / "verify quotas" / similar. Run them as-is. Capture exit code and output to `$RUN_DIR/phase-2-preflight.log`. **Non-zero exit → log a gap (category: `wrong-expected-output` or `unstated-prereq`) but do not abort.** A customer hitting the same wall would simply note it and try the deploy anyway.
+2. **`terraform fmt -check -recursive blueprints/<name>/`.** If non-zero, log a gap (category: `readme-code-mismatch` if there's documented "always run fmt" guidance, otherwise just note as `phase-2 fmt drift`). Do not abort.
+3. **`terraform validate` per layer.** For each `.tf`-containing leaf directory under `blueprints/<name>/`, run `terraform init -backend=false && terraform validate`. Failures here are gaps; do not abort.
+
+### Phase 3 — Deploy
+
+For each step in the parsed Deployment Guide:
+
+1. **Read the step's prose + code blocks.** Identify the working directory (`cd ...`), the variables to set in `terraform.tfvars`, and the apply command.
+2. **Variable filling.** For each variable the README requires:
+   1. **Project memory first** — known values from memory file (e.g., `aviatrix_azure_account_name = "Azure"`).
+   2. **Example file's documented default next** — if `terraform.tfvars.example` says `name_prefix = "aks-demo"`, use that.
+   3. **Sensible inference last** — `azure_region` matches Tested With table, IP ranges from CIDR Allocation table, etc.
+   4. If none of those work → log gap "README requires `<var>` without a documented value", set placeholder `qa-test-<random>`.
+3. **Run terraform init + apply.** Use background invocation + Monitor for long-running applies (>5 min). Log full stdout/stderr to `$RUN_DIR/phase-3-deploy.log`.
+4. **Parallelism.** When the README marks two steps as "parallel with…" (e.g., "Steps 5 and 6 can run in parallel in separate terminals"), launch both terraform applies in the background concurrently. Wait for both to complete before moving to the next non-parallel step.
+5. **Transient retries.** If an apply fails with one of the known transient signatures below, retry once with the same args:
+   - `connection reset by peer`
+   - `502 Bad Gateway`
+   - `i/o timeout`
+   - `ResourceGroupBeingDeleted`
+   - `listClusterUserCredential.*404`
+
+   Successful retry → informational note in report (only a gap if the README didn't already document the transient). Second failure → log gap "deploy step <N> failed: <error>", **abort Phase 3, jump to Phase 5 (destroy)**.
+6. **Per-step verification.** Some steps include `# Verify` sub-blocks. Run these and log their pass/fail. Failures are gaps.
