@@ -101,3 +101,85 @@ Before invoking the skill, verify the following are set up:
 - Personal style/formatting preferences
 - Refactoring opportunities not customer-visible
 - Issues already addressed by an open PR or a recent commit (`git log --since="7 days ago" -- <file>` covers it)
+
+## Gap-Tracking Format
+
+### Run state directory
+
+All run artifacts live in:
+
+```
+/tmp/qa-blueprint-<blueprint-name>-<timestamp>/
+├── gaps.md           # accumulating gap log
+├── phase-0-bootstrap.log
+├── phase-2-preflight.log
+├── phase-3-deploy.log
+├── phase-4-test.log
+├── phase-5-destroy.log
+├── phase-6-fix-plan.md
+└── report.md         # final report, also used as PR body
+```
+
+`<timestamp>` is `date +%Y%m%d-%H%M%S` at run start.
+
+The dir is auto-cleaned at end of a fully successful run; preserved on failure for inspection or resume.
+
+### gaps.md schema
+
+Each gap is a fenced YAML block in `gaps.md`. Append one block per gap as it surfaces.
+
+````yaml
+- id: 1
+  category: copy-paste-failure
+  phase: test-scenario-6
+  file: blueprints/azure-aks-multicluster/README.md
+  line: 605
+  symptom: |
+    `kubectl apply -f webgrouppolicy-dev.yaml --context frontend` failed with:
+    Error from server (NotFound): namespaces "dev" not found
+  expected_per_readme: WebgroupPolicy applied to dev namespace
+  actual: namespace dev does not exist; YAML targets it
+  workaround_used: kubectl create namespace dev --context frontend
+  fix_proposal: |
+    Insert `kubectl create namespace dev --context frontend` before the
+    webgrouppolicy-dev apply in the Scenario 6 code block. Add a
+    one-line note explaining the namespace is not deployed by Terraform.
+  files_to_edit:
+    - blueprints/azure-aks-multicluster/README.md
+````
+
+**Required fields:** `id`, `category`, `phase`, `file`, `symptom`, `fix_proposal`, `files_to_edit`.
+
+**Optional fields:** `line` (when known), `expected_per_readme`, `actual`, `workaround_used`.
+
+`id` is monotonic within the run (1, 2, 3, …). Final report references gaps by these IDs.
+
+### report.md format
+
+Generated at end of run. Used as PR body. Format:
+
+```markdown
+# QA run: <blueprint-name>
+- Branch: qa/<name>-YYYY-MM-DD-<n>
+- Wall-clock: <X>m
+- Test scenarios: <P>/<T> pass (<W> worked-around, see gap list)
+
+## Gaps found and fixed (<N>)
+- #1 [copy-paste-failure] README.md:605 — missing `kubectl create namespace dev`
+- #2 [stale-value] README.md:564 — threat IP synced to gatus.yaml
+…
+
+## Test scenarios
+| # | Scenario | Result |
+|---|---|---|
+| 1 | Internet → AppGW | PASS |
+| 2 | East-west cross-cluster | PASS |
+| 3 | DCF egress allowed | PASS |
+…
+
+## Resources verified clean
+- 0 orphan resource groups in <subscription>
+- 0 stale state entries
+```
+
+The skill writes this file before opening the PR; `gh pr create --body @<report-path>` consumes it directly.
