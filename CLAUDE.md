@@ -181,7 +181,7 @@ Checks:
 - Standards compliance
 - File structure
 
-### /test-blueprint (Future)
+### /qa-blueprint (Future)
 
 End-to-end testing with Playwright:
 - Deploy blueprint
