@@ -43,7 +43,21 @@ locals {
   name_prefix   = data.terraform_remote_state.network.outputs.name_prefix
 }
 
-# NOTE: AKS Azure CNI Powered by Cilium does not expose a cilium-config ConfigMap.
-# Pod masquerade is controlled by azure-ip-masq-agent, which already lists
-# 100.64.0.0/16 (pod CIDR) in NonMasqueradeCIDRs. DCF rules operate at VNet level
-# (post-SNAT to spoke GW IP). Pod-level DCF requires the Aviatrix K8s controller.
+# See nodes/frontend/main.tf for the full rationale on disabling
+# cluster-boundary masquerade. Both clusters get the same override so pod IPs
+# are preserved end-to-end up to their respective Aviatrix spoke gateway.
+resource "kubernetes_config_map_v1_data" "azure_ip_masq_agent" {
+  metadata {
+    name      = "azure-ip-masq-agent-config"
+    namespace = "kube-system"
+  }
+  data = {
+    "ip-masq-agent" = yamlencode({
+      nonMasqueradeCIDRs = ["0.0.0.0/0"]
+      masqLinkLocal      = false
+    })
+  }
+  force = true
+
+  depends_on = [helm_release.k8s_firewall]
+}

@@ -84,9 +84,10 @@ module "azure_transit" {
   # resolve via the GW; VNet-based SmartGroups still work and cover east-west.
 
   # CRITICAL: Exclude the pod CIDR from BGP advertisements.
-  # Both clusters share 100.64.0.0/16 as their Cilium overlay — Aviatrix SNATs
-  # pod traffic to spoke GW IPs before forwarding to transit, so the transit
-  # must never advertise the raw pod CIDR to peers.
+  # Both clusters share 100.64.0.0/16 as their Cilium overlay — the spoke GWs
+  # SNAT pod traffic to their own private IP via aviatrix_gateway_snat
+  # (customized_snat) before forwarding to transit, so the transit must never
+  # advertise the raw pod CIDR to peers.
   excluded_advertised_spoke_routes = var.pod_cidr
 }
 
@@ -159,11 +160,12 @@ module "frontend_spoke" {
 
   # See comment in transit module above — DNS check fails on this controller.
 
-  # SNAT all spoke traffic (including pod 100.64.x.x IPs) to the spoke GW IP.
-  # DCF inspects the original pod IPs before SNAT. single_ip_snat avoids the
-  # [AVXERR-NAT-0029] conflict caused by the UDR 0/0 being misidentified as an
-  # onprem-learned route by customized_snat mode.
-  single_ip_snat = true
+  # Pods egress with their original 100.64.x.x source IPs so DCF inspects pod
+  # IPs at this gateway. The aviatrix_gateway_snat resource below SNATs pod
+  # CIDR + VNet CIDR to the spoke GW's private IP per direction (transit
+  # connection + eth0) so the destination cluster's identical pod CIDR doesn't
+  # collide on reply, and AKS nodes still get internet egress for CSE bootstrap.
+  single_ip_snat = false
 
   # Deploy spoke GW into the VNet created by aks-vnet module
   use_existing_vpc = true
@@ -174,6 +176,59 @@ module "frontend_spoke" {
     azurerm_subnet_route_table_association.frontend_nodes_udr,
     azurerm_subnet_route_table_association.frontend_system_udr,
   ]
+}
+
+# CRITICAL: Custom SNAT for pod traffic (100.64.0.0/16) and VNet traffic.
+# Pod CIDR is SNATed to the spoke GW IP per direction so overlapping pod
+# CIDRs across clusters don't collide on the IPsec reply path. VNet CIDR is
+# SNATed for eth0 so AKS nodes (10.10.0.x) can egress to the internet (CSE
+# image pulls, kubelet → Azure ARM, etc.) — without this they'd leave the GW
+# with an unroutable RFC1918 source.
+resource "aviatrix_gateway_snat" "frontend" {
+  gw_name   = module.frontend_spoke.spoke_gateway.gw_name
+  snat_mode = "customized_snat"
+
+  # Pod CIDR — east-west via transit IPsec connection
+  snat_policy {
+    src_cidr   = var.pod_cidr
+    dst_cidr   = "0.0.0.0/0"
+    protocol   = "all"
+    interface  = ""
+    connection = module.azure_transit.transit_gateway.gw_name
+    snat_ips   = module.frontend_spoke.spoke_gateway.private_ip
+  }
+
+  # Pod CIDR — internet egress via eth0
+  snat_policy {
+    src_cidr   = var.pod_cidr
+    dst_cidr   = "0.0.0.0/0"
+    protocol   = "all"
+    interface  = "eth0"
+    connection = ""
+    snat_ips   = module.frontend_spoke.spoke_gateway.private_ip
+  }
+
+  # Frontend VNet (covers AKS nodes + system subnet) — east-west via transit
+  snat_policy {
+    src_cidr   = var.frontend_vnet_cidr
+    dst_cidr   = "0.0.0.0/0"
+    protocol   = "all"
+    interface  = ""
+    connection = module.azure_transit.transit_gateway.gw_name
+    snat_ips   = module.frontend_spoke.spoke_gateway.private_ip
+  }
+
+  # Frontend VNet — internet egress via eth0 (required for AKS node CSE bootstrap)
+  snat_policy {
+    src_cidr   = var.frontend_vnet_cidr
+    dst_cidr   = "0.0.0.0/0"
+    protocol   = "all"
+    interface  = "eth0"
+    connection = ""
+    snat_ips   = module.frontend_spoke.spoke_gateway.private_ip
+  }
+
+  depends_on = [module.frontend_spoke]
 }
 
 #####################
@@ -237,7 +292,9 @@ module "backend_spoke" {
 
   # See comment in transit module above — DNS check fails on this controller.
 
-  single_ip_snat = true
+  # See comment on frontend_spoke single_ip_snat — pods preserve original IPs
+  # so DCF inspects pod source. aviatrix_gateway_snat below handles SNAT.
+  single_ip_snat = false
 
   use_existing_vpc = true
   vpc_id           = module.backend_vnet.aviatrix_vpc_id
@@ -247,6 +304,49 @@ module "backend_spoke" {
     azurerm_subnet_route_table_association.backend_nodes_udr,
     azurerm_subnet_route_table_association.backend_system_udr,
   ]
+}
+
+resource "aviatrix_gateway_snat" "backend" {
+  gw_name   = module.backend_spoke.spoke_gateway.gw_name
+  snat_mode = "customized_snat"
+
+  snat_policy {
+    src_cidr   = var.pod_cidr
+    dst_cidr   = "0.0.0.0/0"
+    protocol   = "all"
+    interface  = ""
+    connection = module.azure_transit.transit_gateway.gw_name
+    snat_ips   = module.backend_spoke.spoke_gateway.private_ip
+  }
+
+  snat_policy {
+    src_cidr   = var.pod_cidr
+    dst_cidr   = "0.0.0.0/0"
+    protocol   = "all"
+    interface  = "eth0"
+    connection = ""
+    snat_ips   = module.backend_spoke.spoke_gateway.private_ip
+  }
+
+  snat_policy {
+    src_cidr   = var.backend_vnet_cidr
+    dst_cidr   = "0.0.0.0/0"
+    protocol   = "all"
+    interface  = ""
+    connection = module.azure_transit.transit_gateway.gw_name
+    snat_ips   = module.backend_spoke.spoke_gateway.private_ip
+  }
+
+  snat_policy {
+    src_cidr   = var.backend_vnet_cidr
+    dst_cidr   = "0.0.0.0/0"
+    protocol   = "all"
+    interface  = "eth0"
+    connection = ""
+    snat_ips   = module.backend_spoke.spoke_gateway.private_ip
+  }
+
+  depends_on = [module.backend_spoke]
 }
 
 #####################

@@ -119,9 +119,12 @@ resource "azurerm_kubernetes_cluster" "aks" {
     network_data_plane  = "cilium"  # Required by AKS API alongside network_policy=cilium
 
     # Pod CIDR: same across both clusters (overlapping by design).
-    # Aviatrix spoke gateway SNATs 100.64.x.x → spoke GW IP for transit routing.
-    # Cilium has enableIPv4Masquerade=false (configured in nodes layer),
-    # so pods send packets with their original 100.64.x.x source IPs to the spoke GW.
+    # Pod traffic egresses with the original 100.64.x.x source IP to the
+    # Aviatrix spoke gateway because the nodes layer overrides the AKS-managed
+    # azure-ip-masq-agent ConfigMap (NonMasqueradeCIDRs=[0.0.0.0/0]) to disable
+    # cluster-boundary masquerade. The spoke GW's customized_snat policy then
+    # SNATs pod CIDR → spoke GW private IP per direction (transit + internet) —
+    # see network/main.tf aviatrix_gateway_snat.frontend.
     pod_cidr = data.terraform_remote_state.network.outputs.pod_cidr
 
     service_cidr   = data.terraform_remote_state.network.outputs.service_cidr

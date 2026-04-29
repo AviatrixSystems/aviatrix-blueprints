@@ -13,11 +13,17 @@
 #       50–99 : Reserved for K8s CRD policies (FirewallPolicy / WebGroupPolicy)
 #
 # NOTES:
-#   - DCF inspects traffic at the Aviatrix spoke gateway BEFORE SNAT.
-#     Pod source IPs (100.64.x.x) are visible to DCF rules. Aviatrix K8s
-#     SmartGroups dynamically resolve pod IPs from cluster label selectors.
-#   - For transit-level rules (east-west between spokes), traffic arrives
-#     post-SNAT (spoke GW IP). Use VNet-type SmartGroups for those.
+#   - DCF inspects traffic at the SOURCE spoke gateway BEFORE the gateway's
+#     customized_snat fires. Pod source IPs (100.64.x.x) are visible to DCF.
+#     K8s-typed SmartGroups (cluster/namespace/pod selectors resolved by the
+#     Aviatrix controller from the cluster API) match east-west traffic
+#     between clusters.
+#   - On the DESTINATION spoke gateway, traffic arrives post-SNAT (source =
+#     spoke GW private IP, which is in the source VNet's CIDR), so VNet-typed
+#     SmartGroups continue to match for east-west rules. K8s-typed source
+#     selectors only match on the SOURCE-side inspection.
+#   - Cluster-boundary masquerade (azure-ip-masq-agent) is disabled in the
+#     nodes layer so pod IPs are preserved end-to-end up to the spoke GW.
 #   - Hostname SmartGroups resolve FQDNs via the Azure Private DNS zone.
 #####################
 

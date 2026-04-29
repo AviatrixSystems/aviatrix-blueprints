@@ -113,6 +113,12 @@ resource "azurerm_kubernetes_cluster" "aks" {
     network_policy      = "cilium" # Activates Azure CNI Powered by Cilium (replaces kube-proxy with eBPF)
     network_data_plane  = "cilium" # Required by AKS API alongside network_policy=cilium
 
+    # Pod CIDR: same across both clusters (overlapping by design).
+    # Pod traffic egresses with the original 100.64.x.x source IP to the
+    # Aviatrix spoke gateway (azure-ip-masq-agent disabled in nodes layer).
+    # The spoke GW's customized_snat policy SNATs pod CIDR → spoke GW private
+    # IP per direction (transit + internet) — see network/main.tf
+    # aviatrix_gateway_snat.backend.
     pod_cidr = data.terraform_remote_state.network.outputs.pod_cidr
 
     service_cidr   = data.terraform_remote_state.network.outputs.service_cidr
