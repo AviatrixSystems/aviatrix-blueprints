@@ -376,3 +376,38 @@ To clean up, re-run /qa-blueprint <name> or destroy manually:
 ```
 
 The remediation hints come from the parsed Phase 1 plan, not hardcoded.
+
+## Implementation Notes
+
+- **`source` is a shell builtin, not a binary.** Each Bash tool call spawns a fresh shell, so chain `source <file>` with the actual command via `&&`. Example:
+  ```bash
+  source "$AVIATRIX_ENV_FILE" && terraform apply -auto-approve
+  ```
+  If `Bash(source *)` doesn't get permission-allowed at runtime, fall back to inlining: `set -a; . "$AVIATRIX_ENV_FILE"; set +a`.
+
+- **Default-branch detection.**
+  ```bash
+  default_branch=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name)
+  ```
+  Use this rather than hardcoding `main`.
+
+- **Resume detection** (Phase 5 always-run guarantee). On entry, after parsing args:
+  ```bash
+  existing=$(ls -1d "/tmp/qa-blueprint-<name>"-* 2>/dev/null | head -1)
+  ```
+  If `$existing` is non-empty, prompt the user: "Existing run dir found at `$existing`. Resume from destroy, or start fresh? (resume/fresh)". Only continue once the user picks.
+
+- **Long-running waits.** Phase 3 applies (network, AKS clusters) take 5–15 min. Use `Bash(... &)` + the Monitor tool with a tight regex (`Apply complete|Error:|^Error |502 Bad Gateway`) to avoid context bloat from `Still creating…` lines.
+
+- **Multi-layer parallelism.** When the README marks two layers as "parallel with…", launch both in the background and use a single Monitor watching `tail -F file1 file2`. Both must complete before moving on.
+
+- **Tool permissions.** `allowed-tools` covers binary invocations and the major Claude tools. If the runtime rejects an unlisted invocation, document the missing entry as a follow-up (do not bypass with shell tricks).
+
+## Open questions / future work
+
+These are intentionally out of scope for v1. PRs welcome.
+
+- **Multi-cloud blueprints** (e.g., `k8s-cluster-aas/aws`, `…/azure`, `…/gcp`): v1 handles one cloud per invocation. The arg `<blueprint-name>` accepts the cloud subpath (e.g., `k8s-cluster-aas/aws`). Future: orchestrate all three in one run.
+- **Playwright/CoPilot UI verification.** v1 is text-only. The original `test-blueprint` had Playwright integration; if we need it back, it goes into a separate `--with-ui` mode.
+- **Iteration mode.** v1 is one-pass. If a user wants "deploy → fix → redeploy until two passes find no new gaps", add `--loop` later.
+- **Cost ceiling.** v1 has no spend cap. A future `--max-cost-usd <N>` could abort if estimated spend exceeds the cap.
