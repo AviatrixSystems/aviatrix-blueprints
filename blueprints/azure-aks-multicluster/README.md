@@ -477,24 +477,6 @@ kubectl get crd firewallpolicies.networking.aviatrix.com --context frontend
 kubectl get crd webgrouppolicies.networking.aviatrix.com --context frontend
 ```
 
-### Step 7.5: Inject IPsec-direction SNAT rule on each spoke GW (REQUIRED for cross-cluster east-west)
-
-The Azure Aviatrix spoke gateway's `CONDUIT_SNAT` chain has an `ACCEPT … policy match dir out pol ipsec` rule before the customized_snat policies. This pre-empts pod-CIDR SNAT for east-west via transit, so the destination cluster sees overlapping `100.64.x.x` source IPs and the reply path collapses. See **Cross-cluster east-west fails** under Troubleshooting for full background.
-
-Run after every `terraform apply` of the network layer:
-
-```bash
-source ~/Documents/Scripting/chris-avx-lab/controller_env_ga.sh
-for spec in "aks-demo-frontend-spoke 10.10.0.4" "aks-demo-backend-spoke 10.20.0.4"; do
-  read gw ip <<< "$spec"
-  ssh -tt -i ~/Documents/keys/avtx-cmchenry-aws-useast2.pem \
-    ubuntu@$AVIATRIX_CONTROLLER_IP \
-    "bash -lic 'sshgw $gw -- sudo iptables -t nat -I CONDUIT_SNAT 1 -s 100.64.0.0/16 -m policy --pol ipsec --dir out -j SNAT --to-source $ip'"
-done
-```
-
-This is a manual workaround pending Aviatrix Azure controller fix.
-
 ### Step 8: Deploy Gatus Monitoring Dashboards
 
 Gatus is deployed as a Kubernetes manifest (not Terraform-managed), applied directly with kubectl.
@@ -1060,36 +1042,6 @@ curl -sk -H "Authorization: cid ${CID}" \
 
 4. **Check Aviatrix spoke gateway connectivity** in CoPilot → Topology, verify both spokes are connected to transit.
 
-### Cross-cluster east-west fails (Backend Service unhealthy in Gatus)
-
-After every `terraform apply` of the network layer, the Azure Aviatrix spoke gateway's `CONDUIT_SNAT` chain has this rule order:
-
-```
-1  ACCEPT  ...  policy match dir out pol ipsec     ← pre-empts SNAT for east-west
-2  SNAT    100.64.0.0/16 → 10.10.0.4  dst-group 0x1   ← pod CIDR via transit (never reached)
-...
-```
-
-The IPsec ACCEPT pre-empts the customized_snat policy for transit-bound (east-west) pod traffic. As a result, frontend pod packets traverse transit with their original `100.64.x.x` source, the destination cluster sees that as its own pod CIDR, and the reply path collapses. Internet egress and same-VNet east-west still work; cross-cluster east-west between clusters with **overlapping pod CIDRs** does not.
-
-This is an Aviatrix Azure controller bug — on GCP the rule order is reversed (SNAT before ACCEPT), so customized_snat works correctly there.
-
-**Workaround** (until Aviatrix fixes the chain order): inject the SNAT rule before the IPsec ACCEPT on each spoke GW after every network apply.
-
-```bash
-source ~/Documents/Scripting/chris-avx-lab/controller_env_ga.sh
-for spec in "aks-demo-frontend-spoke 10.10.0.4" "aks-demo-backend-spoke 10.20.0.4"; do
-  read gw ip <<< "$spec"
-  ssh -tt -i ~/Documents/keys/avtx-cmchenry-aws-useast2.pem \
-    ubuntu@$AVIATRIX_CONTROLLER_IP \
-    "bash -lic 'sshgw $gw -- sudo iptables -t nat -I CONDUIT_SNAT 1 -s 100.64.0.0/16 -m policy --pol ipsec --dir out -j SNAT --to-source $ip'"
-done
-```
-
-Verify with `sshgw <gw> -- sudo iptables -t nat -L CONDUIT_SNAT -n -v --line-numbers`. The SNAT rule should be at line 1, the IPsec ACCEPT at line 2.
-
-Open an Aviatrix support case to track the chain-order fix; reference: GCP gateway POSTROUTING fires SNAT before the IPsec ACCEPT, Azure does the opposite.
-
 ### `AVXERR-NAT-0029` on `terraform apply` (no longer expected)
 
 In overlay-mode AKS this error fired when the explicit `azurerm_route 0.0.0.0/0 → spoke_gw.private_ip` was misidentified as an onprem-learned route. After the switch to **pod-subnet mode** (current blueprint default) we have not seen this error reproduce on Aviatrix Controller 9.0.10 with the customized_snat config in `network/main.tf`. If you see it on a different controller version, the historical workarounds were:
@@ -1117,6 +1069,14 @@ If priority-50 K8s SmartGroup rule shows zero hits even after the customized_sna
 
 3. **Confirm DCF inspection on the source spoke**:
    In CoPilot → Distributed Cloud Firewall → Monitor → Policy Logs, recent flows should show **Source IP** in `100.64.0.0/16` and **Source Workload** as a Kubernetes pod name (e.g., `external-dns-…`) — that proves the Aviatrix K8s controller is resolving pod IPs to workload identity.
+
+4. **Confirm SNAT is firing on the spoke GW** (note on the Azure CONDUIT_SNAT chain):
+
+   ```bash
+   sshgw aks-demo-frontend-spoke -- sudo iptables -t nat -L CONDUIT_SNAT -n -v --line-numbers
+   ```
+
+   You will see rule 1 as `ACCEPT … policy match dir out pol ipsec`. This is **not** a problem on Azure — that rule only matches packets routed through native Linux xfrm IPsec policies (e.g., S2S VPN to onprem). Aviatrix transit on Azure does **not** use xfrm policies, so the rule has 0 packets and does not pre-empt customized_snat. Confirm that the `100.64.0.0/16 … dst-group 0x1 to:<spoke_gw_private_ip>` rule has non-zero packet counts under load — that's the customized_snat policy translating pod CIDR before transit.
 
 ### AppGW Backend Shows Unhealthy
 
