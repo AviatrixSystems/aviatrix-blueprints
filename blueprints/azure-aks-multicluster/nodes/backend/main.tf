@@ -43,20 +43,6 @@ locals {
   name_prefix   = data.terraform_remote_state.network.outputs.name_prefix
 }
 
-# See nodes/frontend/main.tf for the full rationale on disabling
-# cluster-boundary masquerade. Both clusters get the same override so pod IPs
-# are preserved end-to-end up to their respective Aviatrix spoke gateway.
-resource "kubernetes_config_map" "azure_ip_masq_agent" {
-  metadata {
-    name      = "azure-ip-masq-agent-config"
-    namespace = "kube-system"
-  }
-  data = {
-    "ip-masq-agent" = yamlencode({
-      nonMasqueradeCIDRs = ["0.0.0.0/0"]
-      masqLinkLocal      = false
-    })
-  }
-
-  depends_on = [helm_release.k8s_firewall]
-}
+# See nodes/frontend/main.tf — pod-subnet mode means AKS doesn't deploy the
+# azure-ip-masq-agent daemonset; no cluster-boundary masquerade override is
+# needed. Pod IPs are preserved end-to-end up to the Aviatrix spoke gateway.
