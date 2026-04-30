@@ -75,4 +75,12 @@ resource "azurerm_subnet" "pods" {
   resource_group_name  = azurerm_resource_group.vnet.name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = [var.pod_cidr]
+
+  # AKS auto-attaches a Microsoft.ContainerService/managedClusters delegation when the
+  # cluster comes up in pod-subnet mode. Without this, every subsequent apply on the
+  # network layer plans to remove that delegation and Azure rejects with
+  # SubnetMissingRequiredDelegation while AKS holds the serviceAssociationLink.
+  lifecycle {
+    ignore_changes = [delegation]
+  }
 }
