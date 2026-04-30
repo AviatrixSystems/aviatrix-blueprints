@@ -436,7 +436,7 @@ cd ../backend/
 # Initialize Terraform
 terraform init
 
-# Deploy node pool and Helm charts (~7-10 minutes)
+# Deploy Helm charts (~3-5 minutes)
 terraform apply
 ```
 
@@ -965,6 +965,9 @@ terraform apply -auto-approve -var enable_k8s_smartgroup_demo=false
 > # Then re-run the apply — Terraform will reconcile state and complete the SG destroys.
 > terraform apply -auto-approve -var enable_k8s_smartgroup_demo=false
 > ```
+
+> [!NOTE]
+> The Step 3 apply may also surface `[AVXERR-NAT-0012] There is no change in customized SNAT rules` on `aviatrix_gateway_snat.{frontend,backend}`. This is benign noise from a non-deterministic ordering of `snat_policy` blocks (the controller returns them in a different order than Terraform planned them, then refuses the would-be no-op modify). It does not block destroy progress: the K8s SmartGroups are gone — exit Step 3 and continue to Step 4. Step 5's `terraform destroy` plans the SNAT for full destruction rather than in-place modify, which sidesteps the issue entirely.
 
 ### Step 4: Destroy AKS Clusters (Parallel)
 
