@@ -1,12 +1,16 @@
 locals {
-  # Subnet layout within the /23 VNet CIDR
-  # Example: 10.10.0.0/23 →
-  #   avx-gw:  10.10.0.0/28  (Aviatrix spoke gateway — 11 usable IPs)
-  #   system:  10.10.0.128/25 (Internal LBs, ingress — 123 usable IPs)
-  #   nodes:   10.10.1.0/24  (AKS node pool — 251 usable IPs)
+  # VNet has TWO address spaces:
+  #   - Routable /23 (per-cluster unique, e.g. 10.10.0.0/23 for frontend) — node + system + Aviatrix GW subnets
+  #   - Pod CIDR /16 (e.g., 100.64.0.0/16) — added as a 2nd VNet address space, carved into a single
+  #     "podsubnet" used by AKS pod-subnet mode. Both clusters use the same pod CIDR (overlapping by
+  #     design); VNets are isolated, and the Aviatrix spoke GW SNATs pod CIDR before transit.
   #
-  # Pod CIDR (100.64.0.0/16) is the Cilium overlay — NOT in VNet address space.
-  # Routes from nodes for non-local traffic are handled via UDR in the parent module.
+  # Routable subnet layout:
+  #   avx-gw:  10.x.0.0/28    (Aviatrix spoke gateway — 11 usable IPs)
+  #   system:  10.x.0.128/25  (Internal LBs, ingress — 123 usable IPs)
+  #   nodes:   10.x.1.0/24    (AKS node pool VMs — 251 usable IPs)
+  # Pod subnet:
+  #   pods:    100.64.0.0/16  (AKS pods — 65k IPs, full pod address space)
 
   rg_name   = "${var.name_prefix}-${var.name}-rg"
   vnet_name = "${var.name_prefix}-${var.name}-vnet"
@@ -32,7 +36,7 @@ resource "azurerm_virtual_network" "vnet" {
   name                = local.vnet_name
   location            = azurerm_resource_group.vnet.location
   resource_group_name = azurerm_resource_group.vnet.name
-  address_space       = [var.vnet_cidr]
+  address_space       = [var.vnet_cidr, var.pod_cidr]
   tags                = merge(var.tags, { Name = local.vnet_name, Cluster = var.cluster_name })
 }
 
@@ -59,4 +63,16 @@ resource "azurerm_subnet" "nodes" {
   resource_group_name  = azurerm_resource_group.vnet.name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = [local.nodes_subnet]
+}
+
+# Pod subnet — AKS allocates pod IPs from here in pod-subnet mode (NOT overlay).
+# Pod CIDR is the entire 2nd VNet address space; no further sub-carving needed because
+# (a) pods don't share this subnet with other resources and (b) max 65k IPs covers any
+# realistic node-pool scale. Route table association (UDR → Aviatrix) is done in the
+# parent module so pod egress flows through the spoke GW for SNAT + DCF inspection.
+resource "azurerm_subnet" "pods" {
+  name                 = "${var.name}-pods"
+  resource_group_name  = azurerm_resource_group.vnet.name
+  virtual_network_name = azurerm_virtual_network.vnet.name
+  address_prefixes     = [var.pod_cidr]
 }

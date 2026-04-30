@@ -46,7 +46,7 @@ locals {
 # See nodes/frontend/main.tf for the full rationale on disabling
 # cluster-boundary masquerade. Both clusters get the same override so pod IPs
 # are preserved end-to-end up to their respective Aviatrix spoke gateway.
-resource "kubernetes_config_map_v1_data" "azure_ip_masq_agent" {
+resource "kubernetes_config_map" "azure_ip_masq_agent" {
   metadata {
     name      = "azure-ip-masq-agent-config"
     namespace = "kube-system"
@@ -57,7 +57,6 @@ resource "kubernetes_config_map_v1_data" "azure_ip_masq_agent" {
       masqLinkLocal      = false
     })
   }
-  force = true
 
   depends_on = [helm_release.k8s_firewall]
 }

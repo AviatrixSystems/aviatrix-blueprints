@@ -101,6 +101,7 @@ module "frontend_vnet" {
   name         = "frontend"
   cluster_name = local.clusters.frontend.name
   vnet_cidr    = local.clusters.frontend.vnet_cidr
+  pod_cidr     = var.pod_cidr
   region       = var.azure_region
   name_prefix  = var.name_prefix
   tags         = merge(local.common_tags, { Cluster = "frontend" })
@@ -125,6 +126,14 @@ resource "azurerm_subnet_route_table_association" "frontend_nodes_udr" {
 # Aviatrix requires ALL private subnets in the VNet to have a route table
 resource "azurerm_subnet_route_table_association" "frontend_system_udr" {
   subnet_id      = module.frontend_vnet.system_subnet_id
+  route_table_id = azurerm_route_table.frontend_udr.id
+}
+
+# Pod subnet UDR — pods egress through the spoke GW, where DCF inspects pod-source
+# IPs and customized_snat fires. Without this UDR, pod traffic wouldn't reach the
+# Aviatrix gateway and DCF inspection would never trigger.
+resource "azurerm_subnet_route_table_association" "frontend_pods_udr" {
+  subnet_id      = module.frontend_vnet.pod_subnet_id
   route_table_id = azurerm_route_table.frontend_udr.id
 }
 
@@ -241,6 +250,7 @@ module "backend_vnet" {
   name         = "backend"
   cluster_name = local.clusters.backend.name
   vnet_cidr    = local.clusters.backend.vnet_cidr
+  pod_cidr     = var.pod_cidr
   region       = var.azure_region
   name_prefix  = var.name_prefix
   tags         = merge(local.common_tags, { Cluster = "backend" })
@@ -261,6 +271,11 @@ resource "azurerm_subnet_route_table_association" "backend_nodes_udr" {
 
 resource "azurerm_subnet_route_table_association" "backend_system_udr" {
   subnet_id      = module.backend_vnet.system_subnet_id
+  route_table_id = azurerm_route_table.backend_udr.id
+}
+
+resource "azurerm_subnet_route_table_association" "backend_pods_udr" {
+  subnet_id      = module.backend_vnet.pod_subnet_id
   route_table_id = azurerm_route_table.backend_udr.id
 }
 

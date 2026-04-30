@@ -46,6 +46,16 @@ output "frontend_nodes_subnet_cidr" {
   value       = module.frontend_vnet.nodes_subnet_cidr
 }
 
+output "frontend_pod_subnet_id" {
+  description = "Frontend pod subnet ID — passed to AKS for pod-subnet mode (NOT overlay)"
+  value       = module.frontend_vnet.pod_subnet_id
+}
+
+output "frontend_pod_subnet_cidr" {
+  description = "Frontend pod subnet CIDR (matches var.pod_cidr)"
+  value       = module.frontend_vnet.pod_subnet_cidr
+}
+
 output "frontend_system_subnet_id" {
   description = "Frontend system/ingress subnet ID"
   value       = module.frontend_vnet.system_subnet_id
@@ -113,6 +123,16 @@ output "backend_nodes_subnet_id" {
 output "backend_nodes_subnet_cidr" {
   description = "Backend AKS nodes subnet CIDR"
   value       = module.backend_vnet.nodes_subnet_cidr
+}
+
+output "backend_pod_subnet_id" {
+  description = "Backend pod subnet ID — passed to AKS for pod-subnet mode (NOT overlay)"
+  value       = module.backend_vnet.pod_subnet_id
+}
+
+output "backend_pod_subnet_cidr" {
+  description = "Backend pod subnet CIDR (matches var.pod_cidr)"
+  value       = module.backend_vnet.pod_subnet_cidr
 }
 
 output "backend_system_subnet_id" {

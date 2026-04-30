@@ -55,6 +55,16 @@ output "system_subnet_cidr" {
 }
 
 output "vnet_cidr" {
-  description = "Primary CIDR of the VNet"
+  description = "Primary (routable) CIDR of the VNet"
   value       = tolist(azurerm_virtual_network.vnet.address_space)[0]
+}
+
+output "pod_subnet_id" {
+  description = "Azure resource ID of the pod subnet (used by AKS pod-subnet mode)"
+  value       = azurerm_subnet.pods.id
+}
+
+output "pod_subnet_cidr" {
+  description = "CIDR of the pod subnet (matches var.pod_cidr)"
+  value       = azurerm_subnet.pods.address_prefixes[0]
 }

@@ -101,6 +101,11 @@ resource "azurerm_kubernetes_cluster" "aks" {
     max_count            = var.node_pool_config.max_count
     auto_scaling_enabled = true
     vnet_subnet_id       = data.terraform_remote_state.network.outputs.frontend_nodes_subnet_id
+    # Pod-subnet mode: pod IPs come from a dedicated VNet subnet (100.64.0.0/16),
+    # NOT from a Cilium overlay. Pods get real VNet addresses → Azure routes them
+    # natively → packets reach the Aviatrix spoke GW with their original pod IP.
+    pod_subnet_id = data.terraform_remote_state.network.outputs.frontend_pod_subnet_id
+    max_pods      = 250
 
     upgrade_settings {
       max_surge = "10%"
@@ -113,25 +118,20 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 
   network_profile {
-    network_plugin      = "azure"
-    network_plugin_mode = "overlay" # Cilium overlay — pod IPs in 100.64.0.0/16 are NOT in the VNet
-    network_policy      = "cilium"  # Activates Azure CNI Powered by Cilium (replaces kube-proxy with eBPF)
-    network_data_plane  = "cilium"  # Required by AKS API alongside network_policy=cilium
+    network_plugin     = "azure"
+    network_policy     = "cilium" # Activates Azure CNI Powered by Cilium (replaces kube-proxy with eBPF)
+    network_data_plane = "cilium" # Required by AKS API alongside network_policy=cilium
 
-    # Pod CIDR: same across both clusters (overlapping by design).
-    # Pod traffic egresses with the original 100.64.x.x source IP to the
-    # Aviatrix spoke gateway because the nodes layer overrides the AKS-managed
-    # azure-ip-masq-agent ConfigMap (NonMasqueradeCIDRs=[0.0.0.0/0]) to disable
-    # cluster-boundary masquerade. The spoke GW's customized_snat policy then
-    # SNATs pod CIDR → spoke GW private IP per direction (transit + internet) —
-    # see network/main.tf aviatrix_gateway_snat.frontend.
-    pod_cidr = data.terraform_remote_state.network.outputs.pod_cidr
+    # No network_plugin_mode — pods use the dedicated pod_subnet_id on the node pool.
+    # Pod IPs are real VNet addresses (from 100.64.0.0/16, the 2nd VNet address space),
+    # so Azure does NOT perform node-level SNAT. Pod packets traverse the Azure VNet
+    # natively to the Aviatrix spoke GW where customized_snat fires after DCF inspection.
 
     service_cidr   = data.terraform_remote_state.network.outputs.service_cidr
     dns_service_ip = data.terraform_remote_state.network.outputs.dns_service_ip
 
     # All egress routes through the Aviatrix spoke gateway via the UDR
-    # pre-associated with the nodes subnet in the network layer.
+    # pre-associated with the nodes AND pod subnets in the network layer.
     outbound_type = "userDefinedRouting"
   }
 

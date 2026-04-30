@@ -159,7 +159,11 @@ Internet client
 
 ### Pod Networking (Cilium Overlay)
 
-Both clusters use **Azure CNI Powered by Cilium** with an RFC 6598 overlay CIDR (`100.64.0.0/16`) for pod IPs. This CIDR is the same across both clusters — overlapping by design. Pods preserve their original `100.64.x.x` source IPs all the way to the Aviatrix spoke gateway (cluster-boundary masquerade is disabled by overriding the `azure-ip-masq-agent` ConfigMap). The spoke GW inspects the pod IP via DCF — so K8s-typed SmartGroups (cluster/namespace/pod selectors) match east-west traffic — then SNATs to its own private IP per-direction (transit + internet) so the destination cluster's identical pod CIDR doesn't collide on reply.
+Both clusters use **Azure CNI Powered by Cilium in pod-subnet mode** (NOT overlay). Each VNet has two address spaces: a per-cluster `/23` routable block (10.10.0.0/23 for frontend, 10.20.0.0/23 for backend) for nodes, system subnets, and the Aviatrix spoke GW; plus a shared `100.64.0.0/16` (RFC 6598) as a second VNet address space carved into a single `podsubnet` from which AKS allocates pod IPs directly.
+
+Both clusters use the same `100.64.0.0/16` for pods — overlapping by design. VNets are isolated from each other, so the duplicate isn't a problem locally. The Aviatrix spoke GW's `customized_snat` policies translate pod CIDR (and the routable VNet CIDR) to the spoke GW's unique private IP per direction (transit IPsec + eth0 internet) before traffic ever crosses transit, eliminating the cross-cluster collision.
+
+Because pods have real VNet addresses (not overlay-only), Azure routes pod-source packets natively — they reach the Aviatrix spoke GW with their original `100.64.x.x` source. DCF inspects the pod IP first, **then** SNAT fires, which is what makes K8s-typed SmartGroups (cluster/namespace/pod selectors) match east-west traffic.
 
 ---
 
@@ -473,6 +477,24 @@ kubectl get crd firewallpolicies.networking.aviatrix.com --context frontend
 kubectl get crd webgrouppolicies.networking.aviatrix.com --context frontend
 ```
 
+### Step 7.5: Inject IPsec-direction SNAT rule on each spoke GW (REQUIRED for cross-cluster east-west)
+
+The Azure Aviatrix spoke gateway's `CONDUIT_SNAT` chain has an `ACCEPT … policy match dir out pol ipsec` rule before the customized_snat policies. This pre-empts pod-CIDR SNAT for east-west via transit, so the destination cluster sees overlapping `100.64.x.x` source IPs and the reply path collapses. See **Cross-cluster east-west fails** under Troubleshooting for full background.
+
+Run after every `terraform apply` of the network layer:
+
+```bash
+source ~/Documents/Scripting/chris-avx-lab/controller_env_ga.sh
+for spec in "aks-demo-frontend-spoke 10.10.0.4" "aks-demo-backend-spoke 10.20.0.4"; do
+  read gw ip <<< "$spec"
+  ssh -tt -i ~/Documents/keys/avtx-cmchenry-aws-useast2.pem \
+    ubuntu@$AVIATRIX_CONTROLLER_IP \
+    "bash -lic 'sshgw $gw -- sudo iptables -t nat -I CONDUIT_SNAT 1 -s 100.64.0.0/16 -m policy --pol ipsec --dir out -j SNAT --to-source $ip'"
+done
+```
+
+This is a manual workaround pending Aviatrix Azure controller fix.
+
 ### Step 8: Deploy Gatus Monitoring Dashboards
 
 Gatus is deployed as a Kubernetes manifest (not Terraform-managed), applied directly with kubectl.
@@ -665,26 +687,25 @@ az network private-dns record-set list \
 
 ### Azure CNI Powered by Cilium
 
-Both clusters use Azure CNI Powered by Cilium with a Cilium overlay pod CIDR (`100.64.0.0/16`, RFC 6598). This is different from the AWS EKS blueprint which uses VPC CNI with ENIConfig for secondary CIDR pod networking.
+Both clusters use Azure CNI Powered by Cilium **in pod-subnet mode** (`pod_subnet_id` on the node pool, no `network_plugin_mode = "overlay"`). Pod IPs come from a dedicated `100.64.0.0/16` VNet subnet — they are real VNet addresses, not an overlay. This is the unlock that lets the Aviatrix spoke GW see pod-source IPs for DCF inspection.
 
 Key differences from standard AKS networking:
-- Pod IPs (`100.64.x.x`) are **not routable** in the Azure VNet — they exist only in the Cilium overlay
-- `outbound_type = "userDefinedRouting"` routes all egress through the Aviatrix spoke gateway UDR
-- The AKS-managed `azure-ip-masq-agent` ConfigMap is overridden in the nodes layer to `NonMasqueradeCIDRs=[0.0.0.0/0]` so cluster-boundary masquerade is disabled and pods egress with their original `100.64.x.x` source
-- Spoke gateways run `customized_snat` mode (`single_ip_snat = false` + `aviatrix_gateway_snat`) so DCF inspects pod IPs at the spoke GW *before* SNAT, then SNATs pod CIDR + VNet CIDR to the spoke GW private IP per-direction (transit IPsec connection + eth0 internet path)
-- Azure does **not** expose a `cilium-config` ConfigMap for this managed mode — Cilium is fully Azure-managed, so no additional Cilium configuration is required in Terraform
+- VNets have **two address spaces**: a per-cluster `/23` routable block (10.10.0.0/23 / 10.20.0.0/23) for nodes/system/Aviatrix GW subnets, plus a shared `100.64.0.0/16` for pods. Both clusters use the same pod CIDR — VNets are isolated, so there's no local collision; the spoke GW SNATs to a cluster-unique IP before transit.
+- `outbound_type = "userDefinedRouting"` routes all egress through the Aviatrix spoke gateway UDR. The UDR is associated with the **nodes, system, and pod** subnets (the pod-subnet UDR association is what forces pod-source packets through the spoke GW).
+- The AKS-managed `azure-ip-masq-agent` ConfigMap is overridden in the nodes layer (`NonMasqueradeCIDRs=[0.0.0.0/0]`) so cluster-boundary masquerade is fully disabled. In pod-subnet mode this is what stops the agent from masquerading pods to the node IP for off-pod-CIDR destinations.
+- Spoke gateways run `customized_snat` mode (`single_ip_snat = false` + `aviatrix_gateway_snat`). DCF inspects pod IPs at the spoke GW **before** SNAT fires (K8s-typed SmartGroups match here), then SNAT translates pod CIDR + VNet CIDR to the spoke GW private IP per-direction (`connection = transit_gw_name` for IPsec east-west, `interface = "eth0"` for internet egress).
 
 **Pod traffic flow (cross-cluster):**
 ```
-Frontend Pod (100.64.x.x)
-  → frontend-nodes subnet (no masquerade — pod IP preserved)
+Frontend Pod (100.64.x.x — real VNet IP from pod subnet)
+  → frontend-pods subnet (no masquerade)
   → UDR: 0.0.0.0/0 → Frontend Aviatrix Spoke GW
-  → DCF inspects src=100.64.x.x — K8s SmartGroups match
-  → Spoke GW SNATs 100.64.x.x → 10.10.0.4 (spoke GW private IP) on transit
+  → DCF inspects src=100.64.x.x — K8s SmartGroups match ✓
+  → Spoke GW SNATs 100.64.x.x → 10.10.0.4 (spoke GW private IP) on transit-bound IPsec
   → Aviatrix Transit
   → Backend Aviatrix Spoke GW (DCF sees src=10.10.0.4 — VNet SmartGroup match)
   → Backend service/LB (10.20.x.x)
-  → Backend Pod (100.64.y.y)
+  → Backend Pod (100.64.y.y — same pod CIDR, different VNet)
 ```
 
 **Why pod CIDR is excluded from transit advertisements:**
@@ -1039,37 +1060,63 @@ curl -sk -H "Authorization: cid ${CID}" \
 
 4. **Check Aviatrix spoke gateway connectivity** in CoPilot → Topology, verify both spokes are connected to transit.
 
-### `AVXERR-NAT-0029` on `terraform apply` of network layer
+### Cross-cluster east-west fails (Backend Service unhealthy in Gatus)
 
-If the Aviatrix Controller rejects the `aviatrix_gateway_snat` resource with this error, it has misidentified the explicit `azurerm_route 0.0.0.0/0 → spoke_gw.private_ip` UDR as an onprem-learned route. Workarounds in order of preference:
+After every `terraform apply` of the network layer, the Azure Aviatrix spoke gateway's `CONDUIT_SNAT` chain has this rule order:
 
-1. Remove the `interface = "eth0"` snat_policy block for the VNet CIDR, leaving only the transit `connection` policy. AKS node bootstrap may still work if RFC1918 routes are auto-programmed and internet egress isn't immediately needed.
+```
+1  ACCEPT  ...  policy match dir out pol ipsec     ← pre-empts SNAT for east-west
+2  SNAT    100.64.0.0/16 → 10.10.0.4  dst-group 0x1   ← pod CIDR via transit (never reached)
+...
+```
+
+The IPsec ACCEPT pre-empts the customized_snat policy for transit-bound (east-west) pod traffic. As a result, frontend pod packets traverse transit with their original `100.64.x.x` source, the destination cluster sees that as its own pod CIDR, and the reply path collapses. Internet egress and same-VNet east-west still work; cross-cluster east-west between clusters with **overlapping pod CIDRs** does not.
+
+This is an Aviatrix Azure controller bug — on GCP the rule order is reversed (SNAT before ACCEPT), so customized_snat works correctly there.
+
+**Workaround** (until Aviatrix fixes the chain order): inject the SNAT rule before the IPsec ACCEPT on each spoke GW after every network apply.
+
+```bash
+source ~/Documents/Scripting/chris-avx-lab/controller_env_ga.sh
+for spec in "aks-demo-frontend-spoke 10.10.0.4" "aks-demo-backend-spoke 10.20.0.4"; do
+  read gw ip <<< "$spec"
+  ssh -tt -i ~/Documents/keys/avtx-cmchenry-aws-useast2.pem \
+    ubuntu@$AVIATRIX_CONTROLLER_IP \
+    "bash -lic 'sshgw $gw -- sudo iptables -t nat -I CONDUIT_SNAT 1 -s 100.64.0.0/16 -m policy --pol ipsec --dir out -j SNAT --to-source $ip'"
+done
+```
+
+Verify with `sshgw <gw> -- sudo iptables -t nat -L CONDUIT_SNAT -n -v --line-numbers`. The SNAT rule should be at line 1, the IPsec ACCEPT at line 2.
+
+Open an Aviatrix support case to track the chain-order fix; reference: GCP gateway POSTROUTING fires SNAT before the IPsec ACCEPT, Azure does the opposite.
+
+### `AVXERR-NAT-0029` on `terraform apply` (no longer expected)
+
+In overlay-mode AKS this error fired when the explicit `azurerm_route 0.0.0.0/0 → spoke_gw.private_ip` was misidentified as an onprem-learned route. After the switch to **pod-subnet mode** (current blueprint default) we have not seen this error reproduce on Aviatrix Controller 9.0.10 with the customized_snat config in `network/main.tf`. If you see it on a different controller version, the historical workarounds were:
+
+1. Remove the `interface = "eth0"` snat_policy block for the VNet CIDR, leaving only the transit `connection` policy.
 2. Delete the explicit `azurerm_route.<cluster>_default` and let Aviatrix auto-program 0/0 once `customized_snat` is in primary mode.
-3. Apply `single_ip_snat = false` first (separate apply), then add `aviatrix_gateway_snat` in a subsequent apply — sometimes bypasses the conflict-detection code path.
+3. Apply `single_ip_snat = false` first (separate apply), then add `aviatrix_gateway_snat` in a subsequent apply.
 4. Open an Aviatrix support case with controller logs (`/var/log/cloudxd.log` and `/var/log/avx_route_handler.log`) and revert to `single_ip_snat = true` until resolved.
 
 ### Pod IPs not visible in DCF logs
 
-If priority-50 K8s SmartGroup rule shows zero hits even after switching to `customized_snat`:
+If priority-50 K8s SmartGroup rule shows zero hits even after the customized_snat is in place:
 
-1. **Verify the ConfigMap override landed:**
+1. **Confirm pods are using the pod_subnet** (not overlay):
    ```bash
-   kubectl --context frontend -n kube-system get cm azure-ip-masq-agent-config -o yaml
+   kubectl --context frontend -n gatus get pods -o wide
    ```
-   Look for `nonMasqueradeCIDRs: [0.0.0.0/0]` under `data.ip-masq-agent`. If absent, the AKS reconciler may have re-created the default — re-apply the nodes layer.
+   Pod IPs should be in `100.64.0.0/16`. Nodes should be in `10.10.1.0/24`. If pods are getting overlay IPs unrelated to the VNet, the `pod_subnet_id` wasn't passed to AKS — re-check `clusters/{frontend,backend}/main.tf`.
 
-2. **Force daemonset reload** if pods were started before the ConfigMap update:
+2. **Confirm pod source preservation on the spoke GW:**
    ```bash
-   kubectl --context frontend -n kube-system rollout restart daemonset azure-ip-masq-agent
-   kubectl --context backend  -n kube-system rollout restart daemonset azure-ip-masq-agent
+   sshgw aks-demo-frontend-spoke -- sudo tcpdump -i eth0 -nn -c 5 'src net 100.64.0.0/16'
    ```
+   Should show source IPs in `100.64.0.0/16`. If you see node IPs (`10.10.1.x`) instead, the pod-subnet UDR association is missing — verify `azurerm_subnet_route_table_association.frontend_pods_udr` exists in `network/main.tf`.
 
-3. **Confirm pod source preservation on the spoke GW:**
-   ```bash
-   ssh ubuntu@<frontend-spoke-public-ip> \
-     "sudo tcpdump -i eth0 -n 'tcp port 8080 and src net 100.64.0.0/16' -c 5"
-   ```
-   Should show source IPs in the `100.64.0.0/16` range. If source is `10.10.0.x`, the masquerade override didn't take effect.
+3. **Confirm DCF inspection on the source spoke**:
+   In CoPilot → Distributed Cloud Firewall → Monitor → Policy Logs, recent flows should show **Source IP** in `100.64.0.0/16` and **Source Workload** as a Kubernetes pod name (e.g., `external-dns-…`) — that proves the Aviatrix K8s controller is resolving pod IPs to workload identity.
 
 ### AppGW Backend Shows Unhealthy
 
@@ -1393,10 +1440,10 @@ Data Transfer            ░░░░░░░░░░░░░░░░░░�
 | Setting | Value | Purpose |
 |---------|-------|---------|
 | Network plugin | `azure` | Azure CNI managed by AKS |
-| Network plugin mode | `overlay` | Cilium overlay for pod IPs |
-| Pod CIDR | `100.64.0.0/16` | RFC 6598, same across all clusters |
+| Network plugin mode | (none — pod-subnet mode) | Pods get IPs from a dedicated VNet subnet, NOT a Cilium overlay |
+| Pod subnet | `100.64.0.0/16` | RFC 6598, second VNet address space, same across all clusters |
 | IP masquerade | Cluster-boundary masquerade fully disabled | `azure-ip-masq-agent` ConfigMap overridden to `NonMasqueradeCIDRs=[0.0.0.0/0]` so pods preserve their `100.64.x.x` source. Aviatrix `customized_snat` on the spoke GW handles SNAT after DCF inspection. |
-| `outboundType` | `userDefinedRouting` | All egress via Aviatrix UDR |
+| `outboundType` | `userDefinedRouting` | All egress (nodes, system, pod subnets) via Aviatrix UDR |
 
 ---
 
