@@ -101,6 +101,8 @@ The Aviatrix provider and the Azure provider use different region name formats. 
 
 ## Architecture Overview
 
+![Architecture Diagram](architecture.svg)
+
 ```
 Internet
    │
