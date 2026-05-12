@@ -205,6 +205,8 @@ kubectl port-forward -n obot-system svc/obot-obot 8080:80
 
 ## Test Scenarios
 
+> **Prerequisite:** Complete Step 5 (Enable DCF Kubernetes Enforcement in CoPilot) before running these scenarios. Without it, the `FirewallPolicy` CRD (`networking.aviatrix.com/v1alpha1`) is not installed and the `aviatrix-network-policy-controller` cannot reconcile MCPNetworkPolicy objects. The NPC pod logs will show `no matches for kind 'FirewallPolicy'` until this step is done.
+
 ### Scenario 1: Verify Default Deny
 
 Confirm that a newly deployed MCP server with no `egressDomains` configured has no outbound access:
@@ -320,6 +322,15 @@ terraform output spoke_gateway_public_ip
 3. Confirm a `FirewallPolicy` exists for the server: `kubectl get firewallpolicies -n obot-mcp`
 4. Verify Log Enrichment is enabled: CoPilot -> Feature Previews -> Log Enrichment.
 5. Re-check pod IPs have not changed since last apply (pod restarts change IPs; re-apply required).
+
+### NPC pod logs: `no matches for kind 'FirewallPolicy' in group 'networking.aviatrix.com'`
+
+The `FirewallPolicy` CRD is installed by the Aviatrix controller when DCF Kubernetes Enforcement is activated. The `aviatrix-network-policy-controller` cannot reconcile MCPNetworkPolicy objects until the CRD exists, and will log this error in a requeue loop.
+
+1. Complete Step 5: CoPilot → DCF → Settings → Enforcement on Kubernetes → Enable
+2. The controller installs `networking.aviatrix.com/v1alpha1` into the cluster
+3. The NPC error loop resolves automatically within 30–60 seconds
+4. Verify: `kubectl get crds | grep networking.aviatrix.com`
 
 ### K8s label SmartGroups show "Partial" status
 

@@ -92,13 +92,15 @@ resource "aviatrix_smart_group" "eks_vpc" {
 }
 
 # SmartGroup: obot-system pod /32 CIDRs (V1 CIDR workaround).
-# Empty match_expressions on first apply produces a valid SmartGroup that
-# matches nothing until re-applied with pod IPs after Obot is running.
+# local.obot_system_pod_cidrs_effective substitutes a RFC 5737 TEST-NET placeholder
+# when var.obot_system_pod_cidrs is empty (first apply), satisfying the provider's
+# requirement for at least one match_expressions block. Re-apply with real pod IPs
+# after Obot is running (Step 6).
 resource "aviatrix_smart_group" "obot_system_pods" {
   name = "${local.name}-obot-system"
   selector {
     dynamic "match_expressions" {
-      for_each = var.obot_system_pod_cidrs
+      for_each = local.obot_system_pod_cidrs_effective
       content {
         cidr = match_expressions.value
       }
