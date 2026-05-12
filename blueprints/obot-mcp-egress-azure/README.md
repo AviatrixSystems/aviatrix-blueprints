@@ -40,6 +40,15 @@ Azure IP masquerade is disabled for all pod traffic so the spoke gateway sees or
 - Azure subscription with permissions to create resource groups, VNets, subnets, route tables, and AKS clusters
 - Aviatrix Controller with an Azure access account (`arm_account_name`) already onboarded
 - `Contributor` role on the target Azure subscription
+- **vCPU quota:** at least 8 vCPUs for `standardDSv3Family` (default `aks_vm_size = Standard_D4s_v3`, 2 nodes). Verify remaining quota before deploying:
+
+  ```bash
+  az vm list-usage --location "<azure_location>" \
+    --query "[?contains(name.value, 'standardDSv3Family')].{name:name.value,used:currentValue,limit:limit}" \
+    -o table
+  ```
+
+  If quota is insufficient, override `aks_vm_size` to a smaller SKU (e.g. `Standard_D2s_v3` requires 4 vCPUs) or request a quota increase.
 
 ### Blueprint-Specific Requirements
 
@@ -164,6 +173,8 @@ kubectl port-forward -n obot-system svc/obot-obot 8080:80
 
 ## Test Scenarios
 
+> **Prerequisite:** Complete Step 4 (Enable DCF Kubernetes Enforcement in CoPilot) before running these scenarios. Without it, the `FirewallPolicy` CRD (`networking.aviatrix.com/v1alpha1`) is not installed and the `aviatrix-network-policy-controller` cannot reconcile MCPNetworkPolicy objects. The NPC pod logs will show `no matches for kind 'FirewallPolicy'` until this step is done.
+
 ### Scenario 1: Verify Default Deny
 
 Confirm that a newly deployed MCP server with no `egressDomains` configured has no outbound access:
@@ -270,6 +281,15 @@ terraform output spoke_gateway_public_ip
 3. Verify Log Enrichment is enabled (required for SmartGroup pod-label matching).
 4. Confirm a `FirewallPolicy` exists for the server: `kubectl get firewallpolicies -n obot-mcp`
 5. Check pod labels match the FirewallPolicy selector: `kubectl get pod <pod-name> -n obot-mcp --show-labels`
+
+### NPC pod logs: `no matches for kind 'FirewallPolicy' in group 'networking.aviatrix.com'`
+
+The `FirewallPolicy` CRD is installed by the Aviatrix controller when DCF Kubernetes Enforcement is activated. The `aviatrix-network-policy-controller` cannot reconcile MCPNetworkPolicy objects until the CRD exists, and will log this error in a requeue loop.
+
+1. Complete Step 4: CoPilot → DCF → Settings → Enforcement on Kubernetes → Enable
+2. The controller installs `networking.aviatrix.com/v1alpha1` into the cluster
+3. The NPC error loop resolves automatically within 30–60 seconds
+4. Verify: `kubectl get crds | grep networking.aviatrix.com`
 
 ### SmartGroups show workload_type as VM instead of k8s
 

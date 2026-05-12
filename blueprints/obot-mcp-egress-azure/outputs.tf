@@ -37,7 +37,7 @@ output "next_steps" {
        CoPilot -> Feature Previews -> Log Enrichment -> Enable
 
     4. Apply an MCPNetworkPolicy to allow egress for an MCP server:
-       kubectl apply -f k8s/example-mcpnetworkpolicy.yaml
+       kubectl apply -f k8s-apps/example-mcpnetworkpolicy.yaml
 
     5. Verify enforcement in CoPilot:
        CoPilot -> DCF -> Monitor -> filter by MCP server SmartGroup

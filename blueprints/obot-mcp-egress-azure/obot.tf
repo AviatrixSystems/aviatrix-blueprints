@@ -40,12 +40,19 @@ resource "kubernetes_namespace_v1" "obot_system" {
 # Obot MCP server namespace.
 # Obot deploys MCP server pods into this namespace.
 # The DCF SmartGroup (dcf.tf) and MCPNetworkPolicy CRDs target this namespace.
+# Helm ownership labels are required: the Obot chart includes this namespace as a
+# managed resource and rejects install if these labels/annotations are absent.
 resource "kubernetes_namespace_v1" "obot_mcp" {
   metadata {
     name = var.obot_mcp_namespace
     labels = {
-      app  = "obot"
-      role = "mcp-servers"
+      app                            = "obot"
+      role                           = "mcp-servers"
+      "app.kubernetes.io/managed-by" = "Helm"
+    }
+    annotations = {
+      "meta.helm.sh/release-name"      = "obot"
+      "meta.helm.sh/release-namespace" = var.obot_namespace
     }
   }
 }
