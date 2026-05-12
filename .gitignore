@@ -36,6 +36,9 @@ Thumbs.db
 *.tmp
 *.temp
 
+# Local development (environment-specific, not for public repo)
+MEMORY.md
+
 # Credentials (should never be committed)
 *.pem
 *.key
