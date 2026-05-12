@@ -109,20 +109,23 @@ terraform apply
 
 `node_desired_size` defaults to `0`. The EKS node group is created but no nodes start. This is intentional: nodes that start before the Aviatrix spoke gateway programs VPC routes fail to bootstrap (EKS API server unreachable, CSE exit 50). The spoke gateway provisions during this apply.
 
+The `coredns` addon is deployed with `replicaCount=0` on first apply. This is required because with no worker nodes CoreDNS pods cannot schedule, which leaves the addon in DEGRADED state and causes `terraform apply` to time out after 20 minutes. With `replicaCount=0`, the addon reaches ACTIVE immediately. CoreDNS scales back to 2 replicas automatically when you re-apply after nodes join (Step 6).
+
 Deployment takes approximately 20-30 minutes (EKS control plane + spoke gateway provisioning are the longest steps).
 
 ### Step 4: Scale Up EKS Nodes
 
-After `terraform apply` completes, scale the node group:
+After `terraform apply` completes, scale the node group. The EKS module appends a timestamp to the node group name — use the `eks_nodegroup_name` output rather than hardcoding `system`:
 
 ```bash
 aws eks update-nodegroup-config \
-  --cluster-name <cluster-name> \
-  --nodegroup-name system \
-  --scaling-config minSize=1,maxSize=4,desiredSize=2
+  --cluster-name $(terraform output -raw eks_cluster_name) \
+  --nodegroup-name $(terraform output -raw eks_nodegroup_name) \
+  --scaling-config minSize=1,maxSize=4,desiredSize=2 \
+  --region <aws_region>
 ```
 
-Use the `eks_cluster_name` output for the cluster name. Wait for nodes to reach `Ready`:
+Wait for nodes to reach `Ready`:
 
 ```bash
 kubectl get nodes -w
@@ -199,8 +202,9 @@ kubectl port-forward -n obot-system svc/obot-obot 8080:80
 | Output | Description |
 |--------|-------------|
 | `eks_cluster_name` | Name of the deployed EKS cluster |
-| `spoke_gateway_name` | Name of the deployed Aviatrix spoke gateway |
-| `spoke_gateway_public_ip` | Public IP of the spoke gateway (all pod egress SNATs to this) |
+| `eks_nodegroup_name` | Name of the EKS managed node group (use with `aws eks update-nodegroup-config`) |
+| `spoke_gateway_name` | Name of the deployed Aviatrix spoke gateway (**sensitive** — use `terraform output -raw`) |
+| `spoke_gateway_public_ip` | Public IP of the spoke gateway (**sensitive** — use `terraform output -raw spoke_gateway_public_ip`) |
 | `next_steps` | Post-deployment instructions |
 
 ## Test Scenarios
@@ -294,6 +298,15 @@ aws ec2 terminate-instances --instance-ids <instance-id>
 
 If nodes were started before the first `terraform apply` completed, re-image via the AWS console or wait for the managed node group to replace them automatically.
 
+### `terraform apply` fails with "cannot re-use a name that is still in use"
+
+A previous Helm install attempt left the `obot` release in `failed` state. The `cleanup_on_fail = true` flag in the blueprint should handle this automatically on re-apply. If you see this on a blueprint version without that flag, clean up manually:
+
+```bash
+helm uninstall obot -n obot-system
+terraform apply
+```
+
 ### Spoke gateway creation fails or times out
 
 Verify the public subnet has an Internet Gateway route:
@@ -311,8 +324,9 @@ A `0.0.0.0/0` route with `GatewayId` pointing to an IGW must be present.
 The spoke gateway OTEL exporter is not reaching CoPilot. This happens when `copilot_public_ip` is wrong or missing. Verify:
 
 ```bash
-terraform output spoke_gateway_public_ip
+terraform output -raw spoke_gateway_public_ip
 # This IP must be permitted in the CoPilot security group for TCP 31284 inbound.
+# Note: spoke_gateway_public_ip is a sensitive output; use -raw to see the value.
 ```
 
 ### egressDomains configured but traffic still blocked

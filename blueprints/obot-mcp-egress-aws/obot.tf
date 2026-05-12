@@ -61,10 +61,19 @@ resource "helm_release" "obot" {
     })
   ]
 
+  # wait=false: node_desired_size=0 on first apply means no nodes exist to
+  # schedule Obot pods. Default wait=true would time out waiting for pod readiness.
+  # Pods schedule automatically when nodes join in Step 4.
+  wait = false
+  # cleanup_on_fail removes a failed release automatically, making re-apply
+  # idempotent without requiring manual `helm uninstall` after a failure.
+  cleanup_on_fail = true
+
   depends_on = [
     kubernetes_namespace_v1.obot_system,
     kubernetes_namespace_v1.obot_mcp,
     null_resource.k8s_dcf_features,
+    kubernetes_storage_class_v1.gp3,
     module.spoke,
     aviatrix_distributed_firewalling_policy_list.infra,
     aviatrix_distributed_firewalling_default_action_rule.deny_all,

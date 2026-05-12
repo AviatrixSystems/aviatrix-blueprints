@@ -131,6 +131,8 @@ resource "aviatrix_web_group" "eks_infra_egress" {
     match_expressions { snifilter = "*.eks.amazonaws.com" }
     match_expressions { snifilter = "*.ecr.aws" }
     match_expressions { snifilter = "*.dkr.ecr.*.amazonaws.com" }
+    match_expressions { snifilter = "ecr.*.amazonaws.com" }     # ecr-credential-provider GetAuthorizationToken (old endpoint)
+    match_expressions { snifilter = "api.ecr.*.amazonaws.com" } # ecr-credential-provider GetAuthorizationToken (new SDK endpoint)
     match_expressions { snifilter = "*.s3.*.amazonaws.com" }
     match_expressions { snifilter = "*.s3.amazonaws.com" }
     match_expressions { snifilter = "ec2.*.amazonaws.com" }

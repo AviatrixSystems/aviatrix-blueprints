@@ -7,14 +7,21 @@ output "eks_cluster_name" {
   value       = module.eks.cluster_name
 }
 
+output "eks_nodegroup_name" {
+  description = "Name of the EKS managed node group (use in aws eks update-nodegroup-config --nodegroup-name)"
+  value       = split(":", module.eks.eks_managed_node_groups["system"].node_group_id)[1]
+}
+
 output "spoke_gateway_name" {
   description = "Name of the deployed Aviatrix spoke gateway"
   value       = module.spoke.spoke_gateway.gw_name
+  sensitive   = true
 }
 
 output "spoke_gateway_public_ip" {
   description = "Public IP of the Aviatrix spoke gateway. All MCP server pod egress SNATs to this IP."
   value       = module.spoke.spoke_gateway.eip
+  sensitive   = true
 }
 
 output "next_steps" {
@@ -23,8 +30,11 @@ output "next_steps" {
     Deployment complete. Next steps:
 
     1. Scale EKS nodes to desired count (was 0 on first apply to wait for routes):
-       aws eks update-nodegroup-config --cluster-name ${module.eks.cluster_name} \
-         --nodegroup-name system --scaling-config minSize=1,maxSize=4,desiredSize=2
+       aws eks update-nodegroup-config \
+         --cluster-name ${module.eks.cluster_name} \
+         --nodegroup-name ${split(":", module.eks.eks_managed_node_groups["system"].node_group_id)[1]} \
+         --scaling-config minSize=1,maxSize=4,desiredSize=2 \
+         --region <aws_region>
 
     2. Access Obot UI:
        kubectl port-forward -n ${var.obot_namespace} svc/obot-obot 8080:80

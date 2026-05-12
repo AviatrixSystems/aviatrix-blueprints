@@ -40,9 +40,9 @@ variable "node_instance_type" {
 }
 
 variable "node_desired_size" {
-  description = "Desired number of EKS nodes. Set to 0 initially; scale up after Aviatrix spoke gateway programs routes."
+  description = "Desired number of EKS nodes. Defaults to 2. If nodes fail to bootstrap (CSE exit 50 — EKS API server unreachable before spoke gateway programs routes), EKS managed node group replaces them automatically; re-bootstrap succeeds once routes are in place."
   type        = number
-  default     = 0
+  default     = 2
 }
 
 variable "node_max_size" {

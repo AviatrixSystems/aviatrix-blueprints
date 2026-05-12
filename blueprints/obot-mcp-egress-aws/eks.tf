@@ -18,6 +18,13 @@ module "eks" {
     coredns                = { most_recent = true }
     kube-proxy             = { most_recent = true }
     eks-pod-identity-agent = { most_recent = true }
+    # EBS CSI driver: required for PVC provisioning on EKS 1.26+.
+    # In-tree aws-ebs provisioner is deprecated; StorageClass gp2/gp3 requires this addon.
+    # Without it, Obot's PVC (from the Helm chart) stays Pending indefinitely.
+    aws-ebs-csi-driver = {
+      most_recent              = true
+      service_account_role_arn = aws_iam_role.ebs_csi_irsa.arn
+    }
   }
 
   vpc_id                   = module.vpc.vpc_id
