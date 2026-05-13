@@ -1,0 +1,627 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1200" width="1600" height="1200">
+<defs>
+    <filter id="shadow-sm" x="-2%" y="-2%" width="104%" height="108%">
+        <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#000" flood-opacity="0.10"/>
+    </filter>
+    <filter id="shadow-md" x="-2%" y="-2%" width="104%" height="108%">
+        <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#000" flood-opacity="0.12"/>
+    </filter>
+    <linearGradient id="avx-gradient" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#fa6b1e"/>
+        <stop offset="100%" stop-color="#e24c01"/>
+    </linearGradient>
+    <linearGradient id="gcp-gradient" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#4285F4"/>
+        <stop offset="100%" stop-color="#1A73E8"/>
+    </linearGradient>
+    <marker id="arrow-end" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#78909C"/>
+    </marker>
+    <marker id="arrow-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#fa6b1e"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#1565C0"/>
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#6A1B9A"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#2E7D32"/>
+    </marker>
+
+    <!-- GKE icon (compact) -->
+    <symbol id="ic-gke" viewBox="0 0 512 512">
+        <path fill="#34A853" d="M256,459c-2.7,0-5.4-.7-7.8-2l-166.2-93.5c-5-2.8-8.2-8.2-8.2-14v-187c0-5.8,3.1-11.1,8.2-13.9L248.2,55c4.9-2.7,10.8-2.7,15.7,0l166.2,93.5c5,2.8,8.2,8.2,8.2,13.9v187c0,5.8-3.1,11.1-8.2,14l-166.2,93.5c-2.4,1.4-5.1,2-7.8,2h0ZM105.8,340.1l150.2,84.5,150.2-84.5v-168.3l-150.2-84.5-150.2,84.5v168.3Z"/>
+        <path fill="#4285F4" d="M422.2,367.9l-90.9-51.2c-7.7-4.3-10.4-14.1-6.1-21.8s14.1-10.4,21.8-6.1l59.3,33.3v-187s21.5,12.1,23.9,13.4c.8.5,1.6,1,2.3,1.6,3.6,2.9,5.8,7.4,5.8,12.4v187c0,5.7-3,10.9-7.9,13.8-2.5,1.5-8.1,4.5-8.1,4.5h0Z"/>
+        <path fill="#FBBC04" d="M81.7,363.3c-4.9-2.9-7.9-8.1-7.9-13.8v-187c0-6,3.3-11.2,8.2-13.9,2.3-1.3,23.8-13.4,23.8-13.4v187l59.3-33.3c7.7-4.3,17.5-1.6,21.8,6.1,4.3,7.7,1.6,17.5-6.1,21.8l-90.9,51.2s-5.6-3.1-8.1-4.5h0Z"/>
+        <path fill="#EA4335" d="M339.1,225.2c-2.7,0-5.4-.7-7.8-2.1l-75.3-42.3-75.3,42.3c-7.7,4.3-17.5,1.6-21.8-6.1-4.3-7.7-1.6-17.5,6.1-21.8l83.1-46.8c4.9-2.7,10.8-2.7,15.7,0l83.1,46.8c7.7,4.3,10.4,14.1,6.1,21.8-2.9,5.2-8.4,8.2-14,8.2h0Z"/>
+    </symbol>
+
+    <!-- GCE / Compute Engine icon (compact) -->
+    <symbol id="ic-gce" viewBox="0 0 512 512">
+        <path fill="#4285F4" d="M380.7,396.7h-249.3c-8.8,0-16-7.2-16-16v-249.3c0-8.8,7.2-16,16-16h249.3c8.8,0,16,7.2,16,16v249.3c0,8.8-7.2,16-16,16ZM147.3,364.7h217.3v-217.3h-217.3v217.3Z"/>
+        <path fill="#34A853" d="M315,331h-118c-8.8,0-16-7.2-16-16v-118c0-8.8,7.2-16,16-16h118c8.8,0,16,7.2,16,16v118c0,8.8-7.2,16-16,16ZM213,299h86v-86h-86v86Z"/>
+        <path fill="#EA4335" d="M349.5,147.3c-8.8,0-16-7.2-16-16v-62.3c0-8.8,7.2-16,16-16s16,7.2,16,16v62.3c0,8.8-7.2,16-16,16Zm-93.5,0c-8.8,0-16-7.2-16-16v-62.3c0-8.8,7.2-16,16-16s16,7.2,16,16v62.3c0,8.8-7.2,16-16,16Z"/>
+        <path fill="#FBBC04" d="M162.5,147.3c-8.8,0-16-7.2-16-16v-62.3c0-8.8,7.2-16,16-16s16,7.2,16,16v62.3c0,8.8-7.2,16-16,16Z"/>
+    </symbol>
+
+    <!-- Networking icon (used for GKE Gateway / Global ALB) -->
+    <symbol id="ic-glb" viewBox="0 0 512 512">
+        <path fill="#4285F4" d="M309.033,202.967c-29.242-29.242-76.824-29.242-106.066,0l-22.627-22.627c20.21-20.21,47.08-31.34,75.66-31.34s55.45,11.13,75.66,31.34l-22.627,22.627h0Z"/>
+        <path fill="#4285F4" d="M256,363c-28.58,0-55.45-11.13-75.66-31.34l22.627-22.627c29.242,29.242,76.824,29.242,106.066,0l22.627,22.627c-20.21,20.21-47.08,31.34-75.66,31.34Z"/>
+        <path fill="#9aa0a6" d="M331.66,331.66l-22.627-22.627c29.242-29.243,29.242-76.823,0-106.066l22.627-22.627c41.72,41.719,41.72,109.602,0,151.32h0Z"/>
+        <path fill="#9aa0a6" d="M180.34,331.66c-41.72-41.719-41.72-109.602,0-151.32l22.627,22.627c-29.242,29.243-29.242,76.823,0,106.066l-22.627,22.627Z"/>
+        <path fill="#4285F4" d="M170.229,147.603c5.406-9.256,8.521-20.007,8.521-31.478,0-34.531-28.094-62.625-62.625-62.625s-62.625,28.094-62.625,62.625,28.094,62.625,62.625,62.625c11.471,0,22.222-3.114,31.478-8.52l45.281,45.281c5.831-9.07,13.557-16.796,22.627-22.627l-45.281-45.281h-.001ZM116.125,146.75c-16.887,0-30.625-13.738-30.625-30.625s13.738-30.625,30.625-30.625,30.625,13.738,30.625,30.625-13.738,30.625-30.625,30.625Z"/>
+        <path fill="#9aa0a6" d="M215.51,319.117c-9.07-5.831-16.796-13.557-22.627-22.627l-45.281,45.281c-9.256-5.406-20.007-8.52-31.478-8.52-34.531,0-62.625,28.094-62.625,62.625s28.094,62.625,62.625,62.625,62.625-28.094,62.625-62.625c0-11.471-3.114-22.222-8.521-31.478l45.281-45.281h0ZM116.125,426.5c-16.887,0-30.625-13.738-30.625-30.625s13.738-30.625,30.625-30.625,30.625,13.738,30.625,30.625-13.738,30.625-30.625,30.625Z"/>
+        <path fill="#4285F4" d="M395.875,333.25c-11.471,0-22.222,3.114-31.478,8.52l-45.281-45.281c-5.831,9.07-13.557,16.796-22.627,22.627l45.281,45.281c-5.406,9.256-8.521,20.007-8.521,31.478,0,34.531,28.094,62.625,62.625,62.625s62.625-28.094,62.625-62.625-28.094-62.625-62.625-62.625h.001ZM395.875,426.5c-16.887,0-30.625-13.738-30.625-30.625s13.738-30.625,30.625-30.625,30.625,13.738,30.625,30.625-13.738,30.625-30.625,30.625Z"/>
+        <path fill="#9aa0a6" d="M395.875,53.5c-34.531,0-62.625,28.094-62.625,62.625,0,11.645,3.205,22.551,8.764,31.902l-45.118,45.118c9.03,5.887,16.707,13.663,22.481,22.773l45.444-45.444c9.16,5.255,19.758,8.276,31.054,8.276,34.531,0,62.625-28.094,62.625-62.625s-28.094-62.625-62.625-62.625ZM395.875,146.75c-16.887,0-30.625-13.738-30.625-30.625s13.738-30.625,30.625-30.625,30.625,13.738,30.625,30.625-13.738,30.625-30.625,30.625Z"/>
+    </symbol>
+
+    <!-- Official Aviatrix-on-GCP Spoke Gateway (blue, branded) -->
+    <symbol id="ic-avx-gw" viewBox="0 0 72 72">
+        <circle cx="36" cy="36" r="36" fill="white"/>
+        <path d="M72 36C72 55.8823 55.8823 72 36 72C16.1177 72 0 55.8823 0 36C0 16.1177 16.1177 0 36 0C55.8823 0 72 16.1177 72 36ZM4.032 36C4.032 53.6554 18.3446 67.968 36 67.968C53.6554 67.968 67.968 53.6554 67.968 36C67.968 18.3446 53.6554 4.032 36 4.032C18.3446 4.032 4.032 18.3446 4.032 36Z" fill="#4285F4"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M71.382 42.6772C71.5043 42.0248 71.6091 41.3662 71.6957 40.7019C71.8965 39.163 72 37.5936 72 36C72 34.4064 71.8965 32.837 71.6957 31.2981C71.6091 30.6338 71.5043 29.9752 71.382 29.3228C71.2584 28.6642 71.117 28.012 70.9581 27.3665C68.8853 27.7535 67.4532 29.699 67.7293 31.8154C67.9077 33.1832 68 34.5798 68 36C68 37.4202 67.9077 38.8168 67.7293 40.1846C67.4532 42.301 68.8853 44.2465 70.9581 44.6335C71.117 43.988 71.2584 43.3358 71.382 42.6772ZM66.8203 54.6143C65.0803 53.4222 62.6915 53.7862 61.3907 55.4789C59.6861 57.6972 57.6972 59.6861 55.4789 61.3907C53.7862 62.6915 53.4222 65.0803 54.6143 66.8203C55.1859 66.4743 55.7471 66.113 56.2973 65.7367C56.8481 65.36 57.388 64.9683 57.9162 64.5624C60.4101 62.6459 62.6459 60.4101 64.5624 57.9162C64.9683 57.388 65.36 56.8481 65.7367 56.2973C66.113 55.7471 66.4743 55.1859 66.8203 54.6143ZM44.6334 70.9581C44.2465 68.8853 42.301 67.4532 40.1846 67.7293C38.8168 67.9077 37.4202 68 36 68C34.5798 68 33.1832 67.9077 31.8154 67.7293C29.699 67.4532 27.7535 68.8853 27.3665 70.9581C28.012 71.117 28.6642 71.2584 29.3228 71.382C29.9752 71.5043 30.6338 71.6091 31.2981 71.6957C32.8369 71.8965 34.4064 72 36 72C37.5936 72 39.163 71.8965 40.7019 71.6957C41.3662 71.6091 42.0248 71.5043 42.6772 71.382C43.3358 71.2584 43.988 71.117 44.6334 70.9581ZM17.3857 66.8203C18.5778 65.0803 18.2138 62.6915 16.5211 61.3907C14.3028 59.6861 12.3139 57.6972 10.6093 55.4789C9.30852 53.7862 6.91971 53.4222 5.1797 54.6143C5.52565 55.1859 5.88705 55.7471 6.26332 56.2973C6.64004 56.8481 7.03167 57.388 7.43762 57.9162C9.35409 60.4101 11.5899 62.6459 14.0838 64.5624C14.612 64.9683 15.1519 65.36 15.7027 65.7367C16.2529 66.113 16.8141 66.4743 17.3857 66.8203ZM1.04188 44.6334C3.1147 44.2465 4.54675 42.301 4.27068 40.1846C4.09227 38.8168 4 37.4202 4 36C4 34.5798 4.09227 33.1832 4.27068 31.8154C4.54675 29.699 3.1147 27.7535 1.04188 27.3665C0.883018 28.012 0.741566 28.6642 0.618047 29.3228C0.495691 29.9752 0.390932 30.6338 0.304283 31.2981C0.103548 32.8369 0 34.4064 0 36C0 37.5936 0.103548 39.163 0.304282 40.7019C0.390932 41.3662 0.495691 42.0248 0.618047 42.6772C0.741566 43.3358 0.883018 43.988 1.04188 44.6334ZM5.1797 17.3857C6.91971 18.5778 9.30852 18.2138 10.6093 16.5211C12.3139 14.3028 14.3028 12.3139 16.5211 10.6093C18.2138 9.30852 18.5778 6.91971 17.3857 5.1797C16.8141 5.52565 16.2529 5.88705 15.7027 6.26332C15.1519 6.64004 14.612 7.03167 14.0838 7.43762C11.5899 9.35409 9.35409 11.5899 7.43762 14.0838C7.03167 14.612 6.64004 15.1519 6.26332 15.7027C5.88705 16.2529 5.52565 16.8141 5.1797 17.3857ZM27.3665 1.04188C27.7535 3.1147 29.699 4.54675 31.8154 4.27068C33.1832 4.09227 34.5798 4 36 4C37.4202 4 38.8168 4.09227 40.1846 4.27068C42.301 4.54675 44.2465 3.1147 44.6335 1.04188C43.988 0.883019 43.3358 0.741566 42.6772 0.618047C42.0248 0.495691 41.3662 0.390932 40.7019 0.304282C39.163 0.103548 37.5936 0 36 0C34.4064 0 32.837 0.103548 31.2981 0.304282C30.6338 0.390931 29.9752 0.495691 29.3228 0.618046C28.6642 0.741566 28.012 0.883018 27.3665 1.04188ZM54.6143 5.1797C53.4222 6.91971 53.7862 9.30852 55.4789 10.6093C57.6972 12.3139 59.6861 14.3028 61.3907 16.5211C62.6915 18.2138 65.0803 18.5778 66.8203 17.3857C66.4743 16.8141 66.113 16.2529 65.7367 15.7027C65.36 15.1519 64.9683 14.612 64.5624 14.0838C62.6459 11.5899 60.4101 9.35409 57.9162 7.43762C57.388 7.03167 56.8481 6.64004 56.2973 6.26332C55.7471 5.88705 55.1859 5.52565 54.6143 5.1797Z" fill="#4285F4"/>
+        <path d="M31.3483 25.5944L35.8202 21.0693C35.9389 20.9769 36.0577 20.9769 36.1798 21.0693L40.767 25.5944C40.8586 25.6868 40.8892 25.8066 40.8009 25.8956C40.767 25.9846 40.6788 26.0154 40.5872 25.9846H37.8525C37.7338 25.9846 37.615 26.1044 37.615 26.2242V32.0705C37.615 32.1903 37.5234 32.2827 37.4047 32.2827H34.6225C34.5003 32.317 34.3782 32.2211 34.3782 32.1013V26.2276C34.3782 26.1078 34.29 25.988 34.1746 25.988H31.5282C31.3789 25.988 31.2907 25.8682 31.2907 25.7142C31.3178 25.6902 31.3178 25.6286 31.3483 25.5978V25.5944ZM40.7704 46.4056L36.1798 50.9307C36.0577 51.0231 35.9355 51.0231 35.8168 50.9307L31.3449 46.4056C31.2567 46.2858 31.2839 46.1318 31.406 46.0736C31.4399 46.0462 31.4671 46.0154 31.5248 46.0154H34.1712C34.2866 46.0154 34.3748 45.8956 34.3748 45.7758V39.9295C34.3748 39.8097 34.4664 39.7173 34.5852 39.7173H37.4081C37.5268 39.7173 37.6184 39.8063 37.6184 39.9295V45.7758C37.6184 45.8956 37.7372 46.0154 37.8559 46.0154H40.4685C40.5872 45.9264 40.7399 45.9538 40.8281 46.0736C40.8892 46.166 40.862 46.3132 40.767 46.4056H40.7704ZM27.2667 40.4361V37.7662C27.2667 37.6498 27.1479 37.5608 27.0292 37.5266H21.2375C21.1154 37.5266 21 37.441 21 37.3212V34.5008C21 34.381 21.1154 34.2954 21.2375 34.2612H27.0292C27.1479 34.2612 27.2667 34.1722 27.2667 34.0558V31.3859C27.2395 31.2627 27.3006 31.1463 27.3888 31.1121C27.477 31.0539 27.5992 31.1121 27.6603 31.1737L32.1287 35.7604C32.2203 35.8494 32.2203 35.9658 32.1287 36.0616L27.6569 40.5867C27.5686 40.6791 27.4465 40.7065 27.3583 40.6483C27.2904 40.5867 27.2633 40.4977 27.2633 40.4361H27.2667ZM44.7333 31.3825V34.0524C44.7333 34.1756 44.8521 34.2646 44.9708 34.2646H50.7625C50.8846 34.2988 51 34.3844 51 34.5042V37.3212C51 37.4445 50.8846 37.5335 50.7625 37.5335H44.9708C44.8521 37.5677 44.7333 37.6533 44.7333 37.7731V40.4429C44.7605 40.5593 44.6723 40.6483 44.5501 40.6825C44.4619 40.6825 44.4008 40.6483 44.3465 40.5901L39.8679 36.0034C39.7797 35.9144 39.7797 35.798 39.8679 35.7022L44.3465 31.1771C44.4008 31.0847 44.5501 31.0573 44.6417 31.1155C44.7333 31.1771 44.7605 31.2969 44.7333 31.3894V31.3825Z" fill="#4285F4"/>
+        <path d="M61.4559 61.4558C58.113 64.7988 54.1444 67.4505 49.7767 69.2597C45.4089 71.0688 40.7276 72 36 72C31.2725 72 26.5912 71.0688 22.2234 69.2597C17.8557 67.4505 13.8871 64.7987 10.5442 61.4558L23.2721 48.7279C24.9436 50.3994 26.9279 51.7252 29.1118 52.6298C31.2956 53.5344 33.6363 54 36.0001 54C38.3639 54 40.7045 53.5344 42.8884 52.6298C45.0722 51.7252 47.0565 50.3994 48.728 48.7279L61.4559 61.4558Z" fill="#4285F4"/>
+        <path d="M35.776 68.848C35.072 68.848 34.3893 68.7147 33.728 68.448C33.0773 68.1813 32.5013 67.8027 32 67.312L33.088 66.048C33.4613 66.4 33.888 66.688 34.368 66.912C34.848 67.1253 35.328 67.232 35.808 67.232C36.4053 67.232 36.8587 67.1093 37.168 66.864C37.4773 66.6187 37.632 66.2933 37.632 65.888C37.632 65.4507 37.4773 65.136 37.168 64.944C36.8693 64.752 36.4853 64.5547 36.016 64.352L34.576 63.728C34.2347 63.5787 33.8987 63.3867 33.568 63.152C33.248 62.9173 32.9813 62.6187 32.768 62.256C32.5653 61.8933 32.464 61.456 32.464 60.944C32.464 60.3893 32.6133 59.8933 32.912 59.456C33.2213 59.008 33.6373 58.656 34.16 58.4C34.6933 58.1333 35.3013 58 35.984 58C36.592 58 37.1787 58.1227 37.744 58.368C38.3093 58.6027 38.7947 58.9227 39.2 59.328L38.256 60.512C37.9253 60.2347 37.5733 60.016 37.2 59.856C36.8373 59.696 36.432 59.616 35.984 59.616C35.4933 59.616 35.0933 59.728 34.784 59.952C34.4853 60.1653 34.336 60.464 34.336 60.848C34.336 61.1147 34.4107 61.3387 34.56 61.52C34.72 61.6907 34.928 61.84 35.184 61.968C35.44 62.0853 35.712 62.2027 36 62.32L37.424 62.912C38.0427 63.1787 38.5493 63.5307 38.944 63.968C39.3387 64.3947 39.536 64.9867 39.536 65.744C39.536 66.3093 39.3867 66.8267 39.088 67.296C38.7893 67.7653 38.3573 68.144 37.792 68.432C37.2373 68.7093 36.5653 68.848 35.776 68.848Z" fill="white"/>
+    </symbol>
+
+    <!-- Official Aviatrix-on-GCP Transit Gateway (blue, with "T" mark) -->
+    <symbol id="ic-avx-transit-gw" viewBox="0 0 72 72">
+        <circle cx="36" cy="36" r="36" fill="white"/>
+        <path d="M72 36C72 55.8823 55.8823 72 36 72C16.1177 72 0 55.8823 0 36C0 16.1177 16.1177 0 36 0C55.8823 0 72 16.1177 72 36ZM4.032 36C4.032 53.6554 18.3446 67.968 36 67.968C53.6554 67.968 67.968 53.6554 67.968 36C67.968 18.3446 53.6554 4.032 36 4.032C18.3446 4.032 4.032 18.3446 4.032 36Z" fill="#4285F4"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M71.382 42.6772C71.5043 42.0248 71.6091 41.3662 71.6957 40.7019C71.8965 39.163 72 37.5936 72 36C72 34.4064 71.8965 32.837 71.6957 31.2981C71.6091 30.6338 71.5043 29.9752 71.382 29.3228C71.2584 28.6642 71.117 28.012 70.9581 27.3665C68.8853 27.7535 67.4532 29.699 67.7293 31.8154C67.9077 33.1832 68 34.5798 68 36C68 37.4202 67.9077 38.8168 67.7293 40.1846C67.4532 42.301 68.8853 44.2465 70.9581 44.6335C71.117 43.988 71.2584 43.3358 71.382 42.6772ZM66.8203 54.6143C65.0803 53.4222 62.6915 53.7862 61.3907 55.4789C59.6861 57.6972 57.6972 59.6861 55.4789 61.3907C53.7862 62.6915 53.4222 65.0803 54.6143 66.8203C55.1859 66.4743 55.7471 66.113 56.2973 65.7367C56.8481 65.36 57.388 64.9683 57.9162 64.5624C60.4101 62.6459 62.6459 60.4101 64.5624 57.9162C64.9683 57.388 65.36 56.8481 65.7367 56.2973C66.113 55.7471 66.4743 55.1859 66.8203 54.6143ZM44.6334 70.9581C44.2465 68.8853 42.301 67.4532 40.1846 67.7293C38.8168 67.9077 37.4202 68 36 68C34.5798 68 33.1832 67.9077 31.8154 67.7293C29.699 67.4532 27.7535 68.8853 27.3665 70.9581C28.012 71.117 28.6642 71.2584 29.3228 71.382C29.9752 71.5043 30.6338 71.6091 31.2981 71.6957C32.8369 71.8965 34.4064 72 36 72C37.5936 72 39.163 71.8965 40.7019 71.6957C41.3662 71.6091 42.0248 71.5043 42.6772 71.382C43.3358 71.2584 43.988 71.117 44.6334 70.9581ZM17.3857 66.8203C18.5778 65.0803 18.2138 62.6915 16.5211 61.3907C14.3028 59.6861 12.3139 57.6972 10.6093 55.4789C9.30852 53.7862 6.91971 53.4222 5.1797 54.6143C5.52565 55.1859 5.88705 55.7471 6.26332 56.2973C6.64004 56.8481 7.03167 57.388 7.43762 57.9162C9.35409 60.4101 11.5899 62.6459 14.0838 64.5624C14.612 64.9683 15.1519 65.36 15.7027 65.7367C16.2529 66.113 16.8141 66.4743 17.3857 66.8203ZM1.04188 44.6334C3.1147 44.2465 4.54675 42.301 4.27068 40.1846C4.09227 38.8168 4 37.4202 4 36C4 34.5798 4.09227 33.1832 4.27068 31.8154C4.54675 29.699 3.1147 27.7535 1.04188 27.3665C0.883018 28.012 0.741566 28.6642 0.618047 29.3228C0.495691 29.9752 0.390932 30.6338 0.304283 31.2981C0.103548 32.8369 0 34.4064 0 36C0 37.5936 0.103548 39.163 0.304282 40.7019C0.390932 41.3662 0.495691 42.0248 0.618047 42.6772C0.741566 43.3358 0.883018 43.988 1.04188 44.6334ZM5.1797 17.3857C6.91971 18.5778 9.30852 18.2138 10.6093 16.5211C12.3139 14.3028 14.3028 12.3139 16.5211 10.6093C18.2138 9.30852 18.5778 6.91971 17.3857 5.1797C16.8141 5.52565 16.2529 5.88705 15.7027 6.26332C15.1519 6.64004 14.612 7.03167 14.0838 7.43762C11.5899 9.35409 9.35409 11.5899 7.43762 14.0838C7.03167 14.612 6.64004 15.1519 6.26332 15.7027C5.88705 16.2529 5.52565 16.8141 5.1797 17.3857ZM27.3665 1.04188C27.7535 3.1147 29.699 4.54675 31.8154 4.27068C33.1832 4.09227 34.5798 4 36 4C37.4202 4 38.8168 4.09227 40.1846 4.27068C42.301 4.54675 44.2465 3.1147 44.6335 1.04188C43.988 0.883019 43.3358 0.741566 42.6772 0.618047C42.0248 0.495691 41.3662 0.390932 40.7019 0.304282C39.163 0.103548 37.5936 0 36 0C34.4064 0 32.837 0.103548 31.2981 0.304282C30.6338 0.390931 29.9752 0.495691 29.3228 0.618046C28.6642 0.741566 28.012 0.883018 27.3665 1.04188ZM54.6143 5.1797C53.4222 6.91971 53.7862 9.30852 55.4789 10.6093C57.6972 12.3139 59.6861 14.3028 61.3907 16.5211C62.6915 18.2138 65.0803 18.5778 66.8203 17.3857C66.4743 16.8141 66.113 16.2529 65.7367 15.7027C65.36 15.1519 64.9683 14.612 64.5624 14.0838C62.6459 11.5899 60.4101 9.35409 57.9162 7.43762C57.388 7.03167 56.8481 6.64004 56.2973 6.26332C55.7471 5.88705 55.1859 5.52565 54.6143 5.1797Z" fill="#4285F4"/>
+        <path d="M31.3483 25.5944L35.8202 21.0693C35.9389 20.9769 36.0577 20.9769 36.1798 21.0693L40.767 25.5944C40.8586 25.6868 40.8892 25.8066 40.8009 25.8956C40.767 25.9846 40.6788 26.0154 40.5872 25.9846H37.8525C37.7338 25.9846 37.615 26.1044 37.615 26.2242V32.0705C37.615 32.1903 37.5234 32.2827 37.4047 32.2827H34.6225C34.5003 32.317 34.3782 32.2211 34.3782 32.1013V26.2276C34.3782 26.1078 34.29 25.988 34.1746 25.988H31.5282C31.3789 25.988 31.2907 25.8682 31.2907 25.7142C31.3178 25.6902 31.3178 25.6286 31.3483 25.5978V25.5944ZM40.7704 46.4056L36.1798 50.9307C36.0577 51.0231 35.9355 51.0231 35.8168 50.9307L31.3449 46.4056C31.2567 46.2858 31.2839 46.1318 31.406 46.0736C31.4399 46.0462 31.4671 46.0154 31.5248 46.0154H34.1712C34.2866 46.0154 34.3748 45.8956 34.3748 45.7758V39.9295C34.3748 39.8097 34.4664 39.7173 34.5852 39.7173H37.4081C37.5268 39.7173 37.6184 39.8063 37.6184 39.9295V45.7758C37.6184 45.8956 37.7372 46.0154 37.8559 46.0154H40.4685C40.5872 45.9264 40.7399 45.9538 40.8281 46.0736C40.8892 46.166 40.862 46.3132 40.767 46.4056H40.7704ZM27.2667 40.4361V37.7662C27.2667 37.6498 27.1479 37.5608 27.0292 37.5266H21.2375C21.1154 37.5266 21 37.441 21 37.3212V34.5008C21 34.381 21.1154 34.2954 21.2375 34.2612H27.0292C27.1479 34.2612 27.2667 34.1722 27.2667 34.0558V31.3859C27.2395 31.2627 27.3006 31.1463 27.3888 31.1121C27.477 31.0539 27.5992 31.1121 27.6603 31.1737L32.1287 35.7604C32.2203 35.8494 32.2203 35.9658 32.1287 36.0616L27.6569 40.5867C27.5686 40.6791 27.4465 40.7065 27.3583 40.6483C27.2904 40.5867 27.2633 40.4977 27.2633 40.4361H27.2667ZM44.7333 31.3825V34.0524C44.7333 34.1756 44.8521 34.2646 44.9708 34.2646H50.7625C50.8846 34.2988 51 34.3844 51 34.5042V37.3212C51 37.4445 50.8846 37.5335 50.7625 37.5335H44.9708C44.8521 37.5677 44.7333 37.6533 44.7333 37.7731V40.4429C44.7605 40.5593 44.6723 40.6483 44.5501 40.6825C44.4619 40.6825 44.4008 40.6483 44.3465 40.5901L39.8679 36.0034C39.7797 35.9144 39.7797 35.798 39.8679 35.7022L44.3465 31.1771C44.4008 31.0847 44.5501 31.0573 44.6417 31.1155C44.7333 31.1771 44.7605 31.2969 44.7333 31.3894V31.3825Z" fill="#4285F4"/>
+        <path d="M10.1038 10.9923C13.3878 7.59155 17.3095 4.87095 21.645 2.98583C25.9805 1.10071 30.6448 0.0879893 35.3717 0.00548314C40.0986 -0.077023 44.7954 0.772305 49.194 2.50497C53.5927 4.23764 57.607 6.81972 61.0077 10.1038L49.004 22.534C47.2356 20.8263 45.1482 19.4836 42.8609 18.5826C40.5736 17.6816 38.1313 17.2399 35.6733 17.2829C33.2153 17.3258 30.7899 17.8524 28.5354 18.8326C26.281 19.8129 24.2417 21.2276 22.5339 22.996L10.1038 10.9923Z" fill="#4285F4"/>
+        <path d="M35.024 14.464V5.568H32V4H39.904V5.568H36.88V14.464H35.024Z" fill="white"/>
+    </symbol>
+
+    <!-- Aviatrix Controller (orange shield) -->
+    <symbol id="ic-controller" viewBox="0 0 88 64">
+        <path d="M85,43.2C82.8,40.4,76,32,76,32L59.3,11.2L54.2,4.9C51.7,1.8,47.9,0,44,0C40,0,36.1,1.8,33.6,4.9L28.5,11.2L11.8,32L2.8,43.2C-1.7,48.7-0.7,56.9,5,61.2C7.5,63,10.2,64,13.1,64C16,64,20.8,62.3,23.5,59.1L28.6,52.8L41.8,36.4L34.7,21.97L59.5,52.8L64.6,59.1C67.2,62.3,71,64,74.9,64C78.9,64,80.6,63.1,83.1,61.2C88.8,56.9,89.6,48.7,85.1,43.2H85Z" fill="url(#avx-gradient)"/>
+    </symbol>
+
+    <!-- Internet cloud -->
+    <symbol id="ic-internet" viewBox="0 0 100 60">
+        <path d="M25,45 Q5,45 5,30 Q5,15 22,15 Q25,5 40,5 Q55,5 60,15 Q70,12 78,20 Q92,22 92,35 Q92,48 78,48 L25,48 Z" fill="#E3F2FD" stroke="#1565C0" stroke-width="1.6"/>
+    </symbol>
+</defs>
+
+<!-- Background -->
+<rect width="1600" height="1200" fill="#FFFFFF" stroke="#B0BEC5" stroke-width="1"/>
+
+<!-- Title -->
+<text x="800" y="30" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="20" font-weight="700" fill="#111118">Multi-Cluster GKE with Aviatrix Transit</text>
+<text x="800" y="50" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="12" font-weight="400" fill="#4A5568">Overlapping pod CIDRs (100.64.0.0/16) · Spoke-GW SNAT hides the overlap · Direct internet egress, no Cloud NAT · GKE Gateway (Global ALB) handles ingress out-of-band — Blueprint Architecture</text>
+
+<!-- Internet cloud at very top -->
+<g id="node-internet">
+  <use href="#ic-internet" x="730" y="68" width="140" height="84"/>
+  <text x="800" y="115" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="13" font-weight="700" fill="#0D47A1">Internet</text>
+</g>
+
+<!-- =============================================== -->
+<!-- GCP region container -->
+<!-- =============================================== -->
+<g id="container-gcp-region">
+  <rect x="30" y="160" width="1540" height="835" rx="6" ry="6" fill="#E8F0FE" stroke="#1A73E8" stroke-width="1.8" filter="url(#shadow-sm)"/>
+  <text x="46" y="180" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="12" font-weight="700" fill="#1A73E8" letter-spacing="0.3">GCP · us-central1 (Iowa)</text>
+</g>
+
+<!-- =============================================== -->
+<!-- GCP Edge band: GKE Gateways (Global ALB) -->
+<!-- =============================================== -->
+<g id="container-edge-band">
+  <rect x="50" y="195" width="1290" height="90" rx="4" ry="4" fill="#FFFFFF" stroke="#9AA0A6" stroke-width="1.4" stroke-dasharray="6 3"/>
+  <text x="60" y="213" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="600" fill="#5F6368" letter-spacing="0.3">GCP Edge · Google-managed Global External ALB plane (out-of-band of Aviatrix data path)</text>
+</g>
+
+<!-- Frontend GKE Gateway (Global ALB) -->
+<g id="node-fe-glb">
+  <rect x="200" y="226" width="280" height="50" rx="4" ry="4" fill="#FFFFFF" stroke="#1A73E8" stroke-width="1.6" filter="url(#shadow-sm)"/>
+  <use href="#ic-glb" x="210" y="232" width="38" height="38"/>
+  <text x="260" y="246" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="700" fill="#111118">Frontend GKE Gateway</text>
+  <text x="260" y="259" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="400" fill="#4A5568">Global External ALB · gke-l7-global-external-managed</text>
+  <text x="260" y="270" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="500" fill="#1565C0">frontend GW IP, reserved · NEG → Gatus</text>
+</g>
+
+<!-- Backend GKE Gateway (Global ALB) -->
+<g id="node-be-glb">
+  <rect x="900" y="226" width="280" height="50" rx="4" ry="4" fill="#FFFFFF" stroke="#1A73E8" stroke-width="1.6" filter="url(#shadow-sm)"/>
+  <use href="#ic-glb" x="910" y="232" width="38" height="38"/>
+  <text x="960" y="246" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="700" fill="#111118">Backend GKE Gateway</text>
+  <text x="960" y="259" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="400" fill="#4A5568">Global External ALB · gke-l7-global-external-managed</text>
+  <text x="960" y="270" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="500" fill="#1565C0">backend GW IP, reserved · NEG → Gatus</text>
+</g>
+
+<!-- Aviatrix Controller / CoPilot -->
+<g id="container-controller">
+  <rect x="1360" y="195" width="200" height="90" rx="4" ry="4" fill="#FFFFFF" stroke="#C25E0E" stroke-width="1.6" filter="url(#shadow-sm)"/>
+  <use href="#ic-controller" x="1370" y="208" width="32" height="22"/>
+  <text x="1408" y="220" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="700" fill="#111118">Aviatrix Control Plane</text>
+  <text x="1408" y="232" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="400" fill="#4A5568">Controller + CoPilot</text>
+  <!-- DCF rules badge -->
+  <rect x="1370" y="245" width="180" height="32" rx="3" fill="#FDE8E8" stroke="#8E0000" stroke-width="1" stroke-dasharray="4 2"/>
+  <text x="1460" y="259" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="700" fill="#8E0000">DCF · 12-rule policy</text>
+  <text x="1460" y="271" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="400" fill="#4A5568">4 K8s SmartGroups · fabric-wide</text>
+</g>
+
+<!-- =============================================== -->
+<!-- Spoke VPCs -->
+<!-- =============================================== -->
+
+<!-- Frontend Spoke VPC -->
+<g id="container-fe-vpc">
+  <rect x="50" y="305" width="510" height="540" rx="4" ry="4" fill="#FFFFFF" stroke="#1A73E8" stroke-width="1.8" filter="url(#shadow-sm)"/>
+  <text x="62" y="324" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="700" fill="#1A73E8" letter-spacing="0.3">Frontend Spoke VPC · 10.10.0.0/20</text>
+</g>
+
+<!-- Frontend nodes subnet (with cluster) -->
+<g id="container-fe-nodes">
+  <rect x="65" y="338" width="480" height="285" rx="3" ry="3" fill="#F8F9FA" stroke="#5F6368" stroke-width="1.2" stroke-dasharray="5 3"/>
+  <text x="75" y="354" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="600" fill="#5F6368">subnet · gke-demo-frontend-nodes · 10.10.0.0/22</text>
+  <text x="75" y="367" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="400" fill="#5F6368">secondary: services 172.16.0.0/20</text>
+
+  <!-- GKE cluster boundary (inside subnet) -->
+  <rect x="78" y="378" width="454" height="235" rx="4" ry="4" fill="#E6F4EA" stroke="#0F9D58" stroke-width="1.6"/>
+  <use href="#ic-gke" x="86" y="386" width="28" height="28"/>
+  <text x="120" y="397" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="700" fill="#0F9D58">GKE · gke-demo-frontend</text>
+  <text x="120" y="409" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="400" fill="#4A5568">zonal · GKE Dataplane V2 (Cilium/eBPF)</text>
+
+  <!-- default_snat_status badge -->
+  <rect x="345" y="386" width="180" height="22" rx="3" fill="#FFFFFF" stroke="#0F9D58" stroke-width="1.2"/>
+  <text x="435" y="401" text-anchor="middle" font-family="'Courier New',monospace" font-size="9" font-weight="700" fill="#0F9D58">default_snat_status: disabled</text>
+
+  <!-- pod range -->
+  <rect x="86" y="425" width="190" height="44" rx="3" fill="#FFF8E1" stroke="#F9AB00" stroke-width="1.2" stroke-dasharray="3 2"/>
+  <text x="181" y="440" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="700" fill="#A65A00">pods · 100.64.0.0/16</text>
+  <text x="181" y="453" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="400" fill="#A65A00">alias range · OVERLAPS with backend</text>
+  <text x="181" y="463" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="400" fill="#A65A00">source IP preserved end-to-end → GW</text>
+
+  <!-- Worker nodes -->
+  <rect x="290" y="425" width="105" height="44" rx="3" fill="#FFFFFF" stroke="#5F6368" stroke-width="1"/>
+  <use href="#ic-gce" x="295" y="430" width="22" height="22"/>
+  <text x="355" y="440" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="600" fill="#111118">node-1</text>
+  <text x="355" y="452" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="7" font-weight="400" fill="#4A5568">e2-standard-2</text>
+
+  <rect x="408" y="425" width="105" height="44" rx="3" fill="#FFFFFF" stroke="#5F6368" stroke-width="1"/>
+  <use href="#ic-gce" x="413" y="430" width="22" height="22"/>
+  <text x="473" y="440" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="600" fill="#111118">node-2</text>
+  <text x="473" y="452" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="7" font-weight="400" fill="#4A5568">e2-standard-2</text>
+
+  <!-- Gatus service -->
+  <rect x="86" y="485" width="427" height="40" rx="3" fill="#FFFFFF" stroke="#1A73E8" stroke-width="1.2"/>
+  <circle cx="105" cy="505" r="9" fill="#1A73E8"/>
+  <text x="105" y="509" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="700" fill="#FFFFFF">G</text>
+  <text x="125" y="500" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="700" fill="#111118">Gatus Service (workload)</text>
+  <text x="125" y="513" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="400" fill="#4A5568">NEG-attached → Frontend GKE Gateway above</text>
+  <text x="125" y="522" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="500" fill="#0F9D58">east-west calls Backend Gatus via spoke→transit→spoke</text>
+
+  <!-- Private GKE master callout -->
+  <rect x="86" y="540" width="427" height="60" rx="3" fill="#FAFAFA" stroke="#9AA0A6" stroke-width="1" stroke-dasharray="3 2"/>
+  <text x="299" y="556" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="700" fill="#5F6368">Google control-plane project (managed)</text>
+  <text x="299" y="569" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="500" fill="#1A73E8">Private GKE master · 172.20.0.0/28</text>
+  <text x="299" y="582" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="400" fill="#5F6368">PSC peering to nodes · K8s API plane</text>
+  <text x="299" y="594" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="400" fill="#5F6368">DCF metadata discovery via Aviatrix Controller</text>
+</g>
+
+<!-- proxy-only subnet (frontend, thin band) -->
+<g id="container-fe-proxy">
+  <rect x="65" y="635" width="295" height="34" rx="3" ry="3" fill="#F1F3F4" stroke="#9AA0A6" stroke-width="1" stroke-dasharray="4 2"/>
+  <text x="212" y="650" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="600" fill="#5F6368">subnet · gke-demo-frontend-proxy-only · 10.10.5.0/24</text>
+  <text x="212" y="662" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="400" fill="#5F6368">GKE Gateway proxies (regional, proxy-only)</text>
+</g>
+
+<!-- avx-gw subnet (frontend) -->
+<g id="container-fe-avx-subnet">
+  <rect x="65" y="685" width="480" height="148" rx="3" ry="3" fill="#FFF8F0" stroke="#C25E0E" stroke-width="1.4" stroke-dasharray="5 3"/>
+  <text x="75" y="701" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="600" fill="#C25E0E">subnet · gke-demo-frontend-avx-gw · 10.10.4.0/28</text>
+</g>
+
+<!-- Frontend Aviatrix Spoke GW -->
+<g id="node-fe-avx-gw">
+  <use href="#ic-avx-gw" x="120" y="715" width="58" height="58"/>
+  <text x="149" y="789" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="700" fill="#111118">Frontend Spoke GW</text>
+  <text x="149" y="800" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="400" fill="#4A5568">n1-standard-1 · 10.10.4.2</text>
+  <text x="149" y="811" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="500" fill="#C25E0E">public IP allocated</text>
+
+  <!-- HEADLINE: SNAT badge -->
+  <rect x="200" y="710" width="335" height="116" rx="4" fill="#FFF3E0" stroke="#FA6B1E" stroke-width="2"/>
+  <text x="367" y="726" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="800" fill="#C25E0E">⬣ SNAT (customized_snat / CONDUIT_SNAT)</text>
+  <text x="208" y="743" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="700" fill="#5D2E00">Three policies on this spoke GW:</text>
+  <text x="208" y="757" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8.5" font-weight="500" fill="#5D2E00">• pods 100.64.0.0/16 → transit fabric → SNAT to GW priv IP</text>
+  <text x="208" y="770" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8.5" font-weight="500" fill="#5D2E00">• pods 100.64.0.0/16 → internet (eth0) → SNAT to GW pub IP</text>
+  <text x="208" y="783" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8.5" font-weight="500" fill="#5D2E00">• nodes 10.10.0.0/22 → internet (eth0) → SNAT to GW pub IP</text>
+  <text x="208" y="800" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="600" fill="#C62828">→ hides overlapping 100.64.0.0/16 east-west and north-south</text>
+  <text x="208" y="815" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="500" fill="#5D2E00">DCF SmartGroups still see original pod IP pre-NAT</text>
+</g>
+
+<!-- "no SNAT" badge between cluster and spoke GW (frontend) -->
+<g id="badge-fe-no-snat">
+  <rect x="65" y="635" width="0" height="0" /> <!-- spacer -->
+  <rect x="370" y="635" width="175" height="34" rx="3" fill="#E6F4EA" stroke="#0F9D58" stroke-width="1.4"/>
+  <text x="457" y="649" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="700" fill="#0F9D58">✓ no SNAT pod → spoke GW</text>
+  <text x="457" y="662" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="400" fill="#0F9D58">pod IP 100.64.x.x preserved in-VPC</text>
+</g>
+
+<!-- =============================================== -->
+<!-- DB Spoke VPC (narrower) -->
+<!-- =============================================== -->
+<g id="container-db-vpc">
+  <rect x="580" y="305" width="290" height="540" rx="4" ry="4" fill="#FFFFFF" stroke="#1A73E8" stroke-width="1.8" filter="url(#shadow-sm)"/>
+  <text x="592" y="324" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="700" fill="#1A73E8" letter-spacing="0.3">DB Spoke VPC · 10.5.0.0/22</text>
+</g>
+
+<!-- DB vms subnet -->
+<g id="container-db-vms">
+  <rect x="595" y="338" width="260" height="285" rx="3" ry="3" fill="#F8F9FA" stroke="#5F6368" stroke-width="1.2" stroke-dasharray="5 3"/>
+  <text x="725" y="354" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="600" fill="#5F6368">subnet · gke-demo-db-vms · 10.5.0.0/24</text>
+
+  <!-- DB VM -->
+  <rect x="650" y="385" width="150" height="110" rx="4" ry="4" fill="#FFFFFF" stroke="#1A73E8" stroke-width="1.4" filter="url(#shadow-sm)"/>
+  <use href="#ic-gce" x="700" y="395" width="48" height="48"/>
+  <text x="725" y="460" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="700" fill="#111118">cc-db (Apache)</text>
+  <text x="725" y="473" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="400" fill="#4A5568">e2-small · routable IP</text>
+  <text x="725" y="486" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="500" fill="#5C6BC0">db.gcp.aviatrixdemo.local</text>
+
+  <text x="725" y="525" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="400" fill="#5F6368">private Cloud DNS zone</text>
+  <text x="725" y="537" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="400" fill="#5F6368">no 100.64 overlap here (routable IP)</text>
+  <text x="725" y="555" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="500" fill="#1565C0">reachable from frontend &amp; backend pods</text>
+  <text x="725" y="567" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="500" fill="#1565C0">via Aviatrix transit fabric</text>
+</g>
+
+<!-- DB avx-gw subnet -->
+<g id="container-db-avx-subnet">
+  <rect x="595" y="685" width="260" height="148" rx="3" ry="3" fill="#FFF8F0" stroke="#C25E0E" stroke-width="1.4" stroke-dasharray="5 3"/>
+  <text x="725" y="701" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="600" fill="#C25E0E">subnet · avx-gw · 10.5.1.0/28</text>
+</g>
+
+<!-- DB Aviatrix Spoke GW -->
+<g id="node-db-avx-gw">
+  <use href="#ic-avx-gw" x="697" y="715" width="58" height="58"/>
+  <text x="725" y="789" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="700" fill="#111118">DB Spoke GW</text>
+  <text x="725" y="800" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="400" fill="#4A5568">n1-standard-1 · 10.5.1.2</text>
+  <text x="725" y="811" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="500" fill="#C25E0E">public IP allocated</text>
+</g>
+
+<!-- =============================================== -->
+<!-- Backend Spoke VPC -->
+<!-- =============================================== -->
+<g id="container-be-vpc">
+  <rect x="890" y="305" width="510" height="540" rx="4" ry="4" fill="#FFFFFF" stroke="#1A73E8" stroke-width="1.8" filter="url(#shadow-sm)"/>
+  <text x="902" y="324" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="700" fill="#1A73E8" letter-spacing="0.3">Backend Spoke VPC · 10.20.0.0/20</text>
+</g>
+
+<!-- Backend nodes subnet -->
+<g id="container-be-nodes">
+  <rect x="905" y="338" width="480" height="285" rx="3" ry="3" fill="#F8F9FA" stroke="#5F6368" stroke-width="1.2" stroke-dasharray="5 3"/>
+  <text x="915" y="354" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="600" fill="#5F6368">subnet · gke-demo-backend-nodes · 10.20.0.0/22</text>
+  <text x="915" y="367" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="400" fill="#5F6368">secondary: services 172.16.0.0/20</text>
+
+  <!-- GKE cluster boundary -->
+  <rect x="918" y="378" width="454" height="235" rx="4" ry="4" fill="#E6F4EA" stroke="#0F9D58" stroke-width="1.6"/>
+  <use href="#ic-gke" x="926" y="386" width="28" height="28"/>
+  <text x="960" y="397" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="700" fill="#0F9D58">GKE · gke-demo-backend</text>
+  <text x="960" y="409" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="400" fill="#4A5568">zonal · GKE Dataplane V2 (Cilium/eBPF)</text>
+
+  <rect x="1185" y="386" width="180" height="22" rx="3" fill="#FFFFFF" stroke="#0F9D58" stroke-width="1.2"/>
+  <text x="1275" y="401" text-anchor="middle" font-family="'Courier New',monospace" font-size="9" font-weight="700" fill="#0F9D58">default_snat_status: disabled</text>
+
+  <!-- pod range -->
+  <rect x="926" y="425" width="190" height="44" rx="3" fill="#FFF8E1" stroke="#F9AB00" stroke-width="1.2" stroke-dasharray="3 2"/>
+  <text x="1021" y="440" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="700" fill="#A65A00">pods · 100.64.0.0/16</text>
+  <text x="1021" y="453" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="400" fill="#A65A00">alias range · OVERLAPS with frontend</text>
+  <text x="1021" y="463" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="400" fill="#A65A00">source IP preserved end-to-end → GW</text>
+
+  <!-- Worker nodes -->
+  <rect x="1130" y="425" width="105" height="44" rx="3" fill="#FFFFFF" stroke="#5F6368" stroke-width="1"/>
+  <use href="#ic-gce" x="1135" y="430" width="22" height="22"/>
+  <text x="1195" y="440" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="600" fill="#111118">node-1</text>
+  <text x="1195" y="452" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="7" font-weight="400" fill="#4A5568">e2-standard-2</text>
+
+  <rect x="1248" y="425" width="105" height="44" rx="3" fill="#FFFFFF" stroke="#5F6368" stroke-width="1"/>
+  <use href="#ic-gce" x="1253" y="430" width="22" height="22"/>
+  <text x="1313" y="440" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="600" fill="#111118">node-2</text>
+  <text x="1313" y="452" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="7" font-weight="400" fill="#4A5568">e2-standard-2</text>
+
+  <!-- Gatus service -->
+  <rect x="926" y="485" width="427" height="40" rx="3" fill="#FFFFFF" stroke="#1A73E8" stroke-width="1.2"/>
+  <circle cx="945" cy="505" r="9" fill="#1A73E8"/>
+  <text x="945" y="509" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="700" fill="#FFFFFF">G</text>
+  <text x="965" y="500" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="700" fill="#111118">Gatus Service (workload)</text>
+  <text x="965" y="513" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="400" fill="#4A5568">NEG-attached → Backend GKE Gateway above</text>
+  <text x="965" y="522" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="500" fill="#0F9D58">east-west calls Frontend Gatus via spoke→transit→spoke</text>
+
+  <!-- Private GKE master callout -->
+  <rect x="926" y="540" width="427" height="60" rx="3" fill="#FAFAFA" stroke="#9AA0A6" stroke-width="1" stroke-dasharray="3 2"/>
+  <text x="1139" y="556" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="700" fill="#5F6368">Google control-plane project (managed)</text>
+  <text x="1139" y="569" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="500" fill="#1A73E8">Private GKE master · 172.20.1.0/28</text>
+  <text x="1139" y="582" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="400" fill="#5F6368">PSC peering to nodes · K8s API plane</text>
+  <text x="1139" y="594" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="400" fill="#5F6368">DCF metadata discovery via Aviatrix Controller</text>
+</g>
+
+<!-- proxy-only subnet (backend) -->
+<g id="container-be-proxy">
+  <rect x="1090" y="635" width="295" height="34" rx="3" ry="3" fill="#F1F3F4" stroke="#9AA0A6" stroke-width="1" stroke-dasharray="4 2"/>
+  <text x="1237" y="650" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="600" fill="#5F6368">subnet · gke-demo-backend-proxy-only · 10.20.5.0/24</text>
+  <text x="1237" y="662" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="400" fill="#5F6368">GKE Gateway proxies (regional, proxy-only)</text>
+</g>
+
+<!-- "no SNAT" badge between cluster and spoke GW (backend) -->
+<g id="badge-be-no-snat">
+  <rect x="905" y="635" width="175" height="34" rx="3" fill="#E6F4EA" stroke="#0F9D58" stroke-width="1.4"/>
+  <text x="992" y="649" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="700" fill="#0F9D58">✓ no SNAT pod → spoke GW</text>
+  <text x="992" y="662" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="400" fill="#0F9D58">pod IP 100.64.x.x preserved in-VPC</text>
+</g>
+
+<!-- Backend avx-gw subnet -->
+<g id="container-be-avx-subnet">
+  <rect x="905" y="685" width="480" height="148" rx="3" ry="3" fill="#FFF8F0" stroke="#C25E0E" stroke-width="1.4" stroke-dasharray="5 3"/>
+  <text x="915" y="701" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="600" fill="#C25E0E">subnet · gke-demo-backend-avx-gw · 10.20.4.0/28</text>
+</g>
+
+<!-- Backend Aviatrix Spoke GW -->
+<g id="node-be-avx-gw">
+  <use href="#ic-avx-gw" x="1303" y="715" width="58" height="58"/>
+  <text x="1332" y="789" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="700" fill="#111118">Backend Spoke GW</text>
+  <text x="1332" y="800" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="400" fill="#4A5568">n1-standard-1 · 10.20.4.2</text>
+  <text x="1332" y="811" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="500" fill="#C25E0E">public IP allocated</text>
+
+  <!-- HEADLINE: SNAT badge -->
+  <rect x="915" y="710" width="335" height="116" rx="4" fill="#FFF3E0" stroke="#FA6B1E" stroke-width="2"/>
+  <text x="1082" y="726" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="800" fill="#C25E0E">⬣ SNAT (customized_snat / CONDUIT_SNAT)</text>
+  <text x="923" y="743" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="700" fill="#5D2E00">Three policies on this spoke GW:</text>
+  <text x="923" y="757" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8.5" font-weight="500" fill="#5D2E00">• pods 100.64.0.0/16 → transit fabric → SNAT to GW priv IP</text>
+  <text x="923" y="770" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8.5" font-weight="500" fill="#5D2E00">• pods 100.64.0.0/16 → internet (eth0) → SNAT to GW pub IP</text>
+  <text x="923" y="783" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8.5" font-weight="500" fill="#5D2E00">• nodes 10.20.0.0/22 → internet (eth0) → SNAT to GW pub IP</text>
+  <text x="923" y="800" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="600" fill="#C62828">→ hides overlapping 100.64.0.0/16 east-west and north-south</text>
+  <text x="923" y="815" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="500" fill="#5D2E00">DCF SmartGroups still see original pod IP pre-NAT</text>
+</g>
+
+<!-- =============================================== -->
+<!-- Aviatrix Transit VPC (centered, below spokes) -->
+<!-- =============================================== -->
+<g id="container-transit-vpc">
+  <rect x="500" y="880" width="600" height="110" rx="4" ry="4" fill="#FFF8F0" stroke="#C25E0E" stroke-width="1.8" filter="url(#shadow-sm)"/>
+  <text x="800" y="900" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="700" fill="#C25E0E" letter-spacing="0.3">Aviatrix Transit VPC · 10.2.0.0/24</text>
+</g>
+
+<!-- Aviatrix Transit GW -->
+<g id="node-transit-gw">
+  <use href="#ic-avx-transit-gw" x="770" y="912" width="60" height="60"/>
+  <text x="800" y="987" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="11" font-weight="700" fill="#111118">Aviatrix Transit GW</text>
+</g>
+
+<!-- Subtitle inside transit VPC -->
+<text x="540" y="970" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="500" fill="#4A5568">n1-standard-1</text>
+<text x="1060" y="970" text-anchor="end" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="500" fill="#4A5568">single-AZ · in-cloud IPsec</text>
+
+<!-- =============================================== -->
+<!-- IPsec tunnels (Spoke GW → Transit GW) -->
+<!-- =============================================== -->
+<g id="tunnels">
+  <!-- Frontend → Transit -->
+  <path d="M 149,773 L 149,860 L 800,860 L 800,912" fill="none" stroke="#FA6B1E" stroke-width="2" stroke-linecap="round"/>
+  <rect x="280" y="852" width="155" height="16" rx="3" fill="#FFFFFF" fill-opacity="0.95" stroke="#C25E0E" stroke-width="0.6"/>
+  <text x="357" y="864" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="600" fill="#C25E0E">Aviatrix transit (IPsec)</text>
+
+  <!-- DB → Transit -->
+  <path d="M 725,773 L 725,860 L 800,860 L 800,912" fill="none" stroke="#FA6B1E" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- Backend → Transit -->
+  <path d="M 1332,773 L 1332,860 L 800,860 L 800,912" fill="none" stroke="#FA6B1E" stroke-width="2" stroke-linecap="round"/>
+  <rect x="1170" y="852" width="155" height="16" rx="3" fill="#FFFFFF" fill-opacity="0.95" stroke="#C25E0E" stroke-width="0.6"/>
+  <text x="1247" y="864" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="600" fill="#C25E0E">Aviatrix transit (IPsec)</text>
+</g>
+
+<!-- =============================================== -->
+<!-- Internet ingress arrows (Internet → GKE Gateways) -->
+<!-- =============================================== -->
+<g id="ingress">
+  <!-- Internet → Frontend GKE Gateway -->
+  <path d="M 770,135 Q 600,165 340,226" fill="none" stroke="#1565C0" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <rect x="495" y="160" width="195" height="16" rx="3" fill="#FFFFFF" stroke="#1565C0" stroke-width="0.6"/>
+  <text x="592" y="172" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="600" fill="#1565C0">A · north-south ingress (HTTPS)</text>
+
+  <!-- Internet → Backend GKE Gateway -->
+  <path d="M 830,135 Q 1000,165 1040,226" fill="none" stroke="#1565C0" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <rect x="900" y="160" width="195" height="16" rx="3" fill="#FFFFFF" stroke="#1565C0" stroke-width="0.6"/>
+  <text x="997" y="172" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="600" fill="#1565C0">A · north-south ingress (HTTPS)</text>
+</g>
+
+<!-- GKE Gateway → cluster (NEG) -->
+<g id="neg-arrows">
+  <path d="M 340,278 L 340,378" fill="none" stroke="#1565C0" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#arrow-blue)"/>
+  <rect x="350" y="318" width="80" height="14" rx="2" fill="#FFFFFF" stroke="#1565C0" stroke-width="0.5"/>
+  <text x="390" y="328" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="500" fill="#1565C0">NEG → Gatus</text>
+
+  <path d="M 1040,278 L 1040,378" fill="none" stroke="#1565C0" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#arrow-blue)"/>
+  <rect x="1050" y="318" width="80" height="14" rx="2" fill="#FFFFFF" stroke="#1565C0" stroke-width="0.5"/>
+  <text x="1090" y="328" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="500" fill="#1565C0">NEG → Gatus</text>
+</g>
+
+<!-- =============================================== -->
+<!-- Direct egress arrows (Spoke GW → Internet, no Cloud NAT) -->
+<!-- =============================================== -->
+<g id="egress">
+  <!-- Frontend GW → Internet -->
+  <path d="M 100,742 C 30,500 30,200 730,108" fill="none" stroke="#2E7D32" stroke-width="2" marker-end="url(#arrow-green)"/>
+  <rect x="35" y="305" width="105" height="32" rx="3" fill="#E6F4EA" stroke="#0F9D58" stroke-width="1.2"/>
+  <text x="87" y="318" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="700" fill="#0F9D58">C · egress (eth0)</text>
+  <text x="87" y="330" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="500" fill="#0F9D58">✓ no Cloud NAT</text>
+
+  <!-- Backend GW → Internet -->
+  <path d="M 1380,742 C 1570,500 1570,200 880,108" fill="none" stroke="#2E7D32" stroke-width="2" marker-end="url(#arrow-green)"/>
+  <rect x="1455" y="305" width="105" height="32" rx="3" fill="#E6F4EA" stroke="#0F9D58" stroke-width="1.2"/>
+  <text x="1507" y="318" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="700" fill="#0F9D58">C · egress (eth0)</text>
+  <text x="1507" y="330" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="500" fill="#0F9D58">✓ no Cloud NAT</text>
+
+  <!-- DB GW → Internet -->
+  <path d="M 678,720 C 660,520 660,300 770,140" fill="none" stroke="#2E7D32" stroke-width="1.6" stroke-dasharray="6 3" marker-end="url(#arrow-green)"/>
+  <rect x="555" y="465" width="105" height="20" rx="3" fill="#E6F4EA" stroke="#0F9D58" stroke-width="1"/>
+  <text x="607" y="478" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="600" fill="#0F9D58">egress (eth0)</text>
+</g>
+
+<!-- =============================================== -->
+<!-- Controller management dotted lines -->
+<!-- =============================================== -->
+<g id="ctrl-mgmt" stroke="#9AA0A6" stroke-width="1" stroke-dasharray="3 3" fill="none">
+  <path d="M 1460,285 Q 1460,500 1332,742"/>
+  <path d="M 1460,285 Q 1460,500 800,920"/>
+  <path d="M 1460,285 Q 1460,500 725,742"/>
+  <path d="M 1460,285 Q 1460,500 149,742"/>
+</g>
+<text x="1413" y="318" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="500" fill="#5F6368">mgmt (HTTPS)</text>
+
+<!-- =============================================== -->
+<!-- East-west flow callout (purple — Flow B) -->
+<!-- =============================================== -->
+<g id="ew-flow">
+  <rect x="50" y="855" width="430" height="22" rx="3" fill="#F3E5F5" stroke="#6A1B9A" stroke-width="1"/>
+  <text x="265" y="869" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="700" fill="#6A1B9A">B · east-west: pod 100.64.x.x → SNAT 10.10.4.2 → IPsec → spoke → pod</text>
+</g>
+
+<!-- =============================================== -->
+<!-- Default route annotations on spoke VPCs (placed in space below avx-gw subnet) -->
+<!-- =============================================== -->
+<text x="305" y="843" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-style="italic" font-weight="500" fill="#7B5E00">VPC route: 0.0.0.0/0 → spoke GW (priority 991, untagged) — Controller-managed</text>
+<text x="725" y="843" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-style="italic" font-weight="500" fill="#7B5E00">VPC route: 0.0.0.0/0 → spoke GW (pri 991)</text>
+<text x="1145" y="843" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-style="italic" font-weight="500" fill="#7B5E00">VPC route: 0.0.0.0/0 → spoke GW (priority 991, untagged) — Controller-managed</text>
+
+<!-- =============================================== -->
+<!-- DCF policy enforcement panel (fabric-wide, with examples) -->
+<!-- =============================================== -->
+<g id="dcf-band">
+  <rect x="50" y="1005" width="1500" height="155" rx="4" ry="4" fill="#FDF6F6" stroke="#8E0000" stroke-width="1.6" stroke-dasharray="6 3" filter="url(#shadow-sm)"/>
+  <text x="60" y="1024" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="12" font-weight="800" fill="#C62828">DCF Policy Enforcement (fabric-wide · evaluated at every spoke gateway)</text>
+  <text x="60" y="1037" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="500" fill="#5F6368">SmartGroups are NAT-aware: rules match the original pod IP (100.64.x.x) before spoke-GW SNAT. Cluster onboarding tags pods by namespace + service via the K8s-firewall agent.</text>
+
+  <!-- SmartGroup definitions (left column) -->
+  <text x="60" y="1062" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="700" fill="#111118">SmartGroups (K8s-typed, 4 used in this blueprint)</text>
+
+  <rect x="60" y="1070" width="320" height="18" rx="2" fill="#FFFFFF" stroke="#9AA0A6" stroke-width="0.6"/>
+  <text x="68" y="1083" text-anchor="start" font-family="'Courier New',monospace" font-size="9" font-weight="600" fill="#0F9D58">sg-fe-gatus</text>
+  <text x="155" y="1083" text-anchor="start" font-family="'Courier New',monospace" font-size="8" font-weight="400" fill="#4A5568">cluster=gke-demo-frontend, ns=default, svc=gatus</text>
+
+  <rect x="60" y="1090" width="320" height="18" rx="2" fill="#FFFFFF" stroke="#9AA0A6" stroke-width="0.6"/>
+  <text x="68" y="1103" text-anchor="start" font-family="'Courier New',monospace" font-size="9" font-weight="600" fill="#0F9D58">sg-be-gatus</text>
+  <text x="155" y="1103" text-anchor="start" font-family="'Courier New',monospace" font-size="8" font-weight="400" fill="#4A5568">cluster=gke-demo-backend,  ns=default, svc=gatus</text>
+
+  <rect x="60" y="1110" width="320" height="18" rx="2" fill="#FFFFFF" stroke="#9AA0A6" stroke-width="0.6"/>
+  <text x="68" y="1123" text-anchor="start" font-family="'Courier New',monospace" font-size="9" font-weight="600" fill="#0F9D58">sg-all-gke-pods</text>
+  <text x="155" y="1123" text-anchor="start" font-family="'Courier New',monospace" font-size="8" font-weight="400" fill="#4A5568">any cluster, any ns (CIDR 100.64.0.0/16)</text>
+
+  <rect x="60" y="1130" width="320" height="18" rx="2" fill="#FFFFFF" stroke="#9AA0A6" stroke-width="0.6"/>
+  <text x="68" y="1143" text-anchor="start" font-family="'Courier New',monospace" font-size="9" font-weight="600" fill="#7C3AED">sg-db-vm</text>
+  <text x="155" y="1143" text-anchor="start" font-family="'Courier New',monospace" font-size="8" font-weight="400" fill="#4A5568">VPC-typed: 10.5.0.0/24 (DB Spoke VPC, vms subnet)</text>
+
+  <!-- Policy rule table (right side) -->
+  <text x="395" y="1062" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="700" fill="#111118">Policy rule list (12 rules total · top 6 shown · first match wins)</text>
+
+  <!-- Header row -->
+  <rect x="395" y="1068" width="1155" height="16" fill="#FFEAEA" stroke="#C62828" stroke-width="0.6"/>
+  <text x="403" y="1080" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="700" fill="#5D2E00">#</text>
+  <text x="425" y="1080" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="700" fill="#5D2E00">Source</text>
+  <text x="650" y="1080" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="700" fill="#5D2E00">Destination</text>
+  <text x="940" y="1080" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="700" fill="#5D2E00">Protocol / Port</text>
+  <text x="1130" y="1080" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="700" fill="#5D2E00">Action</text>
+  <text x="1215" y="1080" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="700" fill="#5D2E00">Why</text>
+
+  <!-- Rule 1 -->
+  <rect x="395" y="1085" width="1155" height="13" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="0.4"/>
+  <text x="403" y="1095" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#111118">10</text>
+  <text x="425" y="1095" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#0F9D58">sg-fe-gatus</text>
+  <text x="650" y="1095" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#0F9D58">sg-be-gatus</text>
+  <text x="940" y="1095" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#111118">TCP/443, TCP/80</text>
+  <text x="1130" y="1095" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" font-weight="700" fill="#0F9D58">PERMIT</text>
+  <text x="1215" y="1095" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" fill="#4A5568">cross-cluster Gatus health check (east-west)</text>
+
+  <!-- Rule 2 -->
+  <rect x="395" y="1098" width="1155" height="13" fill="#F8F9FA" stroke="#E0E0E0" stroke-width="0.4"/>
+  <text x="403" y="1108" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#111118">20</text>
+  <text x="425" y="1108" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#0F9D58">sg-be-gatus</text>
+  <text x="650" y="1108" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#0F9D58">sg-fe-gatus</text>
+  <text x="940" y="1108" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#111118">TCP/443, TCP/80</text>
+  <text x="1130" y="1108" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" font-weight="700" fill="#0F9D58">PERMIT</text>
+  <text x="1215" y="1108" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" fill="#4A5568">return path (stateful — symmetric pair w/ 10)</text>
+
+  <!-- Rule 3 -->
+  <rect x="395" y="1111" width="1155" height="13" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="0.4"/>
+  <text x="403" y="1121" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#111118">30</text>
+  <text x="425" y="1121" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#0F9D58">sg-all-gke-pods</text>
+  <text x="650" y="1121" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#7C3AED">sg-db-vm</text>
+  <text x="940" y="1121" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#111118">TCP/80 (Apache)</text>
+  <text x="1130" y="1121" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" font-weight="700" fill="#0F9D58">PERMIT</text>
+  <text x="1215" y="1121" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" fill="#4A5568">pods → db.gcp.aviatrixdemo.local (DB read)</text>
+
+  <!-- Rule 4 -->
+  <rect x="395" y="1124" width="1155" height="13" fill="#F8F9FA" stroke="#E0E0E0" stroke-width="0.4"/>
+  <text x="403" y="1134" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#111118">40</text>
+  <text x="425" y="1134" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#0F9D58">sg-all-gke-pods</text>
+  <text x="650" y="1134" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#1565C0">webcat:business-services, webcat:cdn</text>
+  <text x="940" y="1134" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#111118">TCP/443</text>
+  <text x="1130" y="1134" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" font-weight="700" fill="#0F9D58">PERMIT</text>
+  <text x="1215" y="1134" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" fill="#4A5568">pod → internet (web-category match · ThreatIQ enriched)</text>
+
+  <!-- Rule 5 -->
+  <rect x="395" y="1137" width="1155" height="13" fill="#FFFFFF" stroke="#E0E0E0" stroke-width="0.4"/>
+  <text x="403" y="1147" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#111118">50</text>
+  <text x="425" y="1147" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#0F9D58">sg-all-gke-pods</text>
+  <text x="650" y="1147" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#C62828">webcat:malware, webcat:proxy-avoidance, GeoIP:CN/RU/KP</text>
+  <text x="940" y="1147" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#111118">any</text>
+  <text x="1130" y="1147" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" font-weight="700" fill="#C62828">DENY + log</text>
+  <text x="1215" y="1147" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" fill="#4A5568">block known-bad categories &amp; high-risk geos</text>
+
+  <!-- Rule 6 (default) -->
+  <rect x="395" y="1150" width="1155" height="13" fill="#F8F9FA" stroke="#E0E0E0" stroke-width="0.4"/>
+  <text x="403" y="1160" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#111118">999</text>
+  <text x="425" y="1160" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#5F6368">any</text>
+  <text x="650" y="1160" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#5F6368">any</text>
+  <text x="940" y="1160" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" fill="#111118">any</text>
+  <text x="1130" y="1160" text-anchor="start" font-family="'Courier New',monospace" font-size="8.5" font-weight="700" fill="#C62828">DENY</text>
+  <text x="1215" y="1160" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" fill="#4A5568">default deny — zero-trust posture, fabric-wide</text>
+</g>
+
+<!-- =============================================== -->
+<!-- Legend -->
+<!-- =============================================== -->
+<g id="legend">
+  <rect x="1400" y="855" width="160" height="135" rx="4" ry="4" fill="#FFFFFF" stroke="#9AA0A6" stroke-width="1"/>
+  <text x="1480" y="870" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="10" font-weight="700" fill="#111118">Traffic flows</text>
+
+  <line x1="1412" y1="884" x2="1432" y2="884" stroke="#1565C0" stroke-width="2"/>
+  <text x="1438" y="888" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="600" fill="#1565C0">A · north-south (ALB)</text>
+
+  <line x1="1412" y1="903" x2="1432" y2="903" stroke="#6A1B9A" stroke-width="2"/>
+  <text x="1438" y="907" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="600" fill="#6A1B9A">B · east-west (cluster)</text>
+
+  <line x1="1412" y1="922" x2="1432" y2="922" stroke="#2E7D32" stroke-width="2"/>
+  <text x="1438" y="926" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="600" fill="#2E7D32">C · pod → internet</text>
+
+  <line x1="1412" y1="941" x2="1432" y2="941" stroke="#FA6B1E" stroke-width="2"/>
+  <text x="1438" y="945" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="600" fill="#C25E0E">Aviatrix IPsec</text>
+
+  <line x1="1412" y1="960" x2="1432" y2="960" stroke="#9AA0A6" stroke-width="1" stroke-dasharray="3 3"/>
+  <text x="1438" y="964" text-anchor="start" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="500" fill="#5F6368">control / mgmt</text>
+
+  <text x="1480" y="980" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="8" font-weight="500" fill="#5F6368">orange = Aviatrix · blue = GCP-native</text>
+</g>
+
+<!-- =============================================== -->
+<!-- East-west PURPLE flow (B): Frontend pod → SNAT → IPsec → Backend pod -->
+<!-- Drawn as a colored overlay arrow from FE Gatus down through transit and back up to BE Gatus -->
+<!-- =============================================== -->
+<g id="ew-purple-overlay" opacity="0.9">
+  <!-- FE Gatus → FE Spoke GW (within VPC, no SNAT yet) — routed around master callout -->
+  <path d="M 100,505 L 60,505 L 60,675 L 149,675 L 149,710" fill="none" stroke="#6A1B9A" stroke-width="2.2" marker-end="url(#arrow-purple)"/>
+  <rect x="22" y="552" width="80" height="14" rx="2" fill="#FFFFFF" fill-opacity="0.95" stroke="#6A1B9A" stroke-width="0.6"/>
+  <text x="62" y="562" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="600" fill="#6A1B9A">src 100.64.x.x</text>
+
+  <!-- BE Spoke GW → BE Gatus (within VPC, post-tunnel decap) — routed around master callout -->
+  <path d="M 1332,710 L 1332,675 L 1390,675 L 1390,505 L 1353,505" fill="none" stroke="#6A1B9A" stroke-width="2.2" marker-end="url(#arrow-purple)"/>
+  <rect x="1352" y="552" width="80" height="14" rx="2" fill="#FFFFFF" fill-opacity="0.95" stroke="#6A1B9A" stroke-width="0.6"/>
+  <text x="1392" y="562" text-anchor="middle" font-family="'Inter','Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="9" font-weight="600" fill="#6A1B9A">dst 100.64.x.x</text>
+</g>
+</svg>

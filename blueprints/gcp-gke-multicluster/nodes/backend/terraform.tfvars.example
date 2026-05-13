@@ -1,0 +1,2 @@
+# external_dns_chart_version = "1.15.0"
+# k8s_firewall_chart_version = "1.0.0"

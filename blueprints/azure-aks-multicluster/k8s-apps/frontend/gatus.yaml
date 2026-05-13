@@ -1,0 +1,208 @@
+# NOTE: This file uses the domain "azure.aviatrixdemo.local" which must match
+# the private_dns_zone_name variable in the network layer. If you changed
+# that variable, update all occurrences of the domain below.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gatus
+  labels:
+    app.kubernetes.io/part-of: aks-demo
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend
+  namespace: gatus
+data:
+  config.yaml: |
+    storage:
+      type: memory
+    metrics: true
+    endpoints:
+      # Internal Services — East-West through Aviatrix transit
+      - name: "Prod Database"
+        group: "Internal"
+        url: "http://db.azure.aviatrixdemo.local"
+        interval: 60s
+        conditions:
+          - "[STATUS] == 200"
+          - "[RESPONSE_TIME] < 300"
+      - name: "Backend Service"
+        group: "Internal"
+        url: "http://backend.azure.aviatrixdemo.local:8080"
+        interval: 60s
+        conditions:
+          - "[STATUS] == 200"
+          - "[RESPONSE_TIME] < 500"
+
+      # Egress - Allowed Traffic (governed by DCF WebGroups)
+      - name: "kubernetes.io"
+        group: "Egress"
+        url: "https://kubernetes.io"
+        interval: 60s
+        client:
+          insecure: true
+        conditions: ["[STATUS] == 200"]
+
+      - name: "github.com/.../terraform-provider-aviatrix"
+        group: "Egress"
+        url: "https://github.com/AviatrixSystems/terraform-provider-aviatrix"
+        interval: 60s
+        client:
+          insecure: true
+        conditions: ["[STATUS] == 200"]
+
+      - name: "github.com/.../avxlabs-docs"
+        group: "Egress"
+        url: "https://github.com/AviatrixSystems/avxlabs-docs"
+        interval: 60s
+        client:
+          insecure: true
+        conditions: ["[STATUS] == 200"]
+
+      - name: "registry.npmjs.org"
+        group: "Egress"
+        url: "https://registry.npmjs.org"
+        interval: 60s
+        client:
+          insecure: true
+        conditions: ["[STATUS] == 200"]
+
+      # Threats - Should be BLOCKED by DCF (GeoBlock + ThreatIQ)
+      - name: "GeoBlock - Iran"
+        group: "Threats"
+        url: "icmp://www.irna.ir"
+        interval: 60s
+        conditions: ["[CONNECTED] == true"]
+
+      # NOTE: Aviatrix ThreatIQ pulls from the ET Open compromised-ips feed,
+      # which rotates daily. The IP below was verified present in the feed at
+      # the time this blueprint was last tested. If your run shows this as
+      # CONNECTED (i.e. NOT blocked), pick a current IP from the live feed:
+      #   curl -s https://rules.emergingthreats.net/blockrules/compromised-ips.txt | grep -vE '^(#|$)' | head -1
+      - name: "Threat Feed - Malicious IP"
+        group: "Threats"
+        url: "icmp://185.38.148.2"
+        interval: 60s
+        conditions: ["[CONNECTED] == true"]
+
+    ui:
+      logo: "https://aviatrix.com/wp-content/uploads/2019/10/cropped-Aviatrix-Logo@2x-1-32x32.png"
+      header: "Frontend Cluster - ${HOSTNAME}"
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: frontend
+  namespace: gatus
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: gatus
+  labels:
+    app: frontend
+    cluster: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      name: frontend
+      labels:
+        app: frontend
+        cluster: frontend
+        # Label used by Aviatrix k8s-firewall controller for DCF SmartGroup targeting
+        aviatrix.com/app: frontend
+    spec:
+      serviceAccountName: frontend
+      terminationGracePeriodSeconds: 5
+      containers:
+        - image: twinproduction/gatus:v5.14.0
+          imagePullPolicy: IfNotPresent
+          name: frontend
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 250m
+              memory: 100M
+            requests:
+              cpu: 50m
+              memory: 30M
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 5
+          volumeMounts:
+            - mountPath: /config
+              name: frontend-config
+      volumes:
+        - configMap:
+            name: frontend
+          name: frontend-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: gatus
+  labels:
+    app: frontend
+    service: frontend
+  annotations:
+    # Internal Azure Load Balancer — reachable from backend cluster via Aviatrix transit
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    # ExternalDNS will create DNS record: frontend.azure.aviatrixdemo.local
+    external-dns.alpha.kubernetes.io/hostname: frontend.azure.aviatrixdemo.local
+    external-dns.alpha.kubernetes.io/ttl: "60"
+spec:
+  type: LoadBalancer
+  ports:
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app: frontend
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend-ingress
+  namespace: gatus
+  annotations:
+    nginx.ingress.kubernetes.io/healthcheck-path: /health
+    # ExternalDNS will create DNS record: frontend-web.azure.aviatrixdemo.local
+    external-dns.alpha.kubernetes.io/hostname: frontend-web.azure.aviatrixdemo.local
+    external-dns.alpha.kubernetes.io/ttl: "60"
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 8080

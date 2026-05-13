@@ -1,0 +1,87 @@
+# Example: What Obot generates internally
+#
+# MCPNetworkPolicy is NOT a user-facing Kubernetes CRD.
+# Users configure egressDomains via the Obot API or UI.
+# Obot then creates MCPNetworkPolicy objects internally,
+# and the aviatrix-network-policy-controller reconciles
+# those into Aviatrix FirewallPolicy CRDs (networking.aviatrix.com/v1alpha1).
+#
+# DO NOT kubectl apply this file. There is no MCPNetworkPolicy CRD to target.
+#
+# EKS NOTE: FirewallPolicy CRDs are created by NPC, but K8s label SmartGroups
+# register as Partial on EKS (assetd watcher limitation). The CRD-based
+# per-pod enforcement is not fully applied at the spoke gateway on EKS.
+# The V1 CIDR /32 workaround (obot_mcp_pod_cidrs variable) provides deny-all
+# enforcement via the V1 policy list instead.
+#
+# To inspect the generated FirewallPolicies in your cluster:
+#   kubectl --kubeconfig ~/.kube/<cluster-name>.yaml get firewallpolicies -n obot-mcp
+#   kubectl --kubeconfig ~/.kube/<cluster-name>.yaml describe firewallpolicy <name> -n obot-mcp
+#
+# To configure egressDomains for an MCP server, use the Obot API:
+#
+#   # Create a server with specific egress domains:
+#   curl -X POST http://localhost:8080/api/mcp-servers \
+#     -H "Content-Type: application/json" \
+#     -d '{
+#       "manifest": {
+#         "name": "my-server",
+#         "runtime": "npx",
+#         "npxConfig": {
+#           "package": "@modelcontextprotocol/server-github",
+#           "egressDomains": ["api.github.com", "*.githubusercontent.com"]
+#         }
+#       }
+#     }'
+#
+# Domain rules:
+#   - Bare hostname or leading-wildcard only: "api.example.com" or "*.example.com"
+#   - No protocols, paths, ports, or IPs
+#   - "localhost" and "*.svc" are rejected
+#   - Bare "*" is rejected (not a valid wildcard)
+#   - Empty egressDomains with MCPDEFAULT_DENY_ALL_EGRESS=true = deny all
+#     (no permit rule is generated; server has zero outbound access)
+#
+# ---- Diagnostic reference: shape of a generated FirewallPolicy ----
+#
+# When a server is configured with egressDomains: ["api.openai.com"],
+# Obot generates a FirewallPolicy like this:
+#
+# apiVersion: networking.aviatrix.com/v1alpha1
+# kind: FirewallPolicy
+# metadata:
+#   name: obot-<mnp-id>-fw
+#   namespace: obot-mcp
+#   labels:
+#     obot.ai/mcp-server-name: <server-id>
+# spec:
+#   rules:
+#   - action: permit
+#     name: allow-approved-egress
+#     port: 443
+#     protocol: tcp
+#     selector:
+#       matchLabels:
+#         app: <server-id>
+#     webGroups:
+#     - name: obot-<server-id>-approved-domains
+#   - action: deny
+#     name: deny-all-external
+#     protocol: any
+#     selector:
+#       matchLabels:
+#         app: <server-id>
+#   smartGroups:
+#   - name: obot-<server-id>-pods
+#     selectors:
+#     - k8sNamespace: obot-mcp
+#       tags:
+#         app: <server-id>
+#       type: k8s
+#   - name: any-destination
+#     selectors:
+#     - cidr: 0.0.0.0/0
+#   webGroups:
+#   - domains:
+#     - api.openai.com
+#     name: obot-<server-id>-approved-domains

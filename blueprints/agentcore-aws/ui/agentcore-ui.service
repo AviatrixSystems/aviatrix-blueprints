@@ -1,0 +1,22 @@
+[Unit]
+Description=AgentCore VCA Streamlit probe UI
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/agentcore-ui
+EnvironmentFile=/etc/agentcore-ui.env
+ExecStart=/opt/agentcore-ui/venv/bin/streamlit run /opt/agentcore-ui/app.py \
+  --server.address 0.0.0.0 \
+  --server.port 8501 \
+  --server.headless true \
+  --server.enableCORS false \
+  --server.enableXsrfProtection false \
+  --browser.gatherUsageStats false
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

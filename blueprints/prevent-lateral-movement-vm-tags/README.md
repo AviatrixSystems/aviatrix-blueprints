@@ -1,6 +1,6 @@
 # Prevent Lateral Movement - VM Tags
 
-Deploy **Zero Trust microsegmentation** in 15 minutes using Aviatrix Distributed Cloud Firewall (DCF) and SmartGroups. This blueprint enforces tag-based network segmentation across AWS VPCs — preventing lateral movement, accelerating compliance, and eliminating security group sprawl.
+Deploy **Zero Trust workload microsegmentation** in 15 minutes with the **Aviatrix Cloud Native Security Fabric** — Distributed Cloud Firewall (DCF) and SmartGroups. This blueprint enforces tag-based workload segmentation across AWS VPCs — preventing lateral movement, accelerating compliance, and eliminating security group sprawl.
 
 > [!TIP]
 > **🤖 Optimized for Claude Code** — Run `/deploy-blueprint prevent-lateral-movement-vm-tags` for AI-guided deployment with prerequisite checks, or `/analyze-blueprint prevent-lateral-movement-vm-tags` for resource and cost details. [Get Claude Code](https://claude.ai/code)

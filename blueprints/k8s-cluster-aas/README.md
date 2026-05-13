@@ -1,6 +1,6 @@
 # k8s-cluster-aas — Cluster-as-a-Service
 
-Each team gets a **dedicated EKS cluster in its own VPC**. Network isolation is enforced by Aviatrix DCF at the VPC boundary — no team can reach another team's cluster without an explicit PERMIT rule.
+Each team gets a **dedicated EKS cluster in its own VPC**. Workload isolation is enforced by the **Aviatrix Cloud Native Security Fabric** — Distributed Cloud Firewall (DCF) at the VPC boundary — so no team can reach another team's cluster without an explicit PERMIT rule.
 
 ## Architecture
 

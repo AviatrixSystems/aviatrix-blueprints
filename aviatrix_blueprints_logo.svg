@@ -1,0 +1,166 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 700" role="img" aria-label="Aviatrix Blueprints">
+  <title>Aviatrix Blueprints</title>
+  <desc>Engineering drafting sheet treatment of the Aviatrix Blueprints logo: the official Aviatrix chevron rendered as a dimensioned blueprint subject alongside the Aviatrix Blueprints wordmark and a drafting title block.</desc>
+
+  <defs>
+    <linearGradient id="canvas" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0A1024"/>
+      <stop offset="100%" stop-color="#06091A"/>
+    </linearGradient>
+
+    <pattern id="gridFine" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#14213D" stroke-width="0.4"/>
+    </pattern>
+    <pattern id="gridBold" width="100" height="100" patternUnits="userSpaceOnUse">
+      <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#1F2D52" stroke-width="0.7"/>
+    </pattern>
+
+    <linearGradient id="markOrange" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FF8043"/>
+      <stop offset="55%" stop-color="#F36C25"/>
+      <stop offset="100%" stop-color="#DF4F26"/>
+    </linearGradient>
+
+    <linearGradient id="textOrange" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FF8043"/>
+      <stop offset="100%" stop-color="#F36C25"/>
+    </linearGradient>
+
+    <radialGradient id="markGlow" cx="50%" cy="55%" r="55%">
+      <stop offset="0%" stop-color="#F36C25" stop-opacity="0.30"/>
+      <stop offset="60%" stop-color="#F36C25" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#F36C25" stop-opacity="0"/>
+    </radialGradient>
+
+    <marker id="dimEnd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M0,1 L9,5 L0,9 z" fill="#7AB8FF"/>
+    </marker>
+    <marker id="dimStart" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M9,1 L1,5 L9,9 z" fill="#7AB8FF"/>
+    </marker>
+  </defs>
+
+  <!-- Canvas + grids -->
+  <rect width="1400" height="700" fill="url(#canvas)"/>
+  <rect width="1400" height="700" fill="url(#gridFine)"/>
+  <rect width="1400" height="700" fill="url(#gridBold)"/>
+
+  <!-- Sheet border (double rule) -->
+  <rect x="20" y="20" width="1360" height="660" fill="none" stroke="#3F6BB8" stroke-width="1" opacity="0.9"/>
+  <rect x="28" y="28" width="1344" height="644" fill="none" stroke="#2A4A8A" stroke-width="0.6" opacity="0.7"/>
+
+  <!-- Corner registration marks -->
+  <g stroke="#4A8AD8" stroke-width="1" fill="none" opacity="0.95">
+    <path d="M 36 36 L 64 36 M 36 36 L 36 64"/><circle cx="36" cy="36" r="2.6" fill="#4A8AD8"/>
+    <path d="M 1364 36 L 1336 36 M 1364 36 L 1364 64"/><circle cx="1364" cy="36" r="2.6" fill="#4A8AD8"/>
+    <path d="M 36 664 L 64 664 M 36 664 L 36 636"/><circle cx="36" cy="664" r="2.6" fill="#4A8AD8"/>
+    <path d="M 1364 664 L 1336 664 M 1364 664 L 1364 636"/><circle cx="1364" cy="664" r="2.6" fill="#4A8AD8"/>
+  </g>
+
+  <!-- Sheet header strip -->
+  <line x1="80" y1="74" x2="1320" y2="74" stroke="#2A4A8A" stroke-width="0.6"/>
+  <text x="80" y="64" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="11" fill="#7AB8FF" letter-spacing="3">SHEET 01 / 01  ·  AVIATRIX SYSTEMS  ·  CLOUD NATIVE SECURITY FABRIC</text>
+  <text x="1320" y="64" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="11" fill="#7AB8FF" letter-spacing="3" text-anchor="end">PROJ. AVX-BP  ·  REF QUALITY LAB ENVIRONMENTS</text>
+
+  <!--
+       MARK GEOMETRY (computed from official path bbox 1.0548, 8.8 → 83.2843, 68.8)
+       Scale 4.5  →  width 370.03, height 270.00
+       Translate (70.24, 165.4)  →  bounds x:75 → 445, y:205 → 475
+       Center: (260, 340)
+  -->
+
+  <!-- ============= LEFT: Mark with engineering dimensions ============= -->
+
+  <!-- Soft halo behind mark -->
+  <ellipse cx="260" cy="340" rx="220" ry="170" fill="url(#markGlow)"/>
+
+  <!-- Vertical centerline (dot-dash), runs through mark center -->
+  <line x1="260" y1="146" x2="260" y2="540" stroke="#4A8AD8" stroke-width="0.7" stroke-dasharray="14,4,2,4" opacity="0.55"/>
+
+  <!-- Extension lines: vertical (top dim) and horizontal (left dim) -->
+  <g stroke="#4A8AD8" stroke-width="0.7" fill="none" opacity="0.85" stroke-dasharray="3,3">
+    <!-- top extensions, gap of 4 from mark, extending past dim line -->
+    <line x1="75"  y1="201" x2="75"  y2="154"/>
+    <line x1="445" y1="201" x2="445" y2="154"/>
+    <!-- left extensions -->
+    <line x1="71"  y1="205" x2="44"  y2="205"/>
+    <line x1="71"  y1="475" x2="44"  y2="475"/>
+  </g>
+
+  <!-- Top dimension line (snaps to chevron bounds 75 → 445) -->
+  <line x1="75" y1="160" x2="445" y2="160" stroke="#7AB8FF" stroke-width="1" marker-start="url(#dimStart)" marker-end="url(#dimEnd)"/>
+  <rect x="234" y="149" width="52" height="22" fill="#06091A"/>
+  <text x="260" y="166" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="13" fill="#7AB8FF" text-anchor="middle" letter-spacing="2">370.0</text>
+
+  <!-- Left dimension line (snaps to chevron bounds 205 → 475) -->
+  <line x1="50" y1="205" x2="50" y2="475" stroke="#7AB8FF" stroke-width="1" marker-start="url(#dimStart)" marker-end="url(#dimEnd)"/>
+  <g transform="translate(50 340) rotate(-90)">
+    <rect x="-26" y="-11" width="52" height="22" fill="#06091A"/>
+    <text x="0" y="6" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="13" fill="#7AB8FF" text-anchor="middle" letter-spacing="2">270.0</text>
+  </g>
+
+  <!-- Apex angle callout (decorative, near inner V) -->
+  <path d="M 244 250 a 36 36 0 0 1 32 -10" fill="none" stroke="#7AB8FF" stroke-width="1"/>
+  <line x1="276" y1="240" x2="332" y2="232" stroke="#7AB8FF" stroke-width="0.7" stroke-dasharray="2,3"/>
+  <text x="338" y="236" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="12" fill="#7AB8FF" letter-spacing="1">θ 64°</text>
+
+  <!-- Fillet radius callout from bottom-left foot -->
+  <line x1="98" y1="465" x2="44" y2="520" stroke="#7AB8FF" stroke-width="0.7" stroke-dasharray="2,3"/>
+  <text x="46" y="535" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="12" fill="#7AB8FF" letter-spacing="1">R 12.6</text>
+
+  <!-- The Aviatrix chevron (official path) — scale 4.5, translate (70.24, 165.4) -->
+  <g transform="translate(70.24 165.4) scale(4.5)">
+    <path fill="url(#markOrange)" d="M80.6,49.3l-8.4-10.5-15.6-19.5-4.8-5.9c-2.3-2.9-5.9-4.6-9.6-4.6s-7.3,1.7-9.7,4.6l-4.8,5.9-15.6,19.5-8.4,10.5c-4.2,5.2-3.3,12.8,2,16.9,2.3,1.7,4.9,2.6,7.6,2.6s7.2-1.6,9.7-4.6l4.8-5.9,12.3-15.4-6.6-13.5,23.1,28.9,4.8,5.9c2.4,3,6,4.6,9.7,4.6s5.3-.8,7.6-2.6c5.3-4.1,6.1-11.7,1.9-16.9h0Z"/>
+  </g>
+
+  <!-- Subject label below mark -->
+  <line x1="120" y1="568" x2="400" y2="568" stroke="#2A4A8A" stroke-width="0.6"/>
+  <text x="260" y="588" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="11" fill="#A0B4D8" text-anchor="middle" letter-spacing="4">FIG. 01  ·  AVX CHEVRON  ·  BRAND MARK</text>
+
+  <!-- ============= RIGHT: Wordmark + tagline ============= -->
+  <text x="540" y="208" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="12" fill="#7AB8FF" letter-spacing="6">VOLUME I  ·  REFERENCE LAB ENVIRONMENTS</text>
+
+  <text x="540" y="320" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="130" font-weight="800" letter-spacing="-3" fill="url(#textOrange)">AVIATRIX</text>
+
+  <line x1="540" y1="350" x2="1320" y2="350" stroke="#4A8AD8" stroke-width="0.8"/>
+  <g stroke="#4A8AD8" stroke-width="0.8">
+    <line x1="540"  y1="344" x2="540"  y2="356"/>
+    <line x1="735"  y1="346" x2="735"  y2="354"/>
+    <line x1="930"  y1="346" x2="930"  y2="354"/>
+    <line x1="1125" y1="346" x2="1125" y2="354"/>
+    <line x1="1320" y1="344" x2="1320" y2="356"/>
+  </g>
+
+  <text x="540" y="475" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="130" font-weight="800" letter-spacing="-3" fill="#F5F8FF">BLUEPRINTS</text>
+
+  <line x1="540" y1="505" x2="1320" y2="505" stroke="#2A4A8A" stroke-width="0.6"/>
+  <text x="540" y="532" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="14" fill="#A0B4D8" letter-spacing="4">REFERENCE-QUALITY  ·  CLOUD NATIVE SECURITY FABRIC  ·  LAB ENVIRONMENTS</text>
+
+  <!-- ============= Bottom-left: Notes ============= -->
+  <g transform="translate(80, 600)">
+    <text x="0" y="0" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="10" fill="#7AB8FF" letter-spacing="3">NOTES</text>
+    <line x1="0" y1="6" x2="60" y2="6" stroke="#4A8AD8" stroke-width="0.6"/>
+    <text x="0" y="22" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="10" fill="#A0B4D8" letter-spacing="1">1. ALL DIMENSIONS PER AVIATRIX BRAND GUIDELINES.</text>
+    <text x="0" y="38" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="10" fill="#A0B4D8" letter-spacing="1">2. FILLET RADII NOMINAL — SEE OFFICIAL VECTOR ASSET.</text>
+    <text x="0" y="54" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="10" fill="#A0B4D8" letter-spacing="1">3. REPO: GITHUB.COM/AVIATRIXSYSTEMS/AVIATRIX-BLUEPRINTS</text>
+  </g>
+
+  <!-- ============= Bottom-right: Title block ============= -->
+  <g transform="translate(1024, 588)">
+    <rect x="0" y="0" width="296" height="68" fill="#0A1024" stroke="#4A8AD8" stroke-width="1"/>
+    <line x1="0" y1="22" x2="296" y2="22" stroke="#4A8AD8" stroke-width="0.6"/>
+    <line x1="100" y1="22" x2="100" y2="68" stroke="#4A8AD8" stroke-width="0.6"/>
+    <line x1="200" y1="22" x2="200" y2="68" stroke="#4A8AD8" stroke-width="0.6"/>
+
+    <text x="148" y="15" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="9" fill="#7AB8FF" text-anchor="middle" letter-spacing="3">AVIATRIX BLUEPRINTS  ·  TITLE BLOCK</text>
+
+    <text x="50" y="36" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="8" fill="#7AB8FF" text-anchor="middle" letter-spacing="2">DWG NO.</text>
+    <text x="50" y="58" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="14" fill="#F5F8FF" text-anchor="middle" font-weight="700">AVX-BP-001</text>
+
+    <text x="150" y="36" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="8" fill="#7AB8FF" text-anchor="middle" letter-spacing="2">SCALE</text>
+    <text x="150" y="58" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="14" fill="#F5F8FF" text-anchor="middle" font-weight="700">1 : 1</text>
+
+    <text x="248" y="36" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="8" fill="#7AB8FF" text-anchor="middle" letter-spacing="2">REV</text>
+    <text x="248" y="58" font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="14" fill="#FF8043" text-anchor="middle" font-weight="700">A</text>
+  </g>
+</svg>

@@ -1,0 +1,83 @@
+# =============================================================================
+# Azure AKS Multicluster — Aviatrix Blueprint
+# =============================================================================
+#
+# Copy this file to the relevant layer directory and fill in your values.
+# Each layer reads the previous layer's state via terraform_remote_state.
+#
+# Authentication:
+#   Azure:    export ARM_SUBSCRIPTION_ID, ARM_TENANT_ID, ARM_CLIENT_ID, ARM_CLIENT_SECRET
+#             (or use: az login)
+#   Aviatrix: export AVIATRIX_CONTROLLER_IP, AVIATRIX_USERNAME, AVIATRIX_PASSWORD
+#
+# Deployment order:
+#   1. network/       (terraform apply)
+#   2. clusters/frontend + clusters/backend  (parallel)
+#   3. nodes/frontend + nodes/backend        (parallel)
+#   4. k8s-apps/      (kubectl apply — manual)
+#
+# Destroy order (reverse):
+#   1. nodes/frontend + nodes/backend        (terraform destroy, parallel)
+#   2. clusters/frontend + clusters/backend  (terraform destroy, parallel)
+#   3. network/       (terraform destroy)
+# =============================================================================
+
+# ----------------------------
+# network/terraform.tfvars
+# (network/ also has its own terraform.tfvars.example —
+#  prefer copying that one instead of this section)
+# ----------------------------
+
+name_prefix                 = "aks-demo"
+aviatrix_azure_account_name = "your-azure-account-name"  # Configured in Aviatrix Controller
+azure_region                = "eastus2"
+aviatrix_azure_region       = "East US 2"
+
+# Optional CIDR overrides (defaults shown)
+# transit_cidr       = "10.2.0.0/20"
+# frontend_vnet_cidr = "10.10.0.0/23"
+# backend_vnet_cidr  = "10.20.0.0/23"
+# db_vnet_cidr       = "10.5.0.0/22"
+# pod_cidr           = "100.64.0.0/16"   # Cilium overlay (overlapping across clusters)
+# service_cidr       = "172.16.0.0/16"
+# dns_service_ip     = "172.16.0.10"
+# private_dns_zone_name = "azure.aviatrixdemo.local"
+
+# ----------------------------
+# clusters/{frontend,backend}/terraform.tfvars
+# (each cluster directory also has its own terraform.tfvars.example —
+#  prefer copying that one instead of this section)
+# ----------------------------
+
+# azure_region        = "eastus2"
+# kubernetes_version  = "1.33"
+
+# node_pool_config = {
+#   node_count = 2
+#   min_count  = 1
+#   max_count  = 3
+#   vm_size    = "Standard_B2s"   # B-family avoids the DSv3 quota shared with Aviatrix GWs
+# }
+
+# Restrict to your IP (recommended):
+# Run: curl -s ifconfig.me
+# authorized_ip_ranges = ["<YOUR_IP>/32"]
+# authorized_ip_ranges = ["0.0.0.0/0"]   # Allow all (demo only)
+
+# Onboard each AKS cluster with the Aviatrix Controller (default true).
+# Required for K8s-typed DCF SmartGroups.
+# enable_aviatrix_onboarding = true
+
+# Public egress IP of the Aviatrix Controller. Only needed if
+# authorized_ip_ranges is restricted (not 0.0.0.0/0). For SaaS/Cloud Fabric
+# this equals AVIATRIX_CONTROLLER_IP.
+# aviatrix_controller_public_ip = "1.2.3.4"
+
+# ----------------------------
+# nodes/{frontend,backend}/terraform.tfvars  (all variables have defaults)
+# ----------------------------
+
+# azure_region                = "eastus2"
+# nginx_ingress_chart_version = "4.12.0"
+# external_dns_chart_version  = "1.15.0"
+# k8s_firewall_chart_version  = "8.2.0"

@@ -1,0 +1,42 @@
+# =============================================================================
+# Example terraform.tfvars for blueprint: obot-mcp-egress-azure
+# Copy to terraform.tfvars and fill in your values.
+# =============================================================================
+
+# Aviatrix Controller (pre-existing)
+# REQUIRED: controller_ip, controller_password, arm_account_name
+# Tip: set controller_password via env var to avoid storing on disk:
+#   export TF_VAR_controller_password="your-password"
+controller_ip       = "20.1.2.3"      # REQUIRED
+controller_username = "admin"
+controller_password = "CHANGE_ME"     # REQUIRED; prefer TF_VAR_controller_password env var
+arm_account_name    = "azure-account" # REQUIRED: Aviatrix access account name for Azure
+copilot_private_ip  = "10.200.0.5"    # REQUIRED
+copilot_public_ip   = "20.1.2.4"      # REQUIRED
+
+# Azure: REQUIRED: azure_subscription_id, azure_location
+azure_subscription_id = "00000000-0000-0000-0000-000000000000"  # REQUIRED
+azure_location        = "UK South"                               # REQUIRED
+resource_group_name   = "obot-mcp-rg"
+
+# VNet + AKS (created by this blueprint)
+vnet_address_space = "10.1.0.0/16"
+aks_subnet_cidr    = "10.1.0.0/20"
+aks_vm_size        = "Standard_D4s_v3"
+aks_node_count     = 2
+
+# Aviatrix spoke gateway
+spoke_gateway_subnet_cidr = "10.1.200.0/26"
+spoke_gateway_size        = "Standard_B2ms"
+
+# Obot
+obot_version        = "0.21.0"
+npc_chart_version   = "v0.0.1"
+obot_admin_password = "CHANGE_ME"     # REQUIRED; prefer TF_VAR_obot_admin_password env var
+
+# TWO-STEP: Leave empty on first apply. After Obot is running, populate with
+# pod IPs from: kubectl get pods -n obot-system -o jsonpath='{range .items[*]}{.status.podIP}{"\n"}{end}'
+obot_system_pod_cidrs = []
+
+# Naming
+name_prefix = "obot-mcp"

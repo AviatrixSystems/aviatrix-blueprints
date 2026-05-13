@@ -1,6 +1,6 @@
-# Multi-Cluster EKS with Aviatrix Transit Architecture
+# Multi-Cluster EKS Secured by the Aviatrix Cloud Native Security Fabric
 
-This repository deploys a multi-cluster Kubernetes environment with Aviatrix transit networking, demonstrating Distributed Cloud Firewall (DCF) for Kubernetes capabilities.
+This repository deploys a multi-cluster Kubernetes environment on AWS, demonstrating the **Aviatrix Cloud Native Security Fabric (CNSF)** for Kubernetes — Distributed Cloud Firewall (DCF), workload segmentation, and Zero Trust enforcement across clusters.
 
 > [!TIP]
 > **🤖 Optimized for Claude Code** — Run `/deploy-blueprint` for AI-guided deployment with prerequisite checks and automated orchestration, or `/analyze-blueprint` for resource and cost details. [Get Claude Code](https://claude.ai/code)

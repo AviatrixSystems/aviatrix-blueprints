@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 820" font-family="-apple-system, 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <marker id="arrow-allow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a"/>
+    </marker>
+    <marker id="arrow-deny" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626"/>
+    </marker>
+    <marker id="arrow-internal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0ea5e9"/>
+    </marker>
+    <marker id="arrow-control" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9333ea"/>
+    </marker>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="104%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <!-- Title -->
+  <text x="640" y="36" text-anchor="middle" font-size="22" font-weight="600" fill="#0f172a">Aviatrix VCA — AWS Bedrock AgentCore</text>
+  <text x="640" y="58" text-anchor="middle" font-size="13" fill="#64748b">Transit + two spokes · 9 DCF rules · Selective TLS decryption (9.0+) · IAM drift guardrail</text>
+
+  <!-- IAM Guardrail — prevention layer, above everything -->
+  <g filter="url(#shadow)">
+    <rect x="380" y="86" width="520" height="56" rx="8" fill="#faf5ff" stroke="#9333ea" stroke-width="2" stroke-dasharray="6 3"/>
+    <text x="640" y="108" text-anchor="middle" font-size="12" font-weight="700" fill="#6b21a8">IAM Guardrail — Prevention layer (before any traffic flows)</text>
+    <text x="640" y="128" text-anchor="middle" font-size="11" fill="#6b21a8">agentcore-vca-vpc-mode-guardrail · Deny CreateAgentRuntime where subnets absent or foreign-VPC</text>
+  </g>
+
+  <!-- =============== CLIENT SPOKE =============== -->
+  <g filter="url(#shadow)">
+    <rect x="40" y="180" width="340" height="480" rx="10" fill="#f1f5f9" stroke="#475569" stroke-width="1.5"/>
+    <text x="210" y="204" text-anchor="middle" font-size="13" font-weight="700" fill="#334155">Client Spoke VPC</text>
+    <text x="210" y="222" text-anchor="middle" font-size="11" fill="#475569">10.60.0.0/16</text>
+
+    <!-- ALB -->
+    <rect x="70" y="240" width="280" height="56" rx="6" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+    <text x="210" y="260" text-anchor="middle" font-size="11" font-weight="600" fill="#0f172a">Application Load Balancer</text>
+    <text x="210" y="277" text-anchor="middle" font-size="10" fill="#64748b">IP-allowlisted (ui_ingress_cidrs) · 2 AZs</text>
+    <text x="210" y="291" text-anchor="middle" font-size="9" fill="#64748b">http://…elb.amazonaws.com/</text>
+
+    <!-- EICE endpoint -->
+    <rect x="70" y="312" width="135" height="48" rx="6" fill="#fff" stroke="#475569" stroke-width="1"/>
+    <text x="137" y="332" text-anchor="middle" font-size="10" font-weight="600" fill="#0f172a">EIC Endpoint</text>
+    <text x="137" y="348" text-anchor="middle" font-size="9" fill="#64748b">SSH tunnel (backup)</text>
+
+    <!-- Aviatrix client spoke GW -->
+    <rect x="215" y="312" width="135" height="48" rx="6" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/>
+    <text x="282" y="332" text-anchor="middle" font-size="10" font-weight="600" fill="#9a3412">Aviatrix Spoke GW</text>
+    <text x="282" y="348" text-anchor="middle" font-size="9" fill="#9a3412">DCF enforcement</text>
+
+    <!-- Workload subnet -->
+    <rect x="70" y="380" width="280" height="150" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1"/>
+    <text x="210" y="400" text-anchor="middle" font-size="10" font-weight="600" fill="#475569">client-workload subnet · 10.60.10.0/24</text>
+
+    <rect x="95" y="420" width="230" height="50" rx="4" fill="#eff6ff" stroke="#3b82f6" stroke-width="1"/>
+    <text x="210" y="440" text-anchor="middle" font-size="11" font-weight="600" fill="#1e40af">Client Invoker (EC2, t4g.small)</text>
+    <text x="210" y="456" text-anchor="middle" font-size="10" fill="#1e40af">Streamlit UI · scenario cards</text>
+
+    <text x="210" y="490" text-anchor="middle" font-size="9" fill="#64748b">Chat · Tool (GitHub) · MCP · 5 scenarios</text>
+    <text x="210" y="506" text-anchor="middle" font-size="9" fill="#64748b">Bind: 0.0.0.0:8501 (ALB target)</text>
+  </g>
+
+  <!-- =============== AVIATRIX TRANSIT =============== -->
+  <g filter="url(#shadow)">
+    <rect x="430" y="200" width="200" height="280" rx="10" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/>
+    <text x="530" y="224" text-anchor="middle" font-size="13" font-weight="700" fill="#9a3412">Aviatrix Transit</text>
+    <text x="530" y="242" text-anchor="middle" font-size="11" fill="#c2410c">10.40.0.0/23</text>
+
+    <rect x="450" y="260" width="160" height="60" rx="6" fill="#fff" stroke="#ea580c" stroke-width="1.5"/>
+    <text x="530" y="282" text-anchor="middle" font-size="11" font-weight="600" fill="#9a3412">Transit GW</text>
+    <text x="530" y="300" text-anchor="middle" font-size="10" fill="#9a3412">DCF policy push</text>
+    <text x="530" y="314" text-anchor="middle" font-size="9" fill="#9a3412">(no HA)</text>
+
+    <rect x="450" y="340" width="160" height="120" rx="6" fill="#fefce8" stroke="#ca8a04" stroke-width="1"/>
+    <text x="530" y="360" text-anchor="middle" font-size="10" font-weight="700" fill="#854d0e">9 DCF rules</text>
+    <text x="530" y="378" text-anchor="middle" font-size="9" fill="#854d0e">-10/-11 ingress permit</text>
+    <text x="530" y="392" text-anchor="middle" font-size="9" fill="#854d0e">-29 URL-path deny (decrypt)</text>
+    <text x="530" y="406" text-anchor="middle" font-size="9" fill="#854d0e">-30/-31/-32/-33 egress permit</text>
+    <text x="530" y="420" text-anchor="middle" font-size="9" fill="#854d0e">-50 DNS-exfil deny</text>
+    <text x="530" y="434" text-anchor="middle" font-size="9" fill="#854d0e">-100 default-deny</text>
+    <text x="530" y="452" text-anchor="middle" font-size="8" fill="#854d0e">(+ selective decryption)</text>
+  </g>
+
+  <!-- =============== AGENTCORE SPOKE =============== -->
+  <g filter="url(#shadow)">
+    <rect x="680" y="180" width="560" height="480" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+    <text x="960" y="204" text-anchor="middle" font-size="13" font-weight="700" fill="#166534">AgentCore Spoke VPC</text>
+    <text x="960" y="222" text-anchor="middle" font-size="11" fill="#15803d">10.50.0.0/16</text>
+
+    <!-- Spoke GW -->
+    <rect x="710" y="245" width="170" height="50" rx="6" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/>
+    <text x="795" y="264" text-anchor="middle" font-size="10" font-weight="600" fill="#9a3412">Aviatrix Spoke GW</text>
+    <text x="795" y="280" text-anchor="middle" font-size="9" fill="#9a3412">In-path · selective decrypt</text>
+
+    <!-- Runtime subnet -->
+    <rect x="710" y="310" width="510" height="160" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1"/>
+    <text x="960" y="330" text-anchor="middle" font-size="10" font-weight="600" fill="#475569">runtime subnet · 10.50.10.0/24</text>
+
+    <rect x="735" y="348" width="240" height="110" rx="4" fill="#ecfdf5" stroke="#16a34a" stroke-width="1"/>
+    <text x="855" y="368" text-anchor="middle" font-size="11" font-weight="600" fill="#166534">AgentCore Runtime μVM ENI</text>
+    <text x="855" y="384" text-anchor="middle" font-size="10" fill="#15803d">Firecracker, Graviton/ARM64</text>
+    <text x="855" y="400" text-anchor="middle" font-size="9" fill="#15803d">Container: agent (boto3)</text>
+    <text x="855" y="414" text-anchor="middle" font-size="9" fill="#15803d">Trust store has MITM CA</text>
+    <text x="855" y="432" text-anchor="middle" font-size="9" fill="#15803d">Modes: probe / chat / tool /</text>
+    <text x="855" y="446" text-anchor="middle" font-size="9" fill="#15803d">mcp / scenario</text>
+
+    <rect x="985" y="348" width="230" height="110" rx="4" fill="#eff6ff" stroke="#3b82f6" stroke-width="1"/>
+    <text x="1100" y="368" text-anchor="middle" font-size="11" font-weight="600" fill="#1e40af">IAM Runtime Exec Role</text>
+    <text x="1100" y="386" text-anchor="middle" font-size="9" fill="#1e40af">bedrock-runtime: allow</text>
+    <text x="1100" y="400" text-anchor="middle" font-size="9" fill="#1e40af">ecr: pull (aws-control WG)</text>
+    <text x="1100" y="414" text-anchor="middle" font-size="9" fill="#1e40af">logs/xray: observability</text>
+    <text x="1100" y="432" text-anchor="middle" font-size="9" fill="#1e40af">secretsmanager: MITM CA</text>
+    <text x="1100" y="446" text-anchor="middle" font-size="9" fill="#1e40af">marketplace: model access</text>
+
+    <!-- Endpoint subnet -->
+    <rect x="710" y="485" width="510" height="160" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1"/>
+    <text x="960" y="505" text-anchor="middle" font-size="10" font-weight="600" fill="#475569">endpoint subnet · 10.50.20.0/24</text>
+
+    <rect x="740" y="525" width="220" height="100" rx="4" fill="#f0fdf4" stroke="#16a34a" stroke-width="1"/>
+    <text x="850" y="545" text-anchor="middle" font-size="11" font-weight="600" fill="#166534">PrivateLink: bedrock-agentcore</text>
+    <text x="850" y="561" text-anchor="middle" font-size="10" fill="#15803d">10.50.20.110 (data plane)</text>
+    <text x="850" y="581" text-anchor="middle" font-size="9" fill="#15803d">Route 53 PHZ: shared with</text>
+    <text x="850" y="595" text-anchor="middle" font-size="9" fill="#15803d">client spoke (ALIAS to VPCE)</text>
+    <text x="850" y="615" text-anchor="middle" font-size="9" fill="#15803d">private_dns_enabled=false</text>
+
+    <rect x="970" y="525" width="230" height="100" rx="4" fill="#f0fdf4" stroke="#16a34a" stroke-width="1"/>
+    <text x="1085" y="545" text-anchor="middle" font-size="11" font-weight="600" fill="#166534">PrivateLink: control plane</text>
+    <text x="1085" y="561" text-anchor="middle" font-size="10" fill="#15803d">bedrock-agentcore-control</text>
+    <text x="1085" y="581" text-anchor="middle" font-size="9" fill="#15803d">SG scoped to spoke + transit</text>
+    <text x="1085" y="595" text-anchor="middle" font-size="9" fill="#15803d">+ client spoke CIDRs</text>
+  </g>
+
+  <!-- =============== EXTERNAL: allowed destinations =============== -->
+  <g filter="url(#shadow)">
+    <rect x="940" y="680" width="140" height="80" rx="8" fill="#ecfdf5" stroke="#16a34a" stroke-width="1.5"/>
+    <text x="1010" y="700" text-anchor="middle" font-size="10" font-weight="700" fill="#166534">ALLOWED</text>
+    <text x="1010" y="718" text-anchor="middle" font-size="9" fill="#15803d">bedrock-runtime</text>
+    <text x="1010" y="730" text-anchor="middle" font-size="9" fill="#15803d">api.github.com (SNI)</text>
+    <text x="1010" y="742" text-anchor="middle" font-size="9" fill="#15803d">*.github.com (URL-path)</text>
+    <text x="1010" y="754" text-anchor="middle" font-size="9" fill="#15803d">mcp.deepwiki.com · ECR</text>
+  </g>
+
+  <!-- =============== EXTERNAL: denied destinations =============== -->
+  <g filter="url(#shadow)">
+    <rect x="1100" y="680" width="140" height="80" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <text x="1170" y="700" text-anchor="middle" font-size="10" font-weight="700" fill="#991b1b">DENIED</text>
+    <text x="1170" y="718" text-anchor="middle" font-size="9" fill="#b91c1c">api.openai.com</text>
+    <text x="1170" y="730" text-anchor="middle" font-size="9" fill="#b91c1c">api.anthropic.com (direct)</text>
+    <text x="1170" y="742" text-anchor="middle" font-size="9" fill="#b91c1c">evil.attacker.example</text>
+    <text x="1170" y="754" text-anchor="middle" font-size="9" fill="#b91c1c">shai-hulud URL paths</text>
+    <text x="1170" y="765" text-anchor="middle" font-size="9" fill="#b91c1c">DNS UDP/53 to 8.8.8.8</text>
+  </g>
+
+  <!-- Flow arrows -->
+  <!-- ingress: user browser -> ALB -> client spoke GW -> transit -> agentcore spoke GW -> PrivateLink data -->
+  <path d="M 380 268 L 430 290" stroke="#0ea5e9" stroke-width="2" fill="none" marker-end="url(#arrow-internal)"/>
+  <path d="M 630 340 L 710 270" stroke="#0ea5e9" stroke-width="2" fill="none" marker-end="url(#arrow-internal)"/>
+  <path d="M 795 295 L 795 525 L 850 525" stroke="#0ea5e9" stroke-width="2" fill="none" marker-end="url(#arrow-internal)"/>
+
+  <!-- egress: runtime ENI -> spoke GW -> transit/DCF -> allow (green) / deny (red) -->
+  <path d="M 855 348 L 795 295" stroke="#16a34a" stroke-width="2" fill="none" marker-end="url(#arrow-allow)"/>
+  <path d="M 795 245 Q 795 140 1010 680" stroke="#16a34a" stroke-width="2" fill="none" marker-end="url(#arrow-allow)" opacity="0.8"/>
+  <path d="M 795 245 Q 795 140 1170 680" stroke="#dc2626" stroke-width="2" fill="none" marker-end="url(#arrow-deny)" stroke-dasharray="5 3" opacity="0.8"/>
+
+  <!-- IAM guardrail dashed lines down to both spokes -->
+  <path d="M 500 142 L 500 180" stroke="#9333ea" stroke-width="1.5" fill="none" stroke-dasharray="3 3"/>
+  <path d="M 780 142 L 780 180" stroke="#9333ea" stroke-width="1.5" fill="none" stroke-dasharray="3 3"/>
+  <path d="M 640 142 L 640 200" stroke="#9333ea" stroke-width="1.5" fill="none" stroke-dasharray="3 3" marker-end="url(#arrow-control)"/>
+
+  <!-- Legend -->
+  <g transform="translate(40, 708)">
+    <rect x="0" y="0" width="360" height="94" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="1"/>
+    <text x="12" y="18" font-size="10" font-weight="700" fill="#334155">Legend</text>
+
+    <line x1="12" y1="32" x2="42" y2="32" stroke="#0ea5e9" stroke-width="2" marker-end="url(#arrow-internal)"/>
+    <text x="50" y="36" font-size="9" fill="#475569">Client ingress (TLS, encrypted through fabric)</text>
+
+    <line x1="12" y1="48" x2="42" y2="48" stroke="#16a34a" stroke-width="2" marker-end="url(#arrow-allow)"/>
+    <text x="50" y="52" font-size="9" fill="#475569">Runtime egress — DCF PERMIT (allowed-models / tools / MCP)</text>
+
+    <line x1="12" y1="64" x2="42" y2="64" stroke="#dc2626" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#arrow-deny)"/>
+    <text x="50" y="68" font-size="9" fill="#475569">Runtime egress — DCF DENY (default-deny, URL-path, DNS-exfil)</text>
+
+    <line x1="12" y1="80" x2="42" y2="80" stroke="#9333ea" stroke-width="1.5" stroke-dasharray="3 3" marker-end="url(#arrow-control)"/>
+    <text x="50" y="84" font-size="9" fill="#475569">IAM control-plane (pre-traffic prevention)</text>
+  </g>
+</svg>

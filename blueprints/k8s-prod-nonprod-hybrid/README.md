@@ -1,6 +1,6 @@
 # k8s-prod-nonprod-hybrid — Prod/Non-Prod Hybrid (Recommended)
 
-Separate production and non-production EKS clusters with **two-layer DCF isolation**: environment-level (VPC SmartGroups) and namespace-level (K8s SmartGroups). Combines the strong isolation of cluster-aas with the team self-service of namespace-aas. HA enabled by default.
+Separate production and non-production EKS clusters secured by the **Aviatrix Cloud Native Security Fabric** with **two-layer DCF isolation**: environment-level (VPC SmartGroups) and namespace-level (K8s SmartGroups). Combines the strong workload isolation of cluster-aas with the team self-service of namespace-aas. HA enabled by default.
 
 ## Architecture
 

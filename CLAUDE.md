@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with the Aviatrix Bluepr
 
 ## Repository Overview
 
-This repository contains production-ready Terraform lab environments ("blueprints") for learning, demonstrating, and testing Aviatrix cloud networking solutions. Each blueprint is a self-contained, deployable environment.
+This repository contains production-ready Terraform lab environments ("blueprints") for learning, demonstrating, and testing the Aviatrix Cloud Native Security Fabric (CNSF) — Distributed Cloud Firewall (DCF), workload segmentation, and Zero Trust enforcement. Each blueprint is a self-contained, deployable environment.
 
 ## Project Structure
 
@@ -181,7 +181,7 @@ Checks:
 - Standards compliance
 - File structure
 
-### /test-blueprint (Future)
+### /qa-blueprint (Future)
 
 End-to-end testing with Playwright:
 - Deploy blueprint

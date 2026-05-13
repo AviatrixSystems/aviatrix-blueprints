@@ -13,7 +13,7 @@ This directory contains configuration and skills for [Claude Code](https://claud
     ├── analyze-blueprint.md
     ├── validate-blueprint.md
     ├── deploy-blueprint.md
-    └── test-blueprint.md
+    └── qa-blueprint.md
 ```
 
 ## MCP Server Setup
@@ -60,7 +60,7 @@ Deploys a blueprint with guided, multi-step orchestration:
 
 Supports both simple single-layer and complex multi-layer blueprints (like aws-eks-multicluster with network → clusters → nodes).
 
-### /test-blueprint
+### /qa-blueprint
 
 Deploys and tests a blueprint end-to-end:
 - Pre-flight checks
@@ -79,7 +79,7 @@ Deploys and tests a blueprint end-to-end:
    - `/analyze-blueprint` - Understand what a blueprint creates
    - `/validate-blueprint` - Check blueprint against standards
    - `/deploy-blueprint` - Deploy a blueprint to your environment
-   - `/test-blueprint` - Full end-to-end testing with cleanup
+   - `/qa-blueprint` - Full end-to-end testing with cleanup
 
 ## Customization
 

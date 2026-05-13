@@ -1,6 +1,6 @@
 # k8s-namespace-aas — Namespace-as-a-Service
 
-All teams share a **single EKS cluster** with namespace-level isolation enforced by Aviatrix DCF (transit-level) and Calico NetworkPolicy (intra-cluster). Kubernetes RBAC prevents accidental cross-namespace access but is **not a network security boundary** — DCF and NetworkPolicy are the enforcement mechanisms.
+All teams share a **single EKS cluster** with namespace-level workload isolation enforced by the **Aviatrix Cloud Native Security Fabric** — Distributed Cloud Firewall (DCF) at the transit layer — paired with Calico NetworkPolicy intra-cluster. Kubernetes RBAC prevents accidental cross-namespace access but is **not a security boundary** — DCF and NetworkPolicy are the enforcement mechanisms.
 
 ## Architecture
 

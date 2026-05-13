@@ -1,0 +1,61 @@
+# =============================================================================
+# Example terraform.tfvars for the agentcore-aws blueprint.
+# Copy to terraform.tfvars and fill in your values.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Aviatrix controller
+# -----------------------------------------------------------------------------
+controller_ip       = "3.131.22.171"
+controller_username = "admin"
+controller_password = "change-me"
+
+# Aviatrix-onboarded AWS access account name (not your AWS account ID).
+# This is the name as it appears under "Accounts" in the controller.
+aviatrix_aws_account_name = "aws-primary"
+
+# -----------------------------------------------------------------------------
+# AWS
+# -----------------------------------------------------------------------------
+aws_region = "us-east-2"
+
+# -----------------------------------------------------------------------------
+# Blueprint
+# -----------------------------------------------------------------------------
+name_prefix          = "agentcore-vca"
+transit_cidr         = "10.40.0.0/23"
+agentcore_spoke_cidr = "10.50.0.0/16"
+client_spoke_cidr    = "10.60.0.0/16"
+gateway_size         = "t3.medium"
+
+# -----------------------------------------------------------------------------
+# DCF policy seeds
+# -----------------------------------------------------------------------------
+allowed_model_domains = [
+  "bedrock-runtime.us-east-2.amazonaws.com",
+  "bedrock.us-east-2.amazonaws.com",
+]
+
+allowed_tool_domains = [
+  "api.github.com",
+]
+
+allowed_mcp_server_domains = [
+  "mcp.deepwiki.com",
+]
+
+aws_control_domains = [
+  "sts.us-east-2.amazonaws.com",
+  "logs.us-east-2.amazonaws.com",
+  "monitoring.us-east-2.amazonaws.com",
+  "xray.us-east-2.amazonaws.com",
+  "secretsmanager.us-east-2.amazonaws.com",
+]
+
+# -----------------------------------------------------------------------------
+# Sample agent
+# -----------------------------------------------------------------------------
+# Requires podman machine running. Set to false if you prefer to build/push
+# out-of-band and just want Terraform to wire the runtime up.
+build_agent_image = true
+agent_image_tag   = "v3"

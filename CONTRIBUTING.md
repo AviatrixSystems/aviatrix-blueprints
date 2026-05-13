@@ -4,7 +4,7 @@ Thank you for your interest in contributing to Aviatrix Blueprints! This documen
 
 ## Code of Conduct
 
-Please be respectful and constructive in all interactions. We're building a community resource for cloud networking professionals.
+Please be respectful and constructive in all interactions. We're building a community resource for cloud security and platform teams.
 
 ## Recommended Development Environment
 

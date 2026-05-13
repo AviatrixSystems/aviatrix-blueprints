@@ -1,0 +1,2 @@
+streamlit>=1.36
+boto3>=1.34

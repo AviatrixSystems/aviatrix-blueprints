@@ -1,0 +1,42 @@
+# =============================================================================
+# Example terraform.tfvars for blueprint: obot-mcp-egress-aws
+# Copy to terraform.tfvars and fill in your values.
+# =============================================================================
+
+# AWS
+aws_region = "us-east-1"
+vpc_cidr   = "10.10.0.0/16"
+
+# EKS
+cluster_version    = "1.32"
+node_instance_type = "m5.large"
+node_desired_size  = 0 # Start at 0; run outputs.next_steps step 1 after first apply to scale to 2
+node_max_size      = 4
+
+# Aviatrix Controller (pre-existing)
+# REQUIRED: controller_ip, controller_password, aws_access_account
+# Tip: set controller_password via env var to avoid storing on disk:
+#   export TF_VAR_controller_password="your-password"
+controller_ip       = "20.1.2.3"      # REQUIRED
+controller_username = "admin"
+controller_password = "CHANGE_ME"     # REQUIRED; prefer TF_VAR_controller_password env var
+aws_access_account  = "aws-account"   # REQUIRED: Aviatrix access account name for AWS
+copilot_private_ip  = "10.200.0.5"    # REQUIRED
+copilot_public_ip   = "20.1.2.4"      # REQUIRED
+
+# Obot
+obot_version        = "0.21.0"
+npc_chart_version   = "v0.0.1"
+obot_admin_password = "CHANGE_ME"     # REQUIRED; prefer TF_VAR_obot_admin_password env var
+
+# TWO-STEP: Leave empty on first apply. After Obot is running, populate with
+# pod IPs from: kubectl get pods -n obot-system -o jsonpath='{range .items[*]}{.status.podIP}{"\n"}{end}'
+obot_system_pod_cidrs = []
+
+# THREE-STEP: Leave empty until MCP servers are deployed. Populate after:
+#   kubectl get pods -n obot-mcp -o wide
+# Then re-apply. This activates the DCF DENY rule for MCP server pods.
+obot_mcp_pod_cidrs = []
+
+# Naming
+name_prefix = "obot-mcp"

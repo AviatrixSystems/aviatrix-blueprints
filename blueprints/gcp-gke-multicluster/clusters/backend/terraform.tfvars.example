@@ -1,0 +1,14 @@
+# Aviatrix Controller credentials should be exported as env vars (not in this file):
+#   export AVIATRIX_CONTROLLER_IP=...
+#   export AVIATRIX_USERNAME=...
+#   export AVIATRIX_PASSWORD=...
+
+# Add your IP or 0.0.0.0/0 (lab); the spoke GW + controller IP are appended automatically.
+# master_authorized_cidr_blocks = ["0.0.0.0/0"]
+
+# Tighten if you restrict master_authorized_cidr_blocks; otherwise null is fine.
+# aviatrix_controller_public_ip = null
+
+# Onboarding requires the Aviatrix GCP access account's SA to have at least
+# roles/container.clusterViewer in the project. See onboarding.tf header.
+# enable_aviatrix_onboarding = true
