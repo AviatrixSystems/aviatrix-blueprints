@@ -10,14 +10,10 @@
 # The NPC (aviatrix-network-policy-controller) installed by Obot reconciles
 # MCPNetworkPolicy objects into FirewallPolicy CRDs; it crashes if CRDs are absent.
 #
-# K8s label-based SmartGroups: if EKS assetd watcher loses subscriptions on
-# controller restart, pod IPs stop resolving. Workaround: V1 CIDR /32 SmartGroups
-# (var.obot_system_pod_cidrs, var.obot_mcp_pod_cidrs). Two-step deploy required.
-# See docs/stp-eks-dcf-per-pod-enforcement.md for full root cause.
-#
-# K8s label-based SmartGroups: if EKS assetd watcher loses subscriptions on
-# controller restart, pod IPs stop resolving. Workaround: V1 CIDR /32 SmartGroups
-# (var.obot_system_pod_cidrs, var.obot_mcp_pod_cidrs). Two-step deploy required.
+# K8s label-based SmartGroups resolve correctly on fresh deploy (confirmed 2026-05-13).
+# After controller restart, assetd watcher subscriptions may be lost and pod IPs stop
+# resolving. Workaround: V1 CIDR /32 SmartGroups (var.obot_system_pod_cidrs,
+# var.obot_mcp_pod_cidrs). Two-step deploy required for per-pod deny enforcement.
 # See docs/stp-eks-dcf-per-pod-enforcement.md for full root cause.
 # =============================================================================
 #
