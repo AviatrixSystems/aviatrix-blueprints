@@ -10,7 +10,7 @@ vpc_cidr   = "10.10.0.0/16"
 # EKS
 cluster_version    = "1.32"
 node_instance_type = "m5.large"
-node_desired_size  = 0 # Start at 0; run outputs.next_steps step 1 after first apply to scale to 2
+node_desired_size  = 2 # Default. Set to 0 only if you need to delay node startup past spoke gateway provision.
 node_max_size      = 4
 
 # Aviatrix Controller (pre-existing)

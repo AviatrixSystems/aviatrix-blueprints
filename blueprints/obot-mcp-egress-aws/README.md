@@ -26,7 +26,7 @@ The vpc-cni addon is configured with `EXTERNALSNAT=true`, which disables per-nod
 - **EKS known limitation: K8s label-based SmartGroups register as Partial.** The Aviatrix controller registers EKS clusters as Partial (assetd watcher subscriptions lost on controller restart; custom resource watchers return 404). K8s namespace SmartGroups cannot be used as V1 policy sources for per-pod enforcement. **Workaround:** `obot_system_pod_cidrs` and `obot_mcp_pod_cidrs` take lists of `/32` CIDRs corresponding to running pods. These drive V1 CIDR-based SmartGroups that enforce correctly. **You must update these variables after any pod restart.** See the two-step and three-step deploy procedures below. This is a platform limitation pending an upstream fix; the CIDR workaround is the current supported path.
 - **Obot-specific domains are scoped to obot-system pods via /32 CIDRs.** `var.obot_system_pod_cidrs` drives a dedicated V1 permit rule covering `api.anthropic.com`, GitHub, and `charts.obot.ai`. MCP server pods in `obot-mcp` do not match this rule and cannot reach those domains unless declared in `egressDomains`.
 - **`npx` runtime servers require `registry.npmjs.org` in `egressDomains`.** The npx shim downloads the package from npm at pod startup. A server deployed without `registry.npmjs.org` in its `egressDomains` will have its `mcp` container fail (package download blocked) while the `shim` container stays running. This is intentional: zero-trust requires explicit declaration of every outbound dependency, including package registries.
-- **Node bootstrap requires spoke gateway routes first.** `node_desired_size` defaults to `0`. EKS nodes that start before the Aviatrix spoke gateway programs the VPC route tables fail to bootstrap (CSE exit 50, unreachable API server). Scale up after first apply using the command in the `next_steps` output.
+- **Node bootstrap race with spoke gateway.** `node_desired_size` defaults to `2`. EKS nodes that start before the Aviatrix spoke gateway programs the VPC route tables fail to bootstrap (CSE exit 50, unreachable API server). EKS managed node groups replace failed nodes automatically; re-bootstrap succeeds once routes are in place. Set `node_desired_size = 0` in `terraform.tfvars` if you need to avoid this race (then use Step 4 to scale up after the apply).
 
 ## Prerequisites
 
@@ -61,7 +61,7 @@ The vpc-cni addon is configured with `EXTERNALSNAT=true`, which disables per-nod
 | AWS Route Table | Public RT for spoke gateway subnet | 1 |
 | AWS Route Table | Private RT for EKS node subnets (routes pod egress via spoke) | 1 |
 | EKS Cluster | EKS cluster with vpc-cni (EXTERNALSNAT=true) | 1 |
-| EKS Managed Node Group | EC2 managed node group (scaled to 0 on first apply) | 1 |
+| EKS Managed Node Group | EC2 managed node group (default desired=2; set `node_desired_size=0` to delay startup) | 1 |
 | IAM Role | vpc-cni IRSA role (EXTERNALSNAT=true requires IRSA) | 1 |
 | aws_eks_addon (vpc-cni) | Manages pod networking with EXTERNALSNAT=true | 1 |
 | Aviatrix Spoke Gateway | DCF-enforced egress gateway (no transit required) | 1 |
@@ -82,6 +82,8 @@ The vpc-cni addon is configured with `EXTERNALSNAT=true`, which disables per-nod
 
 **Estimated Cost**: ~$0.15-0.25/hour for the spoke gateway EC2 instance plus EKS node costs (~$0.10-0.20/hour for m5.large at 2 nodes). EKS control plane: $0.10/hour.
 
+> **Storage note:** This blueprint uses Obot's embedded SQLite (`dev.useEmbeddedDb: true`), which stores data on an EBS-backed PVC (gp3, 8 GiB). This is appropriate for lab and demo use. For production, replace with an external Postgres database: set `OBOT_SERVER_DSN` to your RDS or Aurora endpoint in the Obot Helm values and remove `dev.useEmbeddedDb: true`. Doing so eliminates the EBS PVC and the aws-ebs-csi-driver dependency, at the cost of an additional RDS instance (~$0.02–0.05/hr for t3.micro).
+
 ## Deployment
 
 ### Step 1: Clone and Navigate
@@ -99,7 +101,7 @@ cp terraform.tfvars.example terraform.tfvars
 
 Edit `terraform.tfvars`. All fields marked `REQUIRED` must be set.
 
-### Step 3: First Apply (node_desired_size=0)
+### Step 3: First Apply
 
 ```bash
 terraform init
@@ -107,22 +109,26 @@ terraform plan
 terraform apply
 ```
 
-`node_desired_size` defaults to `0`. The EKS node group is created but no nodes start. This is intentional: nodes that start before the Aviatrix spoke gateway programs VPC routes fail to bootstrap (EKS API server unreachable, CSE exit 50). The spoke gateway provisions during this apply.
-
-The `coredns` addon is deployed with `replicaCount=0` on first apply. This is required because with no worker nodes CoreDNS pods cannot schedule, which leaves the addon in DEGRADED state and causes `terraform apply` to time out after 20 minutes. With `replicaCount=0`, the addon reaches ACTIVE immediately. CoreDNS scales back to 2 replicas automatically when you re-apply after nodes join (Step 6).
+`node_desired_size` defaults to `2`. Nodes start during this apply. If the Aviatrix spoke gateway has not yet programmed VPC routes when nodes attempt to bootstrap, nodes may fail with CSE exit 50 (EKS API server unreachable). EKS managed node groups replace failed nodes automatically; re-bootstrap succeeds once routes are in place. See Troubleshooting → EKS nodes fail to bootstrap.
 
 Deployment takes approximately 20-30 minutes (EKS control plane + spoke gateway provisioning are the longest steps).
 
-### Step 4: Scale Up EKS Nodes
+### Step 4: Scale Up EKS Nodes (if node_desired_size was set to 0)
 
-After `terraform apply` completes, scale the node group. The EKS module appends a timestamp to the node group name — use the `eks_nodegroup_name` output rather than hardcoding `system`:
+Skip this step if `node_desired_size` was left at the default of `2`. If you overrode it to `0` in `terraform.tfvars`, scale up after the apply completes. The `next_steps` output provides the exact command with your cluster and nodegroup name pre-filled:
+
+```bash
+terraform output next_steps
+```
+
+Or run it directly. The EKS module appends a timestamp to the node group name — use the output rather than hardcoding `system`:
 
 ```bash
 aws eks update-nodegroup-config \
   --cluster-name $(terraform output -raw eks_cluster_name) \
   --nodegroup-name $(terraform output -raw eks_nodegroup_name) \
   --scaling-config minSize=1,maxSize=4,desiredSize=2 \
-  --region <aws_region>
+  --region <your-aws-region>
 ```
 
 Wait for nodes to reach `Ready`:
@@ -186,7 +192,7 @@ kubectl port-forward -n obot-system svc/obot-obot 8080:80
 | `vpc_cidr` | VPC CIDR block (private subnets are /24 slices; public subnet for spoke GW is /24) | `string` | `"10.10.0.0/16"` | no |
 | `cluster_version` | Kubernetes version for the EKS cluster | `string` | `"1.32"` | no |
 | `node_instance_type` | EC2 instance type for EKS managed node group | `string` | `"m5.large"` | no |
-| `node_desired_size` | Desired node count; set to 0 on first apply | `number` | `0` | no |
+| `node_desired_size` | Desired node count (default 2; set to 0 to delay node startup past spoke gateway provision) | `number` | `2` | no |
 | `node_max_size` | Maximum number of EKS nodes | `number` | `4` | no |
 | `obot_version` | Obot Helm chart version (>= 0.21.0) | `string` | `"0.21.0"` | no |
 | `npc_chart_version` | aviatrix-network-policy-controller chart version | `string` | `"v0.0.1"` | no |

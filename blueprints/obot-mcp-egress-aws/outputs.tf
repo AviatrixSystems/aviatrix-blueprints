@@ -29,12 +29,12 @@ output "next_steps" {
   value       = <<-EOT
     Deployment complete. Next steps:
 
-    1. Scale EKS nodes to desired count (was 0 on first apply to wait for routes):
+    1. If nodes did not start (e.g. node_desired_size was overridden to 0), scale up:
        aws eks update-nodegroup-config \
          --cluster-name ${module.eks.cluster_name} \
          --nodegroup-name ${split(":", module.eks.eks_managed_node_groups["system"].node_group_id)[1]} \
          --scaling-config minSize=1,maxSize=4,desiredSize=2 \
-         --region <aws_region>
+         --region ${var.aws_region}
 
     2. Access Obot UI:
        kubectl port-forward -n ${var.obot_namespace} svc/obot-obot 8080:80
