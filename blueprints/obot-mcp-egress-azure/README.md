@@ -270,8 +270,9 @@ The `default-Internet` route with `nextHopType: Internet` must be present.
 The spoke gateway OTEL exporter is not reaching CoPilot. This happens when `copilot_public_ip` is wrong or missing. Verify:
 
 ```bash
-terraform output spoke_gateway_public_ip
+terraform output -raw spoke_gateway_public_ip
 # This IP must be permitted in the CoPilot NSG for TCP 31284 inbound.
+# Note: spoke_gateway_public_ip is a sensitive output; use -raw to see the value.
 ```
 
 ### egressDomains configured but traffic still blocked

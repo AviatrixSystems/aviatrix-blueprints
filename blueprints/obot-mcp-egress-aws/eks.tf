@@ -18,13 +18,10 @@ module "eks" {
     coredns                = { most_recent = true }
     kube-proxy             = { most_recent = true }
     eks-pod-identity-agent = { most_recent = true }
-    # EBS CSI driver: required for PVC provisioning on EKS 1.26+.
-    # In-tree aws-ebs provisioner is deprecated; StorageClass gp2/gp3 requires this addon.
-    # Without it, Obot's PVC (from the Helm chart) stays Pending indefinitely.
-    aws-ebs-csi-driver = {
-      most_recent              = true
-      service_account_role_arn = aws_iam_role.ebs_csi_irsa.arn
-    }
+    # aws-ebs-csi-driver is declared as a separate aws_eks_addon resource below
+    # because its IRSA role ARN depends on module.eks outputs (oidc_provider_arn,
+    # cluster_oidc_issuer_url). Inlining it here would create a circular dependency:
+    # module.eks needs the IRSA ARN, but the IRSA role needs module.eks outputs.
   }
 
   vpc_id                   = module.vpc.vpc_id
@@ -65,6 +62,19 @@ resource "aws_eks_addon" "vpc_cni" {
       AWS_VPC_K8S_CNI_EXTERNALSNAT = "true"
     }
   })
+
+  depends_on = [module.eks]
+}
+
+# aws-ebs-csi-driver addon: required for PVC provisioning on EKS 1.26+.
+# The in-tree kubernetes.io/aws-ebs provisioner is deprecated; gp3 StorageClass
+# (k8s.tf) requires this addon. Declared outside cluster_addons to avoid a
+# circular dependency (the IRSA role needs module.eks OIDC outputs).
+resource "aws_eks_addon" "ebs_csi_driver" {
+  cluster_name                = module.eks.cluster_name
+  addon_name                  = "aws-ebs-csi-driver"
+  service_account_role_arn    = aws_iam_role.ebs_csi_irsa.arn
+  resolve_conflicts_on_create = "OVERWRITE"
 
   depends_on = [module.eks]
 }

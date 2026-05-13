@@ -5,7 +5,7 @@
 locals {
   # EKS module node_group_id format: "cluster-name:nodegroup-name" (documented contract).
   # Extracted here once so outputs and next_steps stay in sync.
-  eks_nodegroup_name = local.eks_nodegroup_name
+  eks_nodegroup_name = split(":", module.eks.eks_managed_node_groups["system"].node_group_id)[1]
 }
 
 output "eks_cluster_name" {
