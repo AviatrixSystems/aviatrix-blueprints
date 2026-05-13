@@ -34,9 +34,5 @@ spoke_gateway_size        = "Standard_B2ms"
 obot_version      = "0.21.0"
 npc_chart_version = "v0.0.1"
 
-# TWO-STEP: Leave empty on first apply. After Obot is running, populate with
-# pod IPs from: kubectl get pods -n obot-system -o jsonpath='{range .items[*]}{.status.podIP}{"\n"}{end}'
-obot_system_pod_cidrs = []
-
 # Naming
 name_prefix = "obot-mcp"

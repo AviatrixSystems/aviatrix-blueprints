@@ -113,18 +113,15 @@ resource "aviatrix_smart_group" "k8s_api_server" {
   depends_on = [time_sleep.cai_sync]
 }
 
-# SmartGroup: obot-system pods via /32 CIDRs (workaround for V1 CIDR-only source).
+# SmartGroup: obot-system namespace (K8s label selector).
 # Scopes Obot application domains (Anthropic, GitHub) to orchestration pods only.
-# See main.tf locals for the placeholder CIDR strategy on first apply.
 resource "aviatrix_smart_group" "obot_system_pods" {
   name = "${var.name_prefix}-obot-system"
 
   selector {
-    dynamic "match_expressions" {
-      for_each = local.obot_system_pod_cidrs_effective
-      content {
-        cidr = match_expressions.value
-      }
+    match_expressions {
+      type          = "k8s"
+      k8s_namespace = var.obot_namespace
     }
   }
 

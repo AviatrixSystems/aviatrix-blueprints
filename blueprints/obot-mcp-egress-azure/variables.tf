@@ -166,24 +166,6 @@ variable "obot_admin_password" {
   sensitive   = true
 }
 
-variable "obot_system_pod_cidrs" {
-  description = <<-EOT
-    List of /32 CIDRs for obot-system pods. Used to scope Obot-specific
-    egress permits (Anthropic, GitHub, charts.obot.ai) to the orchestration
-    layer only, preventing obot-mcp pods from inheriting them.
-
-    TWO-STEP DEPLOY: Leave empty ([]) on first apply. After Obot is running,
-    get pod IPs with:
-      kubectl get pods -n <obot_namespace> -o jsonpath='{range .items[*]}{.status.podIP}{"\n"}{end}'
-    Then re-apply with those IPs as /32 CIDRs.
-
-    Workaround for Aviatrix V1 policy list limitation: V1 does not support
-    k8s namespace SmartGroups as source — only CIDR SmartGroups are valid.
-    Update these values when obot-system pods restart.
-  EOT
-  type        = list(string)
-  default     = []
-}
 
 variable "npc_chart_version" {
   description = "Version of the aviatrix-network-policy-controller Helm chart from charts.obot.ai. Update when Aviatrix releases a new NPC chart version."

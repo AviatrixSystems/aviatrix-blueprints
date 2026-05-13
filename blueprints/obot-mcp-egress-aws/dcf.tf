@@ -98,14 +98,26 @@ resource "aviatrix_smart_group" "eks_vpc" {
 
 # SmartGroup: obot-system pod /32 CIDRs (V1 CIDR workaround).
 # See vpc.tf locals for the placeholder CIDR strategy on first apply.
+# resource "aviatrix_smart_group" "obot_system_pods" {
+#   name = "${local.name}-obot-system"
+#   selector {
+#     dynamic "match_expressions" {
+#       for_each = local.obot_system_pod_cidrs_effective
+#       content {
+#         cidr = match_expressions.value
+#       }
+#     }
+#   }
+#   depends_on = [time_sleep.cai_sync]
+# }
+
+
 resource "aviatrix_smart_group" "obot_system_pods" {
   name = "${local.name}-obot-system"
   selector {
-    dynamic "match_expressions" {
-      for_each = local.obot_system_pod_cidrs_effective
-      content {
-        cidr = match_expressions.value
-      }
+    match_expressions {
+      type          = "k8s"
+      k8s_namespace = var.obot_namespace
     }
   }
   depends_on = [time_sleep.cai_sync]

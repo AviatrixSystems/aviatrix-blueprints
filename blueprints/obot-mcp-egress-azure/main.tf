@@ -52,12 +52,6 @@ locals {
   # Azure region slug used in AKS API server domain (e.g. "UK South" -> "uksouth")
   azure_region_slug = lower(replace(var.azure_location, " ", ""))
 
-  # Placeholder CIDR (RFC 5737 TEST-NET-1) used when obot_system_pod_cidrs is
-  # empty on first apply. The Aviatrix provider requires at least one
-  # match_expressions block in a SmartGroup selector. This placeholder creates a
-  # valid but non-matching group; it is replaced on second apply once real pod
-  # IPs are supplied.
-  obot_system_pod_cidrs_effective = length(var.obot_system_pod_cidrs) > 0 ? var.obot_system_pod_cidrs : ["192.0.2.0/32"]
 }
 
 # -----------------------------------------------------------------------------
