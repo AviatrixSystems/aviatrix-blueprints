@@ -1,5 +1,9 @@
 #####################
 # AKS Node Layer (Layer 3) - Team-C
+#
+# Refactored to inline azurerm_kubernetes_cluster_node_pool — the previously
+# referenced module ../../../../azure-aks-multicluster/modules/aks-node-group
+# does not exist.
 #####################
 
 provider "azurerm" {
@@ -50,21 +54,24 @@ resource "helm_release" "k8s_firewall" {
   chart      = "k8s-firewall"
   namespace  = "default"
   wait       = false
+
+  depends_on = [azurerm_kubernetes_cluster_node_pool.default]
 }
 
-module "default_node_pool" {
-  source = "../../../../azure-aks-multicluster/modules/aks-node-group"
+resource "azurerm_kubernetes_cluster_node_pool" "default" {
+  name                  = "default"
+  kubernetes_cluster_id = data.terraform_remote_state.cluster.outputs.cluster_id
 
-  cluster_name        = data.terraform_remote_state.cluster.outputs.cluster_name
-  resource_group_name = data.terraform_remote_state.network.outputs.team_c_resource_group_name
-  subnet_id           = data.terraform_remote_state.network.outputs.team_c_aks_system_subnet_id
+  vm_size              = var.node_pool_config.vm_size
+  node_count           = var.node_pool_config.node_count
+  min_count            = var.node_pool_config.min_count
+  max_count            = var.node_pool_config.max_count
+  auto_scaling_enabled = true
+  priority             = var.node_pool_config.priority
+  eviction_policy      = var.node_pool_config.priority == "Spot" ? "Delete" : null
+  spot_max_price       = var.node_pool_config.priority == "Spot" ? -1 : null
 
-  node_pool_name = "default"
-  min_count      = var.node_pool_config.min_count
-  max_count      = var.node_pool_config.max_count
-  node_count     = var.node_pool_config.node_count
-  vm_size        = var.node_pool_config.vm_size
-  priority       = var.node_pool_config.priority
+  vnet_subnet_id = data.terraform_remote_state.network.outputs.team_c_aks_system_subnet_id
 
   node_labels = {
     "nodepool-type" = "user"
@@ -76,6 +83,10 @@ module "default_node_pool" {
     Team        = "team-c"
     Terraform   = "true"
     Pattern     = "cluster-aas"
+  }
+
+  lifecycle {
+    ignore_changes = [node_count]
   }
 }
 
@@ -95,5 +106,5 @@ resource "kubernetes_config_map_v1_data" "coredns_custom" {
     EOF
   }
   force      = true
-  depends_on = [module.default_node_pool]
+  depends_on = [azurerm_kubernetes_cluster_node_pool.default]
 }

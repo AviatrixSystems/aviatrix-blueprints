@@ -11,7 +11,7 @@ resource "kubernetes_manifest" "internal_gateway_class" {
     }
   }
 
-  depends_on = [module.default_node_pool]
+  depends_on = [google_container_node_pool.default]
 }
 
 resource "helm_release" "external_dns" {
@@ -42,5 +42,5 @@ resource "helm_release" "external_dns" {
     })
   ]
 
-  depends_on = [module.default_node_pool]
+  depends_on = [google_container_node_pool.default]
 }

@@ -84,3 +84,31 @@ variable "controller_password" {
   sensitive   = true
   default     = null
 }
+
+# -----------------------------------------------------------------------------
+# Node pool sizing (inline node pool — previously embedded in cluster module)
+# -----------------------------------------------------------------------------
+
+variable "node_machine_type" {
+  description = "Machine type for the default production node pool"
+  type        = string
+  default     = "e2-standard-4"
+}
+
+variable "node_min_count" {
+  description = "Minimum node count per zone for the default node pool autoscaler"
+  type        = number
+  default     = 1
+}
+
+variable "node_max_count" {
+  description = "Maximum node count per zone for the default node pool autoscaler"
+  type        = number
+  default     = 10
+}
+
+variable "initial_node_count" {
+  description = "Initial number of nodes per zone when the node pool is created"
+  type        = number
+  default     = 3
+}

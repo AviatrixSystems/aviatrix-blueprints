@@ -47,7 +47,7 @@ resource "helm_release" "nginx_ingress" {
     }
   })]
 
-  depends_on = [module.shared_node_pool, kubernetes_config_map_v1_data.coredns_custom]
+  depends_on = [azurerm_kubernetes_cluster_node_pool.shared, kubernetes_config_map_v1_data.coredns_custom]
 }
 
 #####################

@@ -2,14 +2,18 @@
 # Pattern B: Namespace-as-a-Service — Azure Node Layer (Layer 3)
 #
 # Provisions:
-#   - User node pool via aks-node-group module
-#   - Aviatrix k8s-firewall Helm chart (CRDs for in-cluster DCF policies)
+#   - User node pool (inline azurerm_kubernetes_cluster_node_pool)
+#   - Aviatrix Cluster onboarding + k8s-firewall Helm CRDs
 #   - CoreDNS configuration for Azure Private DNS resolution
 #   - NGINX Ingress Controller + ExternalDNS via helm.tf
 #
 # This layer runs AFTER:
 #   - Layer 1 (network/) — VNet, Aviatrix transit/spoke, Private DNS
 #   - Layer 2 (clusters/) — AKS control plane, Workload Identity setup
+#
+# Refactored to inline azurerm_kubernetes_cluster_node_pool — the previously
+# referenced module ../../../../azure-aks-multicluster/modules/aks-node-group
+# does not exist.
 #####################
 
 provider "azurerm" {
@@ -81,31 +85,32 @@ resource "helm_release" "k8s_firewall" {
 
   wait          = false
   recreate_pods = false
+
+  depends_on = [azurerm_kubernetes_cluster_node_pool.shared]
 }
 
 #####################
 # User Node Pool
 #
 # Single shared node pool for all team namespaces.
-# NOTE: Unlike EKS, AKS does not need ENIConfig resources.
 # Azure CNI Overlay handles pod networking transparently — pods get IPs from
 # the overlay CIDR (100.64.0.0/16) without needing per-AZ subnet mappings.
 #####################
 
-module "shared_node_pool" {
-  source = "../../../../azure-aks-multicluster/modules/aks-node-group"
+resource "azurerm_kubernetes_cluster_node_pool" "shared" {
+  name                  = "shared"
+  kubernetes_cluster_id = data.terraform_remote_state.cluster.outputs.cluster_id
 
-  cluster_name        = data.terraform_remote_state.cluster.outputs.cluster_name
-  resource_group_name = data.terraform_remote_state.network.outputs.shared_resource_group_name
+  vm_size              = var.node_pool_config.vm_size
+  node_count           = var.node_pool_config.node_count
+  min_count            = var.node_pool_config.min_count
+  max_count            = var.node_pool_config.max_count
+  auto_scaling_enabled = true
+  priority             = var.node_pool_config.priority
+  eviction_policy      = var.node_pool_config.priority == "Spot" ? "Delete" : null
+  spot_max_price       = var.node_pool_config.priority == "Spot" ? -1 : null
 
-  subnet_id = data.terraform_remote_state.network.outputs.shared_aks_system_subnet_id
-
-  node_pool_name = "shared"
-  min_count      = var.node_pool_config.min_count
-  max_count      = var.node_pool_config.max_count
-  node_count     = var.node_pool_config.node_count
-  vm_size        = var.node_pool_config.vm_size
-  priority       = var.node_pool_config.priority
+  vnet_subnet_id = data.terraform_remote_state.network.outputs.shared_aks_system_subnet_id
 
   node_labels = {
     "nodepool-type" = "shared"
@@ -116,6 +121,10 @@ module "shared_node_pool" {
     Environment = "prod"
     Pattern     = "namespace-aas"
     Terraform   = "true"
+  }
+
+  lifecycle {
+    ignore_changes = [node_count]
   }
 }
 
@@ -145,5 +154,5 @@ resource "kubernetes_config_map_v1_data" "coredns_custom" {
 
   force = true
 
-  depends_on = [module.shared_node_pool]
+  depends_on = [azurerm_kubernetes_cluster_node_pool.shared]
 }
