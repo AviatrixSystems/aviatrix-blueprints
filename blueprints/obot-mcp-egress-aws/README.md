@@ -219,83 +219,86 @@ kubectl port-forward -n obot-system svc/obot-obot 8080:80
 
 ## Test Scenarios
 
-An automated test script is included at `scripts/test-eks-dcf.sh`. Run it from the blueprint directory after `terraform apply`:
+> **Prerequisite:** Complete Steps 4–5 (scale up nodes, enable DCF Kubernetes Enforcement in CoPilot) before running these scenarios. Port-forward Obot before any API calls:
+> ```bash
+> kubectl port-forward -n obot-system svc/obot-obot 8080:80
+> # If 8080 is taken: kubectl port-forward -n obot-system svc/obot-obot 8081:80
+> ```
+
+### Step 0: Deploy a Test MCP Server
+
+Create an MCP server via the Obot API (or Obot UI — navigate to `http://localhost:8080`, go to MCP Servers, and add a server with the desired `egressDomains`):
 
 ```bash
-# Non-destructive checks: IAM principal, ClusterRoleBindings, CRDs, NPC health, SmartGroup resolution, egress block
-./scripts/test-eks-dcf.sh
-
-# Reproduce V1 SmartGroup ipv4_cidrs empty + confirm K8S_POLICY_LIST works independently:
-./scripts/test-eks-dcf.sh --bug-b
-
-# Print V1 SmartGroup source repro instructions (destructive — breaks all DCF):
-./scripts/test-eks-dcf.sh --jira-v1-sg
-
-# Print feature flag reset repro instructions (requires controller reboot):
-./scripts/test-eks-dcf.sh --jira-flags
-```
-
-> **Prerequisite:** Complete Steps 4–5 (scale up nodes, enable DCF Kubernetes Enforcement in CoPilot) before running these scenarios. The `FirewallPolicy` CRD (`networking.aviatrix.com/v1alpha1`) is installed by the `k8s-firewall` Helm chart during `terraform apply`; if the NPC shows `no matches for kind 'FirewallPolicy'`, verify the `aviatrix-crds` Helm release applied successfully: `helm list -n kube-system`.
-
-### Scenario 1: Verify Default Deny
-
-Confirm that a newly deployed MCP server with no `egressDomains` configured has no outbound access:
-
-```bash
-# Get the MCP server pod name (replace <server-name> as appropriate)
-kubectl get pods -n obot-mcp -l app=<server-name>
-
-# Attempt an outbound connection from inside the pod
-kubectl exec -n obot-mcp <pod-name> -- curl -s --max-time 5 https://api.openai.com
-
-# Expected result: connection times out (blocked by DCF default deny)
-```
-
-Check CoPilot -> DCF -> Monitor to see the denied flow logged.
-
-> **Note:** Per-pod enforcement requires `obot_mcp_pod_cidrs` to be populated with the pod's `/32` CIDR and a `terraform apply` to have been run. Until `obot_mcp_pod_cidrs` is set, the deny-all SmartGroup is not created and enforcement is not active for obot-mcp pods. This is the three-step deploy sequence for the EKS CIDR workaround.
-
-### Scenario 2: Configure egressDomains and Verify Allow
-
-`MCPNetworkPolicy` is an internal Obot concept; there is no user-facing Kubernetes CRD to apply.
-Configure `egressDomains` via the Obot API or UI. Obot creates the MCPNetworkPolicy internally;
-the `aviatrix-network-policy-controller` reconciles it into a `FirewallPolicy` CRD.
-
-```bash
-# Update the MCP server to allow specific egress domains (replace <server-id>)
-curl -X PUT http://localhost:8080/api/mcp-servers/<server-id> \
+# Create a server with registry.npmjs.org permitted (required for npx package download)
+SERVER=$(curl -s -X POST http://localhost:8080/api/mcp-servers \
   -H "Content-Type: application/json" \
-  -d '{
-    "manifest": {
-      "name": "my-server",
-      "runtime": "npx",
-      "npxConfig": {
-        "package": "@modelcontextprotocol/server-github",
-        "egressDomains": ["api.openai.com"]
-      }
-    }
-  }'
+  -d '{"manifest":{"name":"demo-server","runtime":"npx","npxConfig":{"package":"@modelcontextprotocol/server-filesystem","egressDomains":["registry.npmjs.org"]}}}')
 
-# Verify the FirewallPolicy CRD was created or updated
+# Get the server ID
+SERVER_ID=$(echo $SERVER | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+echo "Server ID: $SERVER_ID"
+
+# Launch the server (required after every create or update)
+curl -s -X POST http://localhost:8080/api/mcp-servers/${SERVER_ID}/launch
+
+# Wait for pod to start (shim container starts; mcp container may stay 1/2 — this is normal for filesystem server without dir args)
+kubectl get pods -n obot-mcp -w
+```
+
+Pod naming: the pod is named `<server-id>-<random-suffix>`. The shim container is named `<server-id>-shim`. Use `-c <server-id>-shim` for all `kubectl exec` commands.
+
+```bash
+# Get pod name
+POD=$(kubectl get pods -n obot-mcp -l app=${SERVER_ID} -o jsonpath='{.items[0].metadata.name}')
+echo "Pod: $POD"
+```
+
+### Scenario 1: Verify Permitted Domain Passes
+
+```bash
+# registry.npmjs.org is in egressDomains — should return HTTP 200
+kubectl exec -n obot-mcp $POD -c ${SERVER_ID}-shim -- \
+  curl -s --max-time 10 -o /dev/null -w "HTTP:%{http_code}" https://registry.npmjs.org
+
+# Expected: HTTP:200
+```
+
+### Scenario 2: Verify Unlisted Domain is Blocked
+
+```bash
+# api.openai.com is NOT in egressDomains — DCF blocks at TLS handshake
+kubectl exec -n obot-mcp $POD -c ${SERVER_ID}-shim -- \
+  curl -s --max-time 5 -o /dev/null -w "HTTP:%{http_code} Exit:%{exitcode}" https://api.openai.com
+
+# Expected: HTTP:000 Exit:35
+# HTTP:000 = no response received; exit 35 = SSL connect error (DCF dropped connection before TLS completed)
+```
+
+Check CoPilot → DCF → Monitor to see the denied flow logged with source pod IP and destination SNI.
+
+### Scenario 3: Update egressDomains and Verify New Domain is Permitted
+
+`MCPNetworkPolicy` is an internal Obot concept; there is no user-facing Kubernetes CRD to apply. Configure `egressDomains` via the Obot API — Obot creates the MCPNetworkPolicy internally; the NPC reconciles it into a `FirewallPolicy` CRD before the pod restarts.
+
+```bash
+# Add api.openai.com to egressDomains (PUT uses unwrapped manifest, no wrapper)
+curl -s -X PUT http://localhost:8080/api/mcp-servers/${SERVER_ID} \
+  -H "Content-Type: application/json" \
+  -d '{"name":"demo-server","runtime":"npx","npxConfig":{"package":"@modelcontextprotocol/server-filesystem","egressDomains":["registry.npmjs.org","api.openai.com"]}}'
+
+# Launch to apply (required after every update)
+curl -s -X POST http://localhost:8080/api/mcp-servers/${SERVER_ID}/launch
+
+# Verify FirewallPolicy CRD was updated
 kubectl get firewallpolicies -n obot-mcp
 
-# Retry the outbound connection (no sleep needed; policy exists before pod starts)
-kubectl exec -n obot-mcp <pod-name> -- curl -s --max-time 10 https://api.openai.com
+# Wait for new pod, then test (policy is applied at definition time, not pod start time)
+POD=$(kubectl get pods -n obot-mcp -l app=${SERVER_ID} --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -n obot-mcp $POD -c ${SERVER_ID}-shim -- \
+  curl -s --max-time 10 -o /dev/null -w "HTTP:%{http_code}" https://api.openai.com
 
-# Expected result: connection succeeds
-```
-
-> **Note:** The `aviatrix-network-policy-controller` creates the FirewallPolicy at server-definition
-> time, not at launch time. By the time the pod starts, the policy is already enforced.
-> See `k8s-apps/example-mcpnetworkpolicy.yaml` for the shape of the generated `FirewallPolicy`.
-
-### Scenario 3: Verify Unlisted Domain is Blocked
-
-```bash
-# This domain is not in the egressDomains allowlist
-kubectl exec -n obot-mcp <pod-name> -- curl -s --max-time 5 https://example.com
-
-# Expected result: connection times out (blocked by DCF, not in approved domains)
+# Expected: HTTP:401 (reached upstream — OpenAI rejects unauthenticated requests, but connection was permitted by DCF)
 ```
 
 ## Cleanup
