@@ -23,7 +23,7 @@ The vpc-cni addon is configured with `EXTERNALSNAT=true`, which disables per-nod
 - **Protocol and port:** Enforcement applies to HTTPS egress on TCP 443 only. MCP servers requiring non-443 outbound connections are not protected by this feature.
 - **Remote MCP servers:** Out of scope. This feature applies only to Kubernetes-hosted MCP servers deployed by Obot. Remote (SSE/HTTP) MCP server connections are not subject to these policies.
 - **Domain format:** `egressDomains` entries must be bare hostnames. No protocols (`https://`), paths, ports, or IP addresses. `localhost` and `*.svc` cluster-local names are rejected by Obot at admission. Wildcard prefix notation is supported (e.g., `*.anthropic.com`).
-- **EKS K8s SmartGroup resolution requires correct RBAC setup.** CoPilot authenticates to EKS using `aviatrix-role-app` (not the EC2 instance profile role `aviatrix-role-ec2`). The blueprint creates an EKS access entry for `aviatrix-role-app` with `AmazonEKSViewPolicy` plus two additional ClusterRoles: one for node enumeration, one for `networking.aviatrix.com` CRD access. If the cluster shows "Partial" in CoPilot after deploy, verify the access entry principal matches the actual `aviatrix-role-app` ARN in your account. **Workaround if still Partial:** `obot_system_pod_cidrs` and `obot_mcp_pod_cidrs` accept `/32` CIDRs for running pods and drive CIDR-based V1 SmartGroups. These enforce correctly regardless of cluster status. **You must update these variables after any pod restart.**
+- **EKS K8s SmartGroup resolution requires correct RBAC setup.** CoPilot authenticates to EKS using `aviatrix-role-app` (not the EC2 instance profile role `aviatrix-role-ec2`). The blueprint creates an EKS access entry for `aviatrix-role-app` with `AmazonEKSClusterAdminPolicy` plus two additional ClusterRoles: `view-nodes` for node enumeration, and `aviatrix-crd-view` for `networking.aviatrix.com` CRD access. If the cluster shows "Partial" in CoPilot after deploy, verify the access entry principal matches the actual `aviatrix-role-app` ARN in your account (`aviatrix_app_role_arn` variable). **Workaround if still Partial:** `obot_system_pod_cidrs` and `obot_mcp_pod_cidrs` accept `/32` CIDRs for running pods and drive CIDR-based V1 SmartGroups. These enforce correctly regardless of cluster status. **You must update these variables after any pod restart.**
 - **Obot-specific domains are scoped to obot-system pods via /32 CIDRs.** `var.obot_system_pod_cidrs` drives a dedicated V1 permit rule covering `api.anthropic.com`, GitHub, and `charts.obot.ai`. MCP server pods in `obot-mcp` do not match this rule and cannot reach those domains unless declared in `egressDomains`.
 - **`npx` runtime servers require `registry.npmjs.org` in `egressDomains`.** The npx shim downloads the package from npm at pod startup. A server deployed without `registry.npmjs.org` in its `egressDomains` will have its `mcp` container fail (package download blocked) while the `shim` container stays running. This is intentional: zero-trust requires explicit declaration of every outbound dependency, including package registries.
 - **Node bootstrap race with spoke gateway.** `node_desired_size` defaults to `2`. EKS nodes that start before the Aviatrix spoke gateway programs the VPC route tables fail to bootstrap (CSE exit 50, unreachable API server). EKS managed node groups replace failed nodes automatically; re-bootstrap succeeds once routes are in place. Set `node_desired_size = 0` in `terraform.tfvars` if you need to avoid this race (then use Step 4 to scale up after the apply).
@@ -77,7 +77,11 @@ The vpc-cni addon is configured with `EXTERNALSNAT=true`, which disables per-nod
 | Remote Syslog | Index 9, UDP 5000 to CoPilot private IP | 1 |
 | Kubernetes Namespace | Obot system namespace | 1 |
 | Kubernetes Namespace | Obot MCP server namespace | 1 |
+| Helm Release | k8s-firewall (Aviatrix CRDs: FirewallPolicy + WebgroupPolicy; no pods) | 1 |
 | Helm Release | Obot platform (embedded SQLite, NPC self-managed) | 1 |
+| EKS Access Entry | `aviatrix-role-app` with `AmazonEKSClusterAdminPolicy` (CoPilot K8s API auth) | 1 |
+| Kubernetes ClusterRole | `view-nodes` (node enumeration for CoPilot) | 1 |
+| Kubernetes ClusterRole | `aviatrix-crd-view` (CRD list/watch for `networking.aviatrix.com`) | 1 |
 
 **Estimated Cost**: ~$0.15-0.25/hour for the spoke gateway EC2 instance plus EKS node costs (~$0.10-0.20/hour for m5.large at 2 nodes). EKS control plane: $0.10/hour.
 
@@ -184,7 +188,7 @@ kubectl port-forward -n obot-system svc/obot-obot 8080:80
 | `controller_username` | Controller admin username | `string` | `"admin"` | no |
 | `controller_password` | Controller admin password | `string` | n/a | yes |
 | `aws_access_account` | AWS access account name onboarded in Controller | `string` | n/a | yes |
-| `aviatrix_app_role_arn` | ARN of the `aviatrix-role-app` IAM role (find under IAM > Roles > aviatrix-role-app). Used as the EKS access entry principal so CoPilot can authenticate to the K8s API. | `string` | n/a | yes |
+| `aviatrix_app_role_arn` | ARN of the `aviatrix-role-app` IAM role (find under IAM > Roles > aviatrix-role-app). Used as the EKS access entry principal (`AmazonEKSClusterAdminPolicy`) so CoPilot can authenticate to the K8s API and read cluster state. | `string` | n/a | yes |
 | `copilot_private_ip` | CoPilot private IP (syslog) | `string` | n/a | yes |
 | `copilot_public_ip` | CoPilot public IP (OTEL/DCF Monitor) | `string` | n/a | yes |
 | `obot_admin_password` | Obot admin password | `string` | n/a | yes |
@@ -215,7 +219,7 @@ kubectl port-forward -n obot-system svc/obot-obot 8080:80
 
 ## Test Scenarios
 
-> **Prerequisite:** Complete Step 5 (Enable DCF Kubernetes Enforcement in CoPilot) before running these scenarios. Without it, the `FirewallPolicy` CRD (`networking.aviatrix.com/v1alpha1`) is not installed and the `aviatrix-network-policy-controller` cannot reconcile MCPNetworkPolicy objects. The NPC pod logs will show `no matches for kind 'FirewallPolicy'` until this step is done.
+> **Prerequisite:** Complete Steps 4–5 (scale up nodes, enable DCF Kubernetes Enforcement in CoPilot) before running these scenarios. The `FirewallPolicy` CRD (`networking.aviatrix.com/v1alpha1`) is installed by the `k8s-firewall` Helm chart during `terraform apply`; if the NPC shows `no matches for kind 'FirewallPolicy'`, verify the `aviatrix-crds` Helm release applied successfully: `helm list -n kube-system`.
 
 ### Scenario 1: Verify Default Deny
 
@@ -345,12 +349,13 @@ terraform output -raw spoke_gateway_public_ip
 
 ### NPC pod logs: `no matches for kind 'FirewallPolicy' in group 'networking.aviatrix.com'`
 
-The `FirewallPolicy` CRD is installed by the Aviatrix controller when DCF Kubernetes Enforcement is activated. The `aviatrix-network-policy-controller` cannot reconcile MCPNetworkPolicy objects until the CRD exists, and will log this error in a requeue loop.
+The `FirewallPolicy` and `WebgroupPolicy` CRDs are installed by the `k8s-firewall` Helm chart (`helm_release.aviatrix_crds`) during `terraform apply`. If the NPC shows this error, the Helm release failed or was not applied.
 
-1. Complete Step 5: CoPilot → DCF → Settings → Enforcement on Kubernetes → Enable
-2. The controller installs `networking.aviatrix.com/v1alpha1` into the cluster
-3. The NPC error loop resolves automatically within 30–60 seconds
-4. Verify: `kubectl get crds | grep networking.aviatrix.com`
+1. Check whether the CRDs exist: `kubectl get crds | grep networking.aviatrix.com`
+2. If missing, check the Helm release status: `helm list -n kube-system | grep aviatrix-crds`
+3. If the release is absent, re-run: `terraform apply -target=helm_release.aviatrix_crds`
+4. Restart the NPC: `kubectl rollout restart deployment -n obot-system -l app.kubernetes.io/name=aviatrix-network-policy-controller`
+5. Verify: the NPC log should show `"aviatrix network policy controller started successfully"` within 15 seconds
 
 ### K8s label SmartGroups show "Partial" status
 
