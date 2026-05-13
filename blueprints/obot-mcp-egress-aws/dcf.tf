@@ -3,11 +3,13 @@
 # =============================================================================
 #
 # NOTE — EKS DCF K8s enforcement:
-# aviatrix_kubernetes_cluster.obot depends on the aviatrix-role-app access entry
-# (eks.tf). On fresh deploy the controller onboards fully; agent deploys to
-# aviatrix-system; CRDs (firewallpolicies, webgrouppolicies) are installed.
-# If cluster shows "Partial" after deploy, check aviatrix-system pod logs — the
-# agent may have failed to reach the EKS API before the access entry was ready.
+# The Aviatrix controller auto-discovers EKS clusters in onboarded AWS accounts.
+# aviatrix_kubernetes_cluster is intentionally absent — registering via Terraform
+# conflicts with auto-discovery and causes "conflicting configuration" errors.
+# The controller registers the cluster automatically once the EKS API is accessible.
+# RBAC resources in eks.tf (aviatrix-role-app access entry, view-nodes ClusterRole,
+# aviatrix-crd-view ClusterRole) must exist before the controller's onboarding agent
+# deploys. time_sleep.cai_sync depends on them explicitly to enforce this ordering.
 #
 # K8s label-based SmartGroups: if EKS assetd watcher loses subscriptions on
 # controller restart, pod IPs stop resolving. Workaround: V1 CIDR /32 SmartGroups
@@ -22,24 +24,14 @@
 # will overwrite the first's policy rules. Merge rules into a shared module or
 # use separate controllers per blueprint deployment.
 
-resource "aviatrix_kubernetes_cluster" "obot" {
-  cluster_id          = module.eks.cluster_arn
-  use_csp_credentials = true
-
-  # Access entry must exist before the controller attempts to onboard the cluster.
-  # aviatrix-role-app needs EKS API access or the agent deploy fails → Partial/Fail.
-  depends_on = [
-    aws_eks_access_entry.aviatrix_controller,
-    aws_eks_access_policy_association.aviatrix_controller,
-    kubernetes_cluster_role_binding.aviatrix_view_nodes,
-    kubernetes_cluster_role_binding.aviatrix_crd_view,
-  ]
-}
-
 resource "time_sleep" "cai_sync" {
+  # Wait for spoke gateway and RBAC to be in place before writing DCF policies.
+  # The controller's auto-discovery onboards the EKS cluster independently;
+  # RBAC ClusterRoleBindings must exist first so the agent can authenticate.
   depends_on = [
     module.spoke,
-    aviatrix_kubernetes_cluster.obot,
+    kubernetes_cluster_role_binding.aviatrix_view_nodes,
+    kubernetes_cluster_role_binding.aviatrix_crd_view,
   ]
   create_duration = "30s"
 }
