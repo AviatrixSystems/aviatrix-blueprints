@@ -61,9 +61,10 @@ resource "helm_release" "obot" {
     })
   ]
 
-  # wait=false: node_desired_size=0 on first apply means no nodes exist to
-  # schedule Obot pods. Default wait=true would time out waiting for pod readiness.
-  # Pods schedule automatically when nodes join in Step 4.
+  # wait=false: if node_desired_size is overridden to 0, no nodes exist to schedule
+  # Obot pods at deploy time and wait=true would time out. Pods schedule automatically
+  # when nodes join. Even at default node_desired_size=2, wait=false is correct here
+  # because nodes may still be bootstrapping when the Helm release is applied.
   wait = false
   # cleanup_on_fail removes a failed release automatically, making re-apply
   # idempotent without requiring manual `helm uninstall` after a failure.
