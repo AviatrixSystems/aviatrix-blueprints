@@ -304,13 +304,24 @@ kubectl exec -n obot-mcp <pod-name> -- curl -s --max-time 5 https://example.com
 terraform destroy
 ```
 
-If destroy hangs, delete LoadBalancer services first:
+If destroy hangs on the `obot-system` namespace (PVC protection finalizer blocks deletion):
+
+```bash
+# Force-remove finalizers so the namespace can terminate
+kubectl get ns obot-system -o json \
+  | python3 -c "import json,sys; ns=json.load(sys.stdin); ns['spec']['finalizers']=[]; print(json.dumps(ns))" \
+  | kubectl replace --raw /api/v1/namespaces/obot-system/finalize -f -
+```
+
+Then retry `terraform destroy`. If a subsequent `terraform apply` fails with `unable to create new content in namespace obot-system because it is being terminated`, the namespace is still clearing. Wait 30 seconds and re-run `terraform apply`.
+
+If destroy hangs on LoadBalancer services:
 
 ```bash
 kubectl delete svc -n obot-system --all
 ```
 
-Then retry `terraform destroy`. EKS node group scale-down can take several minutes; the destroy will wait.
+EKS node group scale-down can take several minutes; the destroy will wait.
 
 ## Troubleshooting
 
