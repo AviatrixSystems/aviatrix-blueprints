@@ -172,65 +172,69 @@ kubectl port-forward -n obot-system svc/obot-obot 8080:80
 
 ## Test Scenarios
 
-> **Prerequisite:** Complete Step 4 (Enable DCF Kubernetes Enforcement in CoPilot) before running these scenarios. Without it, the `FirewallPolicy` CRD (`networking.aviatrix.com/v1alpha1`) is not installed and the `aviatrix-network-policy-controller` cannot reconcile MCPNetworkPolicy objects. The NPC pod logs will show `no matches for kind 'FirewallPolicy'` until this step is done.
+> **Prerequisite:** Complete Step 4 (Enable DCF Kubernetes Enforcement in CoPilot). The `FirewallPolicy` CRD is installed by the `k8s-firewall` Helm chart during `terraform apply`. Port-forward Obot before API calls:
+> ```bash
+> kubectl port-forward -n obot-system svc/obot-obot 8080:80
+> # If 8080 is taken: kubectl port-forward -n obot-system svc/obot-obot 8081:80
+> ```
 
-### Scenario 1: Verify Default Deny
-
-Confirm that a newly deployed MCP server with no `egressDomains` configured has no outbound access:
+### Step 0: Deploy a Test MCP Server
 
 ```bash
-# Get the MCP server pod name (replace <server-name> as appropriate)
-kubectl get pods -n obot-mcp -l app=<server-name>
+# Create a server with registry.npmjs.org permitted (required for npx package download)
+SERVER=$(curl -s -X POST http://localhost:8080/api/mcp-servers \
+  -H "Content-Type: application/json" \
+  -d '{"manifest":{"name":"demo-server","runtime":"npx","npxConfig":{"package":"@modelcontextprotocol/server-filesystem","egressDomains":["registry.npmjs.org"]}}}')
 
-# Attempt an outbound connection from inside the pod
-kubectl exec -n obot-mcp <pod-name> -- curl -s --max-time 5 https://api.openai.com
+SERVER_ID=$(echo $SERVER | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+echo "Server ID: $SERVER_ID"
 
-# Expected result: connection times out (blocked by DCF default deny)
+# Launch the server (required after every create or update)
+curl -s -X POST http://localhost:8080/api/mcp-servers/${SERVER_ID}/launch
+
+# Get pod name (pod = <server-id>-<suffix>; shim container = <server-id>-shim)
+POD=$(kubectl get pods -n obot-mcp -l app=${SERVER_ID} -o jsonpath='{.items[0].metadata.name}')
+echo "Pod: $POD"
 ```
 
-Check CoPilot → DCF → Monitor to see the denied flow logged.
-
-### Scenario 2: Configure egressDomains and Verify Allow
-
-`MCPNetworkPolicy` is an internal Obot concept; there is no user-facing Kubernetes CRD to apply.
-Configure `egressDomains` via the Obot API or UI. Obot creates the MCPNetworkPolicy internally;
-the `aviatrix-network-policy-controller` reconciles it into a `FirewallPolicy` CRD.
+### Scenario 1: Verify Permitted Domain Passes
 
 ```bash
-# Update the MCP server to allow specific egress domains (replace <server-id>)
-curl -X PUT http://localhost:8080/api/mcp-servers/<server-id> \
-  -H "Content-Type: application/json" \
-  -d '{
-    "manifest": {
-      "name": "my-server",
-      "runtime": "npx",
-      "npxConfig": {
-        "package": "@modelcontextprotocol/server-github",
-        "egressDomains": ["api.openai.com"]
-      }
-    }
-  }'
+kubectl exec -n obot-mcp $POD -c ${SERVER_ID}-shim -- \
+  curl -s --max-time 10 -o /dev/null -w "HTTP:%{http_code}" https://registry.npmjs.org
 
-# Verify the FirewallPolicy CRD was created or updated
+# Expected: HTTP:200
+```
+
+### Scenario 2: Verify Unlisted Domain is Blocked
+
+```bash
+kubectl exec -n obot-mcp $POD -c ${SERVER_ID}-shim -- \
+  curl -s --max-time 5 -o /dev/null -w "HTTP:%{http_code} Exit:%{exitcode}" https://api.openai.com
+
+# Expected: HTTP:000 Exit:35
+# HTTP:000 = no response; exit 35 = SSL connect error (DCF dropped at TLS handshake)
+```
+
+Check CoPilot → DCF → Monitor for the denied flow.
+
+### Scenario 3: Update egressDomains and Verify New Domain is Permitted
+
+```bash
+# Add api.openai.com (PUT uses unwrapped manifest, no wrapper)
+curl -s -X PUT http://localhost:8080/api/mcp-servers/${SERVER_ID} \
+  -H "Content-Type: application/json" \
+  -d '{"name":"demo-server","runtime":"npx","npxConfig":{"package":"@modelcontextprotocol/server-filesystem","egressDomains":["registry.npmjs.org","api.openai.com"]}}'
+
+curl -s -X POST http://localhost:8080/api/mcp-servers/${SERVER_ID}/launch
+
 kubectl get firewallpolicies -n obot-mcp
 
-# Retry the outbound connection (no sleep needed; policy exists before pod starts)
-kubectl exec -n obot-mcp <pod-name> -- curl -s --max-time 10 https://api.openai.com
+POD=$(kubectl get pods -n obot-mcp -l app=${SERVER_ID} --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -n obot-mcp $POD -c ${SERVER_ID}-shim -- \
+  curl -s --max-time 10 -o /dev/null -w "HTTP:%{http_code}" https://api.openai.com
 
-# Expected result: connection succeeds
-```
-
-> **Note:** The `aviatrix-network-policy-controller` creates the FirewallPolicy at server-definition
-> time, not at launch time. By the time the pod starts, the policy is already enforced.
-> See `k8s/example-mcpnetworkpolicy.yaml` for the shape of the generated `FirewallPolicy`.
-
-### Scenario 3: Verify Unlisted Domain is Blocked
-
-```bash
-# This domain is not in the egressDomains allowlist
-kubectl exec -n obot-mcp <pod-name> -- curl -s --max-time 5 https://example.com
-
-# Expected result: connection times out (blocked by DCF, not in approved domains)
+# Expected: HTTP:401 (DCF permitted; OpenAI rejected unauthenticated request)
 ```
 
 ## Cleanup
@@ -239,7 +243,17 @@ kubectl exec -n obot-mcp <pod-name> -- curl -s --max-time 5 https://example.com
 terraform destroy
 ```
 
-If destroy fails, manually delete the Azure Route Table associations before retrying:
+If destroy hangs on the `obot-system` namespace (PVC protection finalizer blocks deletion):
+
+```bash
+kubectl get ns obot-system -o json \
+  | python3 -c "import json,sys; ns=json.load(sys.stdin); ns['spec']['finalizers']=[]; print(json.dumps(ns))" \
+  | kubectl replace --raw /api/v1/namespaces/obot-system/finalize -f -
+```
+
+If a subsequent `terraform apply` fails with `unable to create new content in namespace obot-system because it is being terminated`, wait 30 seconds and re-run `terraform apply`.
+
+If destroy fails due to Azure Route Table associations, remove them first:
 
 ```bash
 az network vnet subnet update \

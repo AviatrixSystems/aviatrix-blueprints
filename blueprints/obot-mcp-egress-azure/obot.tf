@@ -57,6 +57,20 @@ resource "kubernetes_namespace_v1" "obot_mcp" {
   }
 }
 
+# k8s-firewall Helm chart: installs FirewallPolicy and WebgroupPolicy CRDs
+# (networking.aviatrix.com/v1alpha1) plus a ClusterRole for the controller.
+# No pods are deployed. The aviatrix-network-policy-controller (NPC) crashes
+# on startup with "no matches for kind FirewallPolicy" if these CRDs are absent.
+# Source: https://github.com/AviatrixSystems/k8s-firewall-charts
+resource "helm_release" "aviatrix_crds" {
+  name             = "aviatrix-crds"
+  repository       = "https://aviatrixsystems.github.io/k8s-firewall-charts"
+  chart            = "k8s-firewall"
+  version          = "9.0.0"
+  namespace        = "kube-system"
+  create_namespace = false
+}
+
 # Obot Helm release.
 # Chart source: https://charts.obot.ai (published on each release)
 # Requires Obot with MCPNetworkPolicy (aviatrix egress provider) support.
@@ -99,6 +113,7 @@ resource "helm_release" "obot" {
     kubernetes_namespace_v1.obot_system,
     kubernetes_namespace_v1.obot_mcp,
     kubernetes_config_map_v1.ip_masq_config,
+    helm_release.aviatrix_crds, # CRDs must exist before NPC starts
     aviatrix_spoke_gateway.obot,
     null_resource.k8s_dcf_features,
     aviatrix_distributed_firewalling_policy_list.infra,
