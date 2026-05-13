@@ -92,10 +92,7 @@ resource "aviatrix_smart_group" "eks_vpc" {
 }
 
 # SmartGroup: obot-system pod /32 CIDRs (V1 CIDR workaround).
-# local.obot_system_pod_cidrs_effective substitutes a RFC 5737 TEST-NET placeholder
-# when var.obot_system_pod_cidrs is empty (first apply), satisfying the provider's
-# requirement for at least one match_expressions block. Re-apply with real pod IPs
-# after Obot is running (Step 6).
+# See vpc.tf locals for the placeholder CIDR strategy on first apply.
 resource "aviatrix_smart_group" "obot_system_pods" {
   name = "${local.name}-obot-system"
   selector {

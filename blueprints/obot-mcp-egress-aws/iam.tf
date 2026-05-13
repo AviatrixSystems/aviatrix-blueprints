@@ -2,6 +2,11 @@
 # IAM
 # =============================================================================
 
+locals {
+  # Bare OIDC issuer URL (https:// stripped) — used in IRSA trust policy conditions.
+  oidc_issuer = replace(module.eks.cluster_oidc_issuer_url, "https://", "")
+}
+
 # IRSA for vpc-cni addon (manages ENIs for pod IPs)
 data "aws_iam_policy_document" "vpc_cni_assume" {
   statement {
@@ -12,12 +17,12 @@ data "aws_iam_policy_document" "vpc_cni_assume" {
     }
     condition {
       test     = "StringEquals"
-      variable = "${replace(module.eks.cluster_oidc_issuer_url, "https://", "")}:sub"
+      variable = "${local.oidc_issuer}:sub"
       values   = ["system:serviceaccount:kube-system:aws-node"]
     }
     condition {
       test     = "StringEquals"
-      variable = "${replace(module.eks.cluster_oidc_issuer_url, "https://", "")}:aud"
+      variable = "${local.oidc_issuer}:aud"
       values   = ["sts.amazonaws.com"]
     }
   }
@@ -43,12 +48,12 @@ data "aws_iam_policy_document" "ebs_csi_assume" {
     }
     condition {
       test     = "StringEquals"
-      variable = "${replace(module.eks.cluster_oidc_issuer_url, "https://", "")}:sub"
+      variable = "${local.oidc_issuer}:sub"
       values   = ["system:serviceaccount:kube-system:ebs-csi-controller-sa"]
     }
     condition {
       test     = "StringEquals"
-      variable = "${replace(module.eks.cluster_oidc_issuer_url, "https://", "")}:aud"
+      variable = "${local.oidc_issuer}:aud"
       values   = ["sts.amazonaws.com"]
     }
   }

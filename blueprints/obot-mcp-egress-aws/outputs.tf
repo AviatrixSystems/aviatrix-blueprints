@@ -2,6 +2,12 @@
 # Outputs
 # =============================================================================
 
+locals {
+  # EKS module node_group_id format: "cluster-name:nodegroup-name" (documented contract).
+  # Extracted here once so outputs and next_steps stay in sync.
+  eks_nodegroup_name = local.eks_nodegroup_name
+}
+
 output "eks_cluster_name" {
   description = "Name of the deployed EKS cluster"
   value       = module.eks.cluster_name
@@ -9,7 +15,7 @@ output "eks_cluster_name" {
 
 output "eks_nodegroup_name" {
   description = "Name of the EKS managed node group (use in aws eks update-nodegroup-config --nodegroup-name)"
-  value       = split(":", module.eks.eks_managed_node_groups["system"].node_group_id)[1]
+  value       = local.eks_nodegroup_name
 }
 
 output "spoke_gateway_name" {
@@ -32,7 +38,7 @@ output "next_steps" {
     1. If nodes did not start (e.g. node_desired_size was overridden to 0), scale up:
        aws eks update-nodegroup-config \
          --cluster-name ${module.eks.cluster_name} \
-         --nodegroup-name ${split(":", module.eks.eks_managed_node_groups["system"].node_group_id)[1]} \
+         --nodegroup-name ${local.eks_nodegroup_name} \
          --scaling-config minSize=1,maxSize=4,desiredSize=2 \
          --region ${var.aws_region}
 

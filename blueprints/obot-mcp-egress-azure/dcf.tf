@@ -115,9 +115,7 @@ resource "aviatrix_smart_group" "k8s_api_server" {
 
 # SmartGroup: obot-system pods via /32 CIDRs (workaround for V1 CIDR-only source).
 # Scopes Obot application domains (Anthropic, GitHub) to orchestration pods only.
-# On first apply, var.obot_system_pod_cidrs is empty — local.obot_system_pod_cidrs_effective
-# substitutes a RFC 5737 TEST-NET placeholder so the SmartGroup is valid but matches
-# no real traffic. Re-apply with actual pod IPs after Obot is running.
+# See main.tf locals for the placeholder CIDR strategy on first apply.
 resource "aviatrix_smart_group" "obot_system_pods" {
   name = "${var.name_prefix}-obot-system"
 
