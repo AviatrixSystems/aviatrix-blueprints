@@ -10,11 +10,11 @@
 # The NPC (aviatrix-network-policy-controller) installed by Obot reconciles
 # MCPNetworkPolicy objects into FirewallPolicy CRDs; it crashes if CRDs are absent.
 #
-# K8s label-based SmartGroups resolve correctly on fresh deploy (confirmed 2026-05-13).
-# After controller restart, assetd watcher subscriptions may be lost and pod IPs stop
-# resolving. Workaround: V1 CIDR /32 SmartGroups (var.obot_system_pod_cidrs,
-# var.obot_mcp_pod_cidrs). Two-step deploy required for per-pod deny enforcement.
-# See docs/stp-eks-dcf-per-pod-enforcement.md for full root cause.
+# K8s enforcement confirmed working on fresh deploy (2026-05-13).
+# obot-system tier isolation: V1 SmartGroup uses K8s namespace selector (no CIDR tracking).
+# obot-mcp per-pod enforcement: K8S_POLICY_LIST via FirewallPolicy CRDs (NPC-managed).
+# Default Action deny-all catches all unmatched traffic.
+# obot_mcp_pod_cidrs provides an optional explicit V1 DENY SmartGroup if needed.
 # =============================================================================
 #
 # SINGLETON RESOURCES: aviatrix_distributed_firewalling_policy_list and
@@ -96,21 +96,6 @@ resource "aviatrix_smart_group" "eks_vpc" {
   depends_on = [time_sleep.cai_sync]
 }
 
-# SmartGroup: obot-system pod /32 CIDRs (V1 CIDR workaround).
-# See vpc.tf locals for the placeholder CIDR strategy on first apply.
-# resource "aviatrix_smart_group" "obot_system_pods" {
-#   name = "${local.name}-obot-system"
-#   selector {
-#     dynamic "match_expressions" {
-#       for_each = local.obot_system_pod_cidrs_effective
-#       content {
-#         cidr = match_expressions.value
-#       }
-#     }
-#   }
-#   depends_on = [time_sleep.cai_sync]
-# }
-
 
 resource "aviatrix_smart_group" "obot_system_pods" {
   name = "${local.name}-obot-system"
@@ -189,9 +174,7 @@ resource "aviatrix_distributed_firewalling_policy_list" "infra" {
     web_groups       = [aviatrix_web_group.eks_infra_egress.uuid]
   }
 
-  # P2: Obot pod egress — scoped to obot-system /32 CIDRs.
-  # When obot_system_pod_cidrs is empty (first apply), this rule has an
-  # empty-selector SmartGroup as source and will not match any traffic.
+  # P2: Obot pod egress — scoped to obot-system namespace via K8s SmartGroup.
   policies {
     name     = "obot-pod-egress"
     action   = "PERMIT"

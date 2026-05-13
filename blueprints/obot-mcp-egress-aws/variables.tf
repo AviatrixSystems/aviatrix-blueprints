@@ -132,25 +132,11 @@ variable "obot_mcp_namespace" {
 }
 
 # -----------------------------------------------------------------------------
-# DCF — EKS known limitation workaround
-# K8s label-based SmartGroups do not resolve on EKS (controller registers
-# EKS as Partial: assetd watcher subscriptions lost on restart). These CIDR
-# variables provide a V1 DENY workaround. Update after each pod restart using
-# the procedure in the README.
+# DCF — optional per-pod DENY workaround for obot-mcp
+# obot-system tier isolation uses a K8s namespace SmartGroup (no CIDR tracking).
+# obot-mcp DENY enforcement uses Default Action deny-all. obot_mcp_pod_cidrs
+# provides an explicit V1 DENY SmartGroup if Default Action is not sufficient.
 # -----------------------------------------------------------------------------
-
-variable "obot_system_pod_cidrs" {
-  description = <<-EOT
-    List of /32 CIDRs for obot-system pods. Used to scope Obot egress permits
-    (Anthropic, GitHub, charts.obot.ai) to the orchestration layer only.
-    TWO-STEP DEPLOY: Leave empty ([]) on first apply. After Obot is running,
-    get pod IPs with:
-      kubectl get pods -n obot-system -o jsonpath='{range .items[*]}{.status.podIP}{"\n"}{end}'
-    Then re-apply with those IPs as /32 CIDRs.
-  EOT
-  type        = list(string)
-  default     = []
-}
 
 variable "obot_mcp_pod_cidrs" {
   description = <<-EOT

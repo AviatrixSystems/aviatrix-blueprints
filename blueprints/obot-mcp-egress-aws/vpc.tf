@@ -17,12 +17,6 @@ locals {
 
   tags = { project = local.name }
 
-  # Placeholder CIDR (RFC 5737 TEST-NET-1) used when obot_system_pod_cidrs is
-  # empty on first apply. The Aviatrix provider requires at least one
-  # match_expressions block in a SmartGroup selector. This placeholder creates a
-  # valid but non-matching group; it is replaced on second apply once real pod
-  # IPs are supplied via Step 6.
-  obot_system_pod_cidrs_effective = length(var.obot_system_pod_cidrs) > 0 ? var.obot_system_pod_cidrs : ["192.0.2.0/32"]
 }
 
 data "aws_availability_zones" "available" { state = "available" }

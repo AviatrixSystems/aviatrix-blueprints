@@ -30,13 +30,9 @@ aviatrix_app_role_arn = "arn:aws:iam::123456789012:role/aviatrix-role-app"   # R
 obot_version      = "0.21.0"
 npc_chart_version = "v0.0.1"
 
-# TWO-STEP: Leave empty on first apply. After Obot is running, populate with
-# pod IPs from: kubectl get pods -n obot-system -o jsonpath='{range .items[*]}{.status.podIP}{"\n"}{end}'
-obot_system_pod_cidrs = []
-
-# THREE-STEP: Leave empty until MCP servers are deployed. Populate after:
+# OPTIONAL: Explicit V1 DENY SmartGroup for obot-mcp pods. Default Action deny-all
+# handles enforcement without this. Populate if explicit DENY rule is preferred:
 #   kubectl get pods -n obot-mcp -o wide
-# Then re-apply. This activates the DCF DENY rule for MCP server pods.
 obot_mcp_pod_cidrs = []
 
 # Naming

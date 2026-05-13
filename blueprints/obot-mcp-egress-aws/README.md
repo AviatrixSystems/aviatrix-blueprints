@@ -23,8 +23,8 @@ The vpc-cni addon is configured with `EXTERNALSNAT=true`, which disables per-nod
 - **Protocol and port:** Enforcement applies to HTTPS egress on TCP 443 only. MCP servers requiring non-443 outbound connections are not protected by this feature.
 - **Remote MCP servers:** Out of scope. This feature applies only to Kubernetes-hosted MCP servers deployed by Obot. Remote (SSE/HTTP) MCP server connections are not subject to these policies.
 - **Domain format:** `egressDomains` entries must be bare hostnames. No protocols (`https://`), paths, ports, or IP addresses. `localhost` and `*.svc` cluster-local names are rejected by Obot at admission. Wildcard prefix notation is supported (e.g., `*.anthropic.com`).
-- **EKS K8s SmartGroup resolution requires correct RBAC setup.** CoPilot authenticates to EKS using `aviatrix-role-app` (not `aviatrix-role-ec2`). The blueprint creates an EKS access entry for `aviatrix-role-app` with `AmazonEKSClusterAdminPolicy` plus `view-nodes` and `aviatrix-crd-view` ClusterRoles. If the cluster shows "Partial" after deploy, verify `aviatrix_app_role_arn` points to the correct role ARN and re-toggle "Enforcement on Kubernetes" in CoPilot. **Per-pod enforcement via `FirewallPolicy` CRDs and `K8S_POLICY_LIST` works correctly** (confirmed: permitted domains pass, non-permitted domains blocked). **V1 tier isolation limitation:** K8s label SmartGroups do not populate `ipv4_cidrs` for V1 policy rules on EKS. V1 rules referencing K8s SmartGroups as source are silently ineffective. Use `obot_system_pod_cidrs` (list of `/32` CIDRs for `obot-system` pods) to maintain V1 tier isolation; update after pod restarts.
-- **Obot-specific domains are scoped to obot-system pods via /32 CIDRs.** `var.obot_system_pod_cidrs` drives a dedicated V1 permit rule covering `api.anthropic.com`, GitHub, and `charts.obot.ai`. MCP server pods in `obot-mcp` do not match this rule and cannot reach those domains unless declared in `egressDomains`.
+- **EKS K8s SmartGroup resolution requires correct RBAC setup.** CoPilot authenticates to EKS using `aviatrix-role-app` (not `aviatrix-role-ec2`). The blueprint creates an EKS access entry for `aviatrix-role-app` with `AmazonEKSClusterAdminPolicy` plus `view-nodes` and `aviatrix-crd-view` ClusterRoles. If the cluster shows "Partial" after deploy, verify `aviatrix_app_role_arn` points to the correct role ARN and re-toggle "Enforcement on Kubernetes" in CoPilot. Per-pod enforcement via `FirewallPolicy` CRDs and `K8S_POLICY_LIST` works correctly (confirmed: permitted domains pass, non-permitted domains blocked).
+- **Obot-specific domains are scoped to the `obot-system` namespace.** The blueprint creates a V1 permit SmartGroup using a K8s namespace selector (`k8s_namespace = var.obot_namespace`). This restricts the permit covering `api.anthropic.com`, GitHub, and `charts.obot.ai` to orchestration pods only. MCP server pods in `obot-mcp` do not match this rule and cannot reach those domains unless declared in `egressDomains`.
 - **`npx` runtime servers require `registry.npmjs.org` in `egressDomains`.** The npx shim downloads the package from npm at pod startup. A server deployed without `registry.npmjs.org` in its `egressDomains` will have its `mcp` container fail (package download blocked) while the `shim` container stays running. This is intentional: zero-trust requires explicit declaration of every outbound dependency, including package registries.
 - **Node bootstrap race with spoke gateway.** `node_desired_size` defaults to `2`. EKS nodes that start before the Aviatrix spoke gateway programs the VPC route tables fail to bootstrap (CSE exit 50, unreachable API server). EKS managed node groups replace failed nodes automatically; re-bootstrap succeeds once routes are in place. Set `node_desired_size = 0` in `terraform.tfvars` if you need to avoid this race (then use Step 4 to scale up after the apply).
 
@@ -67,7 +67,7 @@ The vpc-cni addon is configured with `EXTERNALSNAT=true`, which disables per-nod
 | Aviatrix Spoke Gateway | DCF-enforced egress gateway (no transit required) | 1 |
 | Aviatrix SmartGroup | MCP server pods (K8s label selector; resolves pod IPs when RBAC is correctly configured) | 1 |
 | Aviatrix SmartGroup | EKS VPC CIDR | 1 |
-| Aviatrix SmartGroup | obot-system pod /32 CIDRs | 1 |
+| Aviatrix SmartGroup | obot-system namespace (K8s selector, scopes orchestration-tier V1 permits) | 1 |
 | Aviatrix SmartGroup | obot-mcp pod /32 CIDRs (conditional on var) | 1 |
 | Aviatrix WebGroup | EKS infrastructure egress domains (ECR, S3, SSM, EC2, EKS endpoints, charts.obot.ai) | 1 |
 | Aviatrix WebGroup | Obot application domains (Anthropic, GitHub) | 1 |
@@ -147,25 +147,6 @@ These settings must be enabled manually after first deploy (controller UI only):
 1. **DCF Kubernetes Enforcement**: CoPilot -> DCF -> Settings -> Enforcement on Kubernetes -> Enable
 2. **Log Enrichment** (for pod-level FlowIQ identity): CoPilot -> Feature Previews -> Log Enrichment -> Enable
 
-### Step 6: Populate obot-system Pod CIDRs (Two-Step Deploy)
-
-Once Obot is running, retrieve pod IPs and re-apply to scope egress permits:
-
-```bash
-# Get obot-system pod IPs
-kubectl get pods -n obot-system -o jsonpath='{range .items[*]}{.status.podIP}{"\n"}{end}'
-```
-
-Add those IPs as `/32` CIDRs to `obot_system_pod_cidrs` in `terraform.tfvars`, then re-apply:
-
-```bash
-# Example entry in terraform.tfvars:
-# obot_system_pod_cidrs = ["10.10.1.45/32", "10.10.2.12/32"]
-
-terraform apply
-```
-
-Until this step is complete, obot-system pods reach Anthropic, GitHub, and `charts.obot.ai` via the broader infrastructure permit. After re-apply, only pods matching the `/32` SmartGroup are permitted to those domains.
 
 ### Step 7: Verify Deployment
 
@@ -202,8 +183,7 @@ kubectl port-forward -n obot-system svc/obot-obot 8080:80
 | `npc_chart_version` | aviatrix-network-policy-controller chart version | `string` | `"v0.0.1"` | no |
 | `obot_namespace` | Kubernetes namespace for Obot | `string` | `"obot-system"` | no |
 | `obot_mcp_namespace` | Kubernetes namespace for MCP server pods | `string` | `"obot-mcp"` | no |
-| `obot_system_pod_cidrs` | /32 CIDRs for obot-system pods (two-step deploy) | `list(string)` | `[]` | no |
-| `obot_mcp_pod_cidrs` | /32 CIDRs for obot-mcp pods (three-step deploy; EKS CIDR workaround) | `list(string)` | `[]` | no |
+| `obot_mcp_pod_cidrs` | Optional `/32` CIDRs for obot-mcp pods; creates an explicit V1 DENY SmartGroup alongside Default Action deny-all | `list(string)` | `[]` | no |
 | `name_prefix` | Prefix for all created resource names | `string` | `"obot-mcp"` | no |
 | `copilot_syslog_index` | Remote syslog index slot on the Controller (0-9); must be free | `number` | `9` | no |
 
@@ -410,7 +390,7 @@ Expected: `aviatrix-view-nodes` and `aviatrix-crd-view` bindings present.
 
 If RBAC is correct and status is still Partial, re-toggle "Enforcement on Kubernetes" in CoPilot (disable → enable). This forces the controller to re-poll the cluster for CRDs.
 
-K8s label SmartGroups resolve correctly on fresh deploy. After a controller restart, `assetd` watcher subscriptions may be lost — pod IPs stop resolving until the controller is restarted or subscriptions re-established. In that case, populate `obot_system_pod_cidrs` and `obot_mcp_pod_cidrs` with current pod `/32` CIDRs and re-apply. The CIDR SmartGroups enforce correctly regardless of cluster status.
+K8s label SmartGroups resolve correctly on fresh deploy (confirmed 2026-05-13). If `assetd` watcher subscriptions are lost after a controller restart, pod IPs may stop resolving; re-toggle "Enforcement on Kubernetes" in CoPilot (disable → enable) to force cluster re-poll. As a fallback, populate `obot_mcp_pod_cidrs` with current obot-mcp pod `/32` CIDRs and re-apply.
 
 ### kubectl cannot authenticate to the cluster
 

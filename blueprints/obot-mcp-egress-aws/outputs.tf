@@ -48,12 +48,8 @@ output "next_steps" {
     3. Enable DCF enforcement on Kubernetes (required once after deploy):
        CoPilot -> DCF -> Settings -> Enforcement on Kubernetes -> Enable
 
-    4. Update obot-system pod CIDRs for scoped egress (re-apply required):
-       kubectl get pods -n ${var.obot_namespace} -o jsonpath='{range .items[*]}{.status.podIP}{"\n"}{end}'
-       # Add those IPs as /32 values to var.obot_system_pod_cidrs, then terraform apply
-
-    5. After deploying MCP servers, update obot-mcp pod CIDRs for DENY enforcement:
+    4. (Optional) Populate obot_mcp_pod_cidrs for explicit V1 DENY SmartGroup:
        kubectl get pods -n ${var.obot_mcp_namespace} -o wide
-       # Add pod IPs as /32 values to var.obot_mcp_pod_cidrs, then terraform apply
+       # Default Action deny-all enforces without this; only needed for explicit V1 DENY rule
   EOT
 }
