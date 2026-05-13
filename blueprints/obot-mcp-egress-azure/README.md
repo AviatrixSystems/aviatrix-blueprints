@@ -72,7 +72,7 @@ Azure IP masquerade is disabled for all pod traffic so the spoke gateway sees or
 | Aviatrix SmartGroup | MCP server pods (by namespace) | 1 |
 | Aviatrix SmartGroup | AKS node subnet CIDR | 1 |
 | Aviatrix SmartGroup | K8s API server public IP | 1 |
-| Aviatrix SmartGroup | obot-system pod /32 CIDRs | 1 |
+| Aviatrix SmartGroup | obot-system namespace (K8s selector, scopes orchestration-tier V1 permits) | 1 |
 | Aviatrix WebGroup | AKS infrastructure egress domains | 1 |
 | Aviatrix WebGroup | Obot application domains (Anthropic, GitHub) | 1 |
 | Aviatrix DCF Policy List | V1 infrastructure permits | 1 |
@@ -80,6 +80,7 @@ Azure IP masquerade is disabled for all pod traffic so the spoke gateway sees or
 | Kubernetes ConfigMap | Azure ip-masq-agent config (disables pod SNAT) | 1 |
 | Kubernetes Namespace | Obot system namespace | 1 |
 | Kubernetes Namespace | Obot MCP server namespace | 1 |
+| Helm Release | k8s-firewall (Aviatrix CRDs: FirewallPolicy + WebgroupPolicy; no pods) | 1 |
 | Helm Release | Obot platform (includes aviatrix-network-policy-controller) | 1 |
 
 **Estimated Cost**: ~$0.15–0.25/hour for the spoke gateway VM (Standard_B2ms) plus AKS node costs (~$0.10–0.20/hour for Standard_D4s_v3 at 2 nodes).
@@ -243,12 +244,14 @@ kubectl exec -n obot-mcp $POD -c ${SERVER_ID}-shim -- \
 terraform destroy
 ```
 
-If destroy hangs on the `obot-system` namespace (PVC protection finalizer blocks deletion):
+If destroy hangs on `obot-system` or `obot-mcp` namespaces (PVC protection finalizer blocks deletion):
 
 ```bash
-kubectl get ns obot-system -o json \
-  | python3 -c "import json,sys; ns=json.load(sys.stdin); ns['spec']['finalizers']=[]; print(json.dumps(ns))" \
-  | kubectl replace --raw /api/v1/namespaces/obot-system/finalize -f -
+for NS in obot-system obot-mcp; do
+  kubectl get ns $NS -o json 2>/dev/null | \
+    python3 -c "import json,sys; ns=json.load(sys.stdin); ns['spec']['finalizers']=[]; print(json.dumps(ns))" | \
+    kubectl replace --raw /api/v1/namespaces/$NS/finalize -f - 2>/dev/null || true
+done
 ```
 
 If a subsequent `terraform apply` fails with `unable to create new content in namespace obot-system because it is being terminated`, wait 30 seconds and re-run `terraform apply`.

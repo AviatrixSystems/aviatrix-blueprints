@@ -307,13 +307,14 @@ kubectl exec -n obot-mcp $POD -c ${SERVER_ID}-shim -- \
 terraform destroy
 ```
 
-If destroy hangs on the `obot-system` namespace (PVC protection finalizer blocks deletion):
+If destroy hangs on `obot-system` or `obot-mcp` namespaces (PVC protection finalizer blocks deletion):
 
 ```bash
-# Force-remove finalizers so the namespace can terminate
-kubectl get ns obot-system -o json \
-  | python3 -c "import json,sys; ns=json.load(sys.stdin); ns['spec']['finalizers']=[]; print(json.dumps(ns))" \
-  | kubectl replace --raw /api/v1/namespaces/obot-system/finalize -f -
+for NS in obot-system obot-mcp; do
+  kubectl get ns $NS -o json 2>/dev/null | \
+    python3 -c "import json,sys; ns=json.load(sys.stdin); ns['spec']['finalizers']=[]; print(json.dumps(ns))" | \
+    kubectl replace --raw /api/v1/namespaces/$NS/finalize -f - 2>/dev/null || true
+done
 ```
 
 Then retry `terraform destroy`. If a subsequent `terraform apply` fails with `unable to create new content in namespace obot-system because it is being terminated`, the namespace is still clearing. Wait 30 seconds and re-run `terraform apply`.
