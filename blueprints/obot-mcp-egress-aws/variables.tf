@@ -55,6 +55,11 @@ variable "node_max_size" {
 # Aviatrix Controller (Bring Your Own — pre-existing)
 # -----------------------------------------------------------------------------
 
+variable "aviatrix_app_role_arn" {
+  description = "ARN of the Aviatrix app IAM role (aviatrix-role-app). CoPilot uses this role to authenticate to EKS for DCF Kubernetes enforcement onboarding. Find it in IAM > Roles > aviatrix-role-app."
+  type        = string
+}
+
 variable "controller_ip" {
   description = "IP address or hostname of the Aviatrix Controller"
   type        = string

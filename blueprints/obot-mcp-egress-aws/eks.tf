@@ -47,6 +47,98 @@ module "eks" {
   tags = local.tags
 }
 
+# Aviatrix app role access entry: CoPilot uses aviatrix-role-app to authenticate
+# to the EKS API for DCF Kubernetes enforcement onboarding. Without this entry,
+# onboarding fails with "Fail" status in CoPilot > Security > DCF > Kubernetes Clusters.
+# Policy and RBAC match CoPilot's generated Terraform (AmazonEKSViewPolicy + view-nodes).
+resource "aws_eks_access_entry" "aviatrix_controller" {
+  cluster_name      = module.eks.cluster_name
+  principal_arn     = var.aviatrix_app_role_arn
+  kubernetes_groups = ["view-nodes"]
+  type              = "STANDARD"
+
+  depends_on = [module.eks]
+}
+
+resource "aws_eks_access_policy_association" "aviatrix_controller" {
+  cluster_name  = module.eks.cluster_name
+  principal_arn = var.aviatrix_app_role_arn
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy"
+
+  access_scope {
+    type = "cluster"
+  }
+
+  depends_on = [aws_eks_access_entry.aviatrix_controller]
+}
+
+resource "kubernetes_cluster_role" "aviatrix_view_nodes" {
+  metadata {
+    name = "view-nodes"
+  }
+
+  rule {
+    verbs      = ["get", "list", "watch"]
+    api_groups = [""]
+    resources  = ["nodes"]
+  }
+}
+
+resource "kubernetes_cluster_role_binding" "aviatrix_view_nodes" {
+  metadata {
+    name = "view-nodes"
+  }
+
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = kubernetes_cluster_role.aviatrix_view_nodes.metadata[0].name
+  }
+
+  subject {
+    kind      = "Group"
+    name      = "view-nodes"
+    api_group = "rbac.authorization.k8s.io"
+  }
+
+  depends_on = [aws_eks_access_entry.aviatrix_controller]
+}
+
+# CoPilot also needs to list Aviatrix CRDs (FirewallPolicy, WebgroupPolicy) to
+# display DCF enforcement state. AmazonEKSViewPolicy covers core resources only;
+# custom API groups require a dedicated ClusterRole.
+resource "kubernetes_cluster_role" "aviatrix_crd_view" {
+  metadata {
+    name = "aviatrix-crd-view"
+  }
+
+  rule {
+    verbs      = ["get", "list", "watch"]
+    api_groups = ["networking.aviatrix.com"]
+    resources  = ["firewallpolicies", "webgrouppolicies"]
+  }
+}
+
+resource "kubernetes_cluster_role_binding" "aviatrix_crd_view" {
+  metadata {
+    name = "aviatrix-crd-view"
+  }
+
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = kubernetes_cluster_role.aviatrix_crd_view.metadata[0].name
+  }
+
+  subject {
+    kind      = "Group"
+    name      = "view-nodes"
+    api_group = "rbac.authorization.k8s.io"
+  }
+
+  depends_on = [aws_eks_access_entry.aviatrix_controller]
+}
+
 # vpc-cni addon: EXTERNALSNAT preserves pod source IPs at the Aviatrix gateway.
 # Without this, vpc-cni SNATs pod IPs to node IPs before traffic reaches the
 # spoke gateway. SmartGroups resolve to pod IPs, so node IPs would never match
