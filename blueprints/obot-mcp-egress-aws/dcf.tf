@@ -3,13 +3,17 @@
 # =============================================================================
 #
 # NOTE — EKS DCF K8s enforcement:
-# The Aviatrix controller auto-discovers EKS clusters in onboarded AWS accounts.
-# aviatrix_kubernetes_cluster is intentionally absent — registering via Terraform
-# conflicts with auto-discovery and causes "conflicting configuration" errors.
-# The controller registers the cluster automatically once the EKS API is accessible.
-# RBAC resources in eks.tf (aviatrix-role-app access entry, view-nodes ClusterRole,
-# aviatrix-crd-view ClusterRole) must exist before the controller's onboarding agent
-# deploys. time_sleep.cai_sync depends on them explicitly to enforce this ordering.
+# FirewallPolicy and WebgroupPolicy CRDs (networking.aviatrix.com/v1alpha1) are
+# installed by helm_release.aviatrix_crds (k8s-firewall chart, k8s.tf).
+# aviatrix_kubernetes_cluster is intentionally absent — the controller auto-discovers
+# EKS clusters via CSP account scan; explicit registration always conflicts (HTTP 409).
+# The NPC (aviatrix-network-policy-controller) installed by Obot reconciles
+# MCPNetworkPolicy objects into FirewallPolicy CRDs; it crashes if CRDs are absent.
+#
+# K8s label-based SmartGroups: if EKS assetd watcher loses subscriptions on
+# controller restart, pod IPs stop resolving. Workaround: V1 CIDR /32 SmartGroups
+# (var.obot_system_pod_cidrs, var.obot_mcp_pod_cidrs). Two-step deploy required.
+# See docs/stp-eks-dcf-per-pod-enforcement.md for full root cause.
 #
 # K8s label-based SmartGroups: if EKS assetd watcher loses subscriptions on
 # controller restart, pod IPs stop resolving. Workaround: V1 CIDR /32 SmartGroups
@@ -25,13 +29,14 @@
 # use separate controllers per blueprint deployment.
 
 resource "time_sleep" "cai_sync" {
-  # Wait for spoke gateway and RBAC to be in place before writing DCF policies.
-  # The controller's auto-discovery onboards the EKS cluster independently;
-  # RBAC ClusterRoleBindings must exist first so the agent can authenticate.
+  # Wait for spoke gateway and CRDs before writing DCF policies.
+  # CRDs (FirewallPolicy, WebgroupPolicy) are installed by helm_release.aviatrix_crds
+  # in k8s.tf. The aviatrix_kubernetes_cluster resource is absent: the controller
+  # auto-discovers EKS clusters via CSP account scan; explicit registration always
+  # conflicts with the auto-discovered entry (HTTP 409).
   depends_on = [
     module.spoke,
-    kubernetes_cluster_role_binding.aviatrix_view_nodes,
-    kubernetes_cluster_role_binding.aviatrix_crd_view,
+    helm_release.aviatrix_crds,
   ]
   create_duration = "30s"
 }

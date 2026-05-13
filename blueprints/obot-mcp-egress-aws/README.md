@@ -23,7 +23,7 @@ The vpc-cni addon is configured with `EXTERNALSNAT=true`, which disables per-nod
 - **Protocol and port:** Enforcement applies to HTTPS egress on TCP 443 only. MCP servers requiring non-443 outbound connections are not protected by this feature.
 - **Remote MCP servers:** Out of scope. This feature applies only to Kubernetes-hosted MCP servers deployed by Obot. Remote (SSE/HTTP) MCP server connections are not subject to these policies.
 - **Domain format:** `egressDomains` entries must be bare hostnames. No protocols (`https://`), paths, ports, or IP addresses. `localhost` and `*.svc` cluster-local names are rejected by Obot at admission. Wildcard prefix notation is supported (e.g., `*.anthropic.com`).
-- **EKS known limitation: K8s label-based SmartGroups register as Partial.** The Aviatrix controller registers EKS clusters as Partial (assetd watcher subscriptions lost on controller restart; custom resource watchers return 404). K8s namespace SmartGroups cannot be used as V1 policy sources for per-pod enforcement. **Workaround:** `obot_system_pod_cidrs` and `obot_mcp_pod_cidrs` take lists of `/32` CIDRs corresponding to running pods. These drive V1 CIDR-based SmartGroups that enforce correctly. **You must update these variables after any pod restart.** See the two-step and three-step deploy procedures below. This is a platform limitation pending an upstream fix; the CIDR workaround is the current supported path.
+- **EKS K8s SmartGroup resolution requires correct RBAC setup.** CoPilot authenticates to EKS using `aviatrix-role-app` (not the EC2 instance profile role `aviatrix-role-ec2`). The blueprint creates an EKS access entry for `aviatrix-role-app` with `AmazonEKSViewPolicy` plus two additional ClusterRoles: one for node enumeration, one for `networking.aviatrix.com` CRD access. If the cluster shows "Partial" in CoPilot after deploy, verify the access entry principal matches the actual `aviatrix-role-app` ARN in your account. **Workaround if still Partial:** `obot_system_pod_cidrs` and `obot_mcp_pod_cidrs` accept `/32` CIDRs for running pods and drive CIDR-based V1 SmartGroups. These enforce correctly regardless of cluster status. **You must update these variables after any pod restart.**
 - **Obot-specific domains are scoped to obot-system pods via /32 CIDRs.** `var.obot_system_pod_cidrs` drives a dedicated V1 permit rule covering `api.anthropic.com`, GitHub, and `charts.obot.ai`. MCP server pods in `obot-mcp` do not match this rule and cannot reach those domains unless declared in `egressDomains`.
 - **`npx` runtime servers require `registry.npmjs.org` in `egressDomains`.** The npx shim downloads the package from npm at pod startup. A server deployed without `registry.npmjs.org` in its `egressDomains` will have its `mcp` container fail (package download blocked) while the `shim` container stays running. This is intentional: zero-trust requires explicit declaration of every outbound dependency, including package registries.
 - **Node bootstrap race with spoke gateway.** `node_desired_size` defaults to `2`. EKS nodes that start before the Aviatrix spoke gateway programs the VPC route tables fail to bootstrap (CSE exit 50, unreachable API server). EKS managed node groups replace failed nodes automatically; re-bootstrap succeeds once routes are in place. Set `node_desired_size = 0` in `terraform.tfvars` if you need to avoid this race (then use Step 4 to scale up after the apply).
@@ -65,8 +65,7 @@ The vpc-cni addon is configured with `EXTERNALSNAT=true`, which disables per-nod
 | IAM Role | vpc-cni IRSA role (EXTERNALSNAT=true requires IRSA) | 1 |
 | aws_eks_addon (vpc-cni) | Manages pod networking with EXTERNALSNAT=true | 1 |
 | Aviatrix Spoke Gateway | DCF-enforced egress gateway (no transit required) | 1 |
-| Aviatrix Kubernetes Cluster | EKS onboarding for pod identity resolution (Partial on EKS) | 1 |
-| Aviatrix SmartGroup | MCP server pods (K8s label selector, Partial on EKS) | 1 |
+| Aviatrix SmartGroup | MCP server pods (K8s label selector; resolves pod IPs when RBAC is correctly configured) | 1 |
 | Aviatrix SmartGroup | EKS VPC CIDR | 1 |
 | Aviatrix SmartGroup | obot-system pod /32 CIDRs | 1 |
 | Aviatrix SmartGroup | obot-mcp pod /32 CIDRs (conditional on var) | 1 |
@@ -185,6 +184,7 @@ kubectl port-forward -n obot-system svc/obot-obot 8080:80
 | `controller_username` | Controller admin username | `string` | `"admin"` | no |
 | `controller_password` | Controller admin password | `string` | n/a | yes |
 | `aws_access_account` | AWS access account name onboarded in Controller | `string` | n/a | yes |
+| `aviatrix_app_role_arn` | ARN of the `aviatrix-role-app` IAM role (find under IAM > Roles > aviatrix-role-app). Used as the EKS access entry principal so CoPilot can authenticate to the K8s API. | `string` | n/a | yes |
 | `copilot_private_ip` | CoPilot private IP (syslog) | `string` | n/a | yes |
 | `copilot_public_ip` | CoPilot public IP (OTEL/DCF Monitor) | `string` | n/a | yes |
 | `obot_admin_password` | Obot admin password | `string` | n/a | yes |
@@ -354,7 +354,25 @@ The `FirewallPolicy` CRD is installed by the Aviatrix controller when DCF Kubern
 
 ### K8s label SmartGroups show "Partial" status
 
-This is expected on EKS. The controller cannot maintain assetd watcher subscriptions for EKS custom resources. The CIDR-based SmartGroups (`obot_system_pod_cidrs`, `obot_mcp_pod_cidrs`) are the active enforcement path. "Partial" status on the label-based SmartGroup does not break enforcement; the CIDR SmartGroups are what the V1 policy rules use.
+Check the EKS access entry principal first:
+
+```bash
+aws eks list-access-entries --cluster-name $(terraform output -raw eks_cluster_name) --region <your-aws-region>
+aws eks describe-access-entry --cluster-name $(terraform output -raw eks_cluster_name) \
+  --principal-arn <entry-arn> --region <your-aws-region>
+```
+
+The principal must be `arn:aws:iam::<account>:role/aviatrix-role-app` (not `aviatrix-role-ec2`). If it is wrong, the `aviatrix_app_role_arn` variable is pointing to the wrong role; correct it and re-apply.
+
+Also verify the ClusterRoleBindings exist:
+
+```bash
+kubectl get clusterrolebinding | grep aviatrix
+```
+
+Expected: `aviatrix-view-nodes` and `aviatrix-crd-view` bindings present.
+
+If RBAC is correct and status is still Partial, this may be a known platform bug where `assetd` watcher subscriptions are lost after controller restart (tracked separately). In that case, use the CIDR workaround: populate `obot_system_pod_cidrs` and `obot_mcp_pod_cidrs` with current pod `/32` CIDRs and re-apply. The CIDR SmartGroups enforce correctly regardless of cluster status.
 
 ### kubectl cannot authenticate to the cluster
 

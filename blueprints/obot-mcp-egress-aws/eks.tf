@@ -50,7 +50,8 @@ module "eks" {
 # Aviatrix app role access entry: CoPilot uses aviatrix-role-app to authenticate
 # to the EKS API for DCF Kubernetes enforcement onboarding. Without this entry,
 # onboarding fails with "Fail" status in CoPilot > Security > DCF > Kubernetes Clusters.
-# Policy and RBAC match CoPilot's generated Terraform (AmazonEKSViewPolicy + view-nodes).
+# Policy: AmazonEKSClusterAdminPolicy (required for agent deploy — see association resource).
+# RBAC: view-nodes group grants node enumeration beyond the EKS managed policy scope.
 resource "aws_eks_access_entry" "aviatrix_controller" {
   cluster_name      = module.eks.cluster_name
   principal_arn     = var.aviatrix_app_role_arn
@@ -63,7 +64,11 @@ resource "aws_eks_access_entry" "aviatrix_controller" {
 resource "aws_eks_access_policy_association" "aviatrix_controller" {
   cluster_name  = module.eks.cluster_name
   principal_arn = var.aviatrix_app_role_arn
-  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy"
+  # ClusterAdmin required: CoPilot deploys the aviatrix-system agent (DaemonSet +
+  # CRD installation) after onboarding. ViewPolicy allows cluster listing but not
+  # namespace/DaemonSet creation. Without ClusterAdmin the agent never deploys,
+  # FirewallPolicy CRD is never installed, and NPC crashes on startup.
+  policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
 
   access_scope {
     type = "cluster"

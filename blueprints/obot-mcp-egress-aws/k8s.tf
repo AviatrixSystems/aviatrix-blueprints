@@ -1,4 +1,24 @@
 # =============================================================================
+# Aviatrix DCF CRDs
+# =============================================================================
+
+# k8s-firewall Helm chart: installs FirewallPolicy and WebgroupPolicy CRDs
+# (networking.aviatrix.com/v1alpha1) plus a ClusterRole for the controller.
+# No pods are deployed. The aviatrix-network-policy-controller (NPC) crashes
+# on startup with "no matches for kind FirewallPolicy" if these CRDs are absent.
+# Source: https://github.com/AviatrixSystems/k8s-firewall-charts
+resource "helm_release" "aviatrix_crds" {
+  name             = "aviatrix-crds"
+  repository       = "https://aviatrixsystems.github.io/k8s-firewall-charts"
+  chart            = "k8s-firewall"
+  version          = "9.0.0"
+  namespace        = "kube-system"
+  create_namespace = false
+
+  depends_on = [module.eks]
+}
+
+# =============================================================================
 # Storage
 # =============================================================================
 

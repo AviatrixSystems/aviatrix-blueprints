@@ -75,6 +75,7 @@ resource "helm_release" "obot" {
     kubernetes_namespace_v1.obot_mcp,
     null_resource.k8s_dcf_features,
     kubernetes_storage_class_v1.gp3,
+    helm_release.aviatrix_crds, # CRDs must exist before NPC starts
     module.spoke,
     aviatrix_distributed_firewalling_policy_list.infra,
     aviatrix_distributed_firewalling_default_action_rule.deny_all,
