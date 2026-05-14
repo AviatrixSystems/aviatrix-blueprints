@@ -114,10 +114,13 @@ Deployment takes approximately 15–20 minutes (spoke gateway provisioning is th
 
 ### Step 4: Enable K8s Enforcement in CoPilot
 
-These two settings must be enabled manually after first deploy (controller UI only):
+These settings must be enabled manually after first deploy (not automatable via Terraform):
 
 1. **DCF Kubernetes Enforcement**: CoPilot → DCF → Settings → Enforcement on Kubernetes → Enable
 2. **Log Enrichment** (for pod-level FlowIQ identity): CoPilot → Feature Previews → Log Enrichment → Enable
+3. **Kubernetes Clusters Onboarding**: CoPilot → Cloud Resources → Cloud Workloads → Kubernetes Clusters → click **Onboard** for the AKS cluster → keep "Permissions on Cloud Account" selected → click **Onboard**
+
+Step 3 is required for K8S_POLICY_LIST per-pod enforcement. Without it, the gateway cannot resolve pod labels to IPs and `egressDomains` allow rules will not fire.
 
 ### Step 5: Verify Deployment
 
@@ -142,6 +145,7 @@ kubectl port-forward -n obot-system svc/obot-obot 8080:80
 | `controller_username` | Controller admin username | `string` | `"admin"` | no |
 | `controller_password` | Controller admin password | `string` | n/a | yes |
 | `arm_account_name` | Azure access account name onboarded in Controller | `string` | n/a | yes |
+| `arm_account_principal_id` | Azure AD Object ID of the Aviatrix ARM service principal. Get with: `az ad sp show --id <arm_ad_client_id> --query id -o tsv` | `string` | n/a | yes |
 | `copilot_private_ip` | CoPilot private IP (syslog) | `string` | n/a | yes |
 | `copilot_public_ip` | CoPilot public IP (OTEL/DCF Monitor) | `string` | n/a | yes |
 | `resource_group_name` | Name of Azure resource group to create | `string` | `"obot-mcp-rg"` | no |

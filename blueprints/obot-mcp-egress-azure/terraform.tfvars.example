@@ -9,7 +9,9 @@
 #   export TF_VAR_controller_password="your-password"
 controller_ip       = "20.1.2.3"      # REQUIRED
 controller_username = "admin"
-arm_account_name    = "azure-account" # REQUIRED: Aviatrix access account name for Azure
+arm_account_name         = "azure-account"              # REQUIRED: Aviatrix access account name for Azure
+arm_account_principal_id = "00000000-0000-0000-0000-000000000000"  # REQUIRED: Object ID of the Aviatrix ARM service principal
+# Get with: az ad sp show --id <arm_ad_client_id_from_controller> --query id -o tsv
 copilot_private_ip  = "10.200.0.5"    # REQUIRED
 copilot_public_ip   = "20.1.2.4"      # REQUIRED
 

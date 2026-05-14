@@ -28,6 +28,11 @@ variable "arm_account_name" {
   type        = string
 }
 
+variable "arm_account_principal_id" {
+  description = "Azure AD service principal Object ID for the Aviatrix ARM access account. Required to grant AKS Cluster Admin role so the controller can do K8s workload discovery (pod label → IP resolution). Get with: az ad sp show --id <arm_ad_client_id> --query id -o tsv"
+  type        = string
+}
+
 variable "copilot_private_ip" {
   description = "CoPilot private IP — used for syslog stream configuration"
   type        = string
