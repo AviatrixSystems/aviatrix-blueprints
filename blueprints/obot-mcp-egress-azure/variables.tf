@@ -124,6 +124,12 @@ variable "aks_dns_service_ip" {
   default     = "172.16.0.10"
 }
 
+variable "aks_kubernetes_version" {
+  description = "Kubernetes version for the AKS cluster. Leave unset to use the Azure-managed default. Pin to a specific version (e.g. '1.34.4') when testing version-dependent behavior or working around Aviatrix CAI compatibility issues."
+  type        = string
+  default     = null
+}
+
 # -----------------------------------------------------------------------------
 # Spoke Gateway
 # -----------------------------------------------------------------------------

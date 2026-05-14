@@ -32,6 +32,7 @@ resource "azurerm_kubernetes_cluster" "obot" {
   resource_group_name               = azurerm_resource_group.obot.name
   node_resource_group               = "${var.name_prefix}-aksnode-rg"
   dns_prefix                        = "${var.name_prefix}-aks"
+  kubernetes_version                = var.aks_kubernetes_version
   local_account_disabled            = false
   role_based_access_control_enabled = true
   oidc_issuer_enabled               = true
