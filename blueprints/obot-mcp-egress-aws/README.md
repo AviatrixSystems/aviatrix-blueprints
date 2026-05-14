@@ -142,10 +142,10 @@ kubectl get nodes -w
 
 ### Step 5: Enable K8s Enforcement in CoPilot
 
-These settings must be enabled manually after first deploy (controller UI only):
+Both settings are automated by `null_resource.k8s_dcf_features` during `terraform apply` (controller feature flags propagate to CoPilot automatically). Verify after deploy:
 
-1. **DCF Kubernetes Enforcement**: CoPilot -> DCF -> Settings -> Enforcement on Kubernetes -> Enable
-2. **Log Enrichment** (for pod-level FlowIQ identity): CoPilot -> Feature Previews -> Log Enrichment -> Enable
+1. **DCF Kubernetes Enforcement**: automated — verify in CoPilot -> DCF -> Settings -> Enforcement on Kubernetes (should show Enabled)
+2. **Log Enrichment** (for pod-level FlowIQ identity): automated — verify in CoPilot -> DCF -> Settings -> Log Enrichment (should show On)
 
 
 ### Step 7: Verify Deployment
@@ -352,11 +352,9 @@ terraform output -raw spoke_gateway_public_ip
 
 ### egressDomains configured but traffic still blocked
 
-1. Verify DCF Kubernetes Enforcement is enabled in CoPilot -> DCF -> Settings.
-2. Check `obot_mcp_pod_cidrs` is populated with current pod IPs and `terraform apply` has been run.
-3. Confirm a `FirewallPolicy` exists for the server: `kubectl get firewallpolicies -n obot-mcp`
-4. Verify Log Enrichment is enabled: CoPilot -> Feature Previews -> Log Enrichment.
-5. Re-check pod IPs have not changed since last apply (pod restarts change IPs; re-apply required).
+1. Check feature flags were applied: `terraform apply` re-runs the `k8s_dcf_features` provisioner each apply. Verify in CoPilot -> DCF -> Settings: Enforcement on Kubernetes = Enabled, Log Enrichment = On.
+2. Confirm a `FirewallPolicy` exists for the server: `kubectl get firewallpolicies -n obot-mcp`
+3. Check pod IPs have not changed since last apply (pod restarts change IPs; re-apply required if using `obot_mcp_pod_cidrs`).
 
 ### NPC pod logs: `no matches for kind 'FirewallPolicy' in group 'networking.aviatrix.com'`
 
