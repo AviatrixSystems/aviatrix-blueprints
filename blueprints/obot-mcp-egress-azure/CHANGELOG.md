@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-05-15
+
+- Confirm: K8S_POLICY_LIST per-pod enforcement works on AKS **1.34.4**, broken on AKS **1.34.7**. Root cause: AKS 1.34.7 `ListClusterUserCredentials` returns exec-based kubeconfig; Aviatrix CAI rejects exec credentials (`"exec and auth provider are not supported"`). AKS 1.34.4 returns cert-based kubeconfig; CAI accepts it and starts K8s watcher. Same controller build `8.2.0-1000.2196` on both. Tested: `httpbin.org` (egressDomains) → HTTP:200; `example.com` (blocked) → exit:35.
+- Add: `aks_kubernetes_version` variable (optional, default `null`). Set to `"1.34.4"` in tfvars as workaround for AKS 1.34.7 exec-creds bug (AVX-76221 related). Pending Aviatrix fix to switch `ListClusterUserCredentials` → `ListClusterAdminCredentials`.
+- Note: `aks_kube_config` variable (explicit kubeconfig workaround) NOT required when using AKS 1.34.4. Retained as fallback option for operators who cannot downgrade AKS version.
+
 ## 2026-05-14 (update 2)
 
 - Add: `aks_kube_config` variable for explicit K8s admin kubeconfig. Required for K8S_POLICY_LIST per-pod enforcement. Aviatrix controller kubeconfig validation schema requires `preferences: {}` field which `az aks get-credentials` omits — add it manually before use. Without this, the Aviatrix CAI service uses `ListClusterUserCredentials` which returns exec-based credentials rejected by CAI ("exec and auth provider are not supported") on AKS 1.24+.
