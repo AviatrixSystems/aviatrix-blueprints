@@ -38,3 +38,12 @@ npc_chart_version = "v0.0.1"
 
 # Naming
 name_prefix = "obot-mcp"
+
+# AKS admin kubeconfig for K8S_POLICY_LIST enforcement (optional).
+# Required for per-pod egressDomains enforcement via FirewallPolicy CRDs.
+# IMPORTANT: The kubeconfig must include 'preferences: {}' (az aks get-credentials omits it).
+# Generate with:
+#   az aks get-credentials --name <cluster> --resource-group <rg> --admin --file /tmp/aks-admin.yaml
+#   # Then add 'preferences: {}' after 'kind: Config' line
+# Set via env var (do not put sensitive content in this file):
+#   export TF_VAR_aks_kube_config=$(cat /tmp/aks-admin-fixed.yaml)

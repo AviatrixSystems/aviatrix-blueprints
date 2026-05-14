@@ -6,8 +6,9 @@
 # This enables the controller to discover pod identities and resolve
 # Kubernetes workload labels inside SmartGroup selectors.
 resource "aviatrix_kubernetes_cluster" "aks" {
-  cluster_id  = azurerm_kubernetes_cluster.obot.id
-  kube_config = azurerm_kubernetes_cluster.obot.kube_admin_config_raw
+  cluster_id          = azurerm_kubernetes_cluster.obot.id
+  kube_config         = var.aks_kube_config != "" ? var.aks_kube_config : null
+  use_csp_credentials = var.aks_kube_config == ""
 }
 
 # Allow the controller's Cloud Asset Inventory (CAI) to sync Kubernetes

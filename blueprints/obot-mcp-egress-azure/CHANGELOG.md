@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-05-14 (update 2)
+
+- Add: `aks_kube_config` variable for explicit K8s admin kubeconfig. Required for K8S_POLICY_LIST per-pod enforcement. Aviatrix controller kubeconfig validation schema requires `preferences: {}` field which `az aks get-credentials` omits — add it manually before use. Without this, the Aviatrix CAI service uses `ListClusterUserCredentials` which returns exec-based credentials rejected by CAI ("exec and auth provider are not supported") on AKS 1.24+.
+- Fix: `aviatrix_kubernetes_cluster.aks` now supports both `use_csp_credentials` (when `aks_kube_config` is empty) and explicit kubeconfig (when set). Kubeconfig path uses `internal/k8s/client/kubeconfig/client.go` in the CAI — cert-based, no exec dependency.
+- Note: K8S_POLICY_LIST enforcement confirmed broken on AKS 1.34.7 without explicit kubeconfig. Lab cluster (`8.2.0-1000.2196`) works via cert-based path. Blueprint test controller may require Aviatrix support to verify CAI watcher startup after cluster re-registration.
+
 ## 2026-05-14
 
 - Fix: `aviatrix_kubernetes_cluster.aks` cluster_id no longer lowercased (`lower()` caused CoPilot Kubernetes Clusters onboard API to return HTTP 500, blocking K8S_POLICY_LIST enforcement)

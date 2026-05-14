@@ -33,6 +33,13 @@ variable "arm_account_principal_id" {
   type        = string
 }
 
+variable "aks_kube_config" {
+  description = "AKS admin kubeconfig content (YAML, single context, cert-based auth, must include preferences: {} field). Required for K8S_POLICY_LIST enforcement. Get with: az aks get-credentials --admin and add 'preferences: {}'. Set via env var: export TF_VAR_aks_kube_config=$(python3 scripts/get-aks-kubeconfig.py)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "copilot_private_ip" {
   description = "CoPilot private IP — used for syslog stream configuration"
   type        = string
