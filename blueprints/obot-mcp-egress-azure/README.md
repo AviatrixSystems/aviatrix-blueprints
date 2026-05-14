@@ -114,10 +114,10 @@ Deployment takes approximately 15–20 minutes (spoke gateway provisioning is th
 
 ### Step 4: Enable K8s Enforcement in CoPilot
 
-These settings must be enabled manually after first deploy (not automatable via Terraform):
+Items 1 and 2 are automated by `null_resource.k8s_dcf_features` during `terraform apply` (controller feature flags propagate to CoPilot automatically). Item 3 requires a one-time manual action:
 
-1. **DCF Kubernetes Enforcement**: CoPilot → DCF → Settings → Enforcement on Kubernetes → Enable
-2. **Log Enrichment** (for pod-level FlowIQ identity): CoPilot → Feature Previews → Log Enrichment → Enable
+1. **DCF Kubernetes Enforcement**: automated — `k8s` feature flag enabled by Terraform; verify status in CoPilot → DCF → Settings → Enforcement on Kubernetes (should show Enabled)
+2. **Log Enrichment** (for pod-level FlowIQ identity): automated — `log_enrichment` feature flag enabled by Terraform; verify in CoPilot → DCF → Settings → Log Enrichment (should show On)
 3. **Kubernetes Clusters Onboarding**: CoPilot → Cloud Resources → Cloud Workloads → Kubernetes Clusters → click **Onboard** for the AKS cluster → keep "Permissions on Cloud Account" selected → click **Onboard**
 
 Step 3 is required for K8S_POLICY_LIST per-pod enforcement. Without it, the gateway cannot resolve pod labels to IPs and `egressDomains` allow rules will not fire.
@@ -297,9 +297,9 @@ terraform output -raw spoke_gateway_public_ip
 
 ### egressDomains configured but traffic still blocked
 
-1. Verify DCF Kubernetes Enforcement is enabled in CoPilot → DCF → Settings.
-2. Check the feature flags were applied: `terraform apply` re-runs the `k8s_dcf_features` provisioner on each apply.
-3. Verify Log Enrichment is enabled (required for SmartGroup pod-label matching).
+1. Check feature flags were applied: `terraform apply` re-runs the `k8s_dcf_features` provisioner each apply. Verify in CoPilot → DCF → Settings: Enforcement on Kubernetes = Enabled, Log Enrichment = On.
+2. Confirm Kubernetes Clusters Onboarding (Step 4.3) was completed — this is the only manual step not automated by Terraform.
+3. Confirm a `FirewallPolicy` exists for the server: `kubectl get firewallpolicies -n obot-mcp`
 4. Confirm a `FirewallPolicy` exists for the server: `kubectl get firewallpolicies -n obot-mcp`
 5. Check pod labels match the FirewallPolicy selector: `kubectl get pod <pod-name> -n obot-mcp --show-labels`
 
@@ -307,14 +307,13 @@ terraform output -raw spoke_gateway_public_ip
 
 The `FirewallPolicy` CRD is installed by the Aviatrix controller when DCF Kubernetes Enforcement is activated. The `aviatrix-network-policy-controller` cannot reconcile MCPNetworkPolicy objects until the CRD exists, and will log this error in a requeue loop.
 
-1. Complete Step 4: CoPilot → DCF → Settings → Enforcement on Kubernetes → Enable
-2. The controller installs `networking.aviatrix.com/v1alpha1` into the cluster
-3. The NPC error loop resolves automatically within 30–60 seconds
-4. Verify: `kubectl get crds | grep networking.aviatrix.com`
+1. The `firewallpolicies.networking.aviatrix.com` CRD is installed by the `k8s-firewall` Helm chart (part of this blueprint's `terraform apply`) — if missing, the chart may have failed; check: `helm list -n aviatrix-system`
+2. The NPC error loop resolves automatically within 30–60 seconds once the CRD exists
+3. Verify: `kubectl get crds | grep networking.aviatrix.com`
 
 ### SmartGroups show workload_type as VM instead of k8s
 
-Log Enrichment is not enabled. Enable it in CoPilot → Feature Previews → Log Enrichment.
+Log Enrichment feature flag may not have been applied. Run `terraform apply` to re-run `null_resource.k8s_dcf_features` which sets this flag automatically. Verify: CoPilot → DCF → Settings → Log Enrichment = On.
 
 ## Tested With
 
