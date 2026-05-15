@@ -6,8 +6,6 @@ Deploy [Obot](https://obot.ai) onto a new EKS cluster with network-layer zero-tr
 
 ![Architecture Diagram](architecture.svg)
 
-Architecture diagram coming soon.
-
 Traffic flow:
 
 1. Obot user creates an MCP server and configures its allowed egress domains via the Obot UI or API.
