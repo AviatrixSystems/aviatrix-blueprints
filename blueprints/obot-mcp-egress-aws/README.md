@@ -112,6 +112,8 @@ terraform plan
 terraform apply
 ```
 
+> **Note:** If apply fails with `clusterroles.rbac.authorization.k8s.io is forbidden`, re-run `terraform apply`. This is a short EKS access entry propagation delay on first deploy; the second apply succeeds.
+
 `node_desired_size` defaults to `2`. Nodes start during this apply. If the Aviatrix spoke gateway has not yet programmed VPC routes when nodes attempt to bootstrap, nodes may fail with CSE exit 50 (EKS API server unreachable). EKS managed node groups replace failed nodes automatically; re-bootstrap succeeds once routes are in place. See Troubleshooting → EKS nodes fail to bootstrap.
 
 Deployment takes approximately 20-30 minutes (EKS control plane + spoke gateway provisioning are the longest steps).
@@ -142,15 +144,22 @@ kubectl get nodes -w
 
 ### Step 5: Enable K8s Enforcement in CoPilot
 
-Both settings are automated by `null_resource.k8s_dcf_features` during `terraform apply` (controller feature flags propagate to CoPilot automatically). Verify after deploy:
+Three settings are automated by Terraform during `terraform apply`. Verify after deploy:
 
-1. **DCF Kubernetes Enforcement**: automated — verify in CoPilot -> DCF -> Settings -> Enforcement on Kubernetes (should show Enabled)
-2. **Log Enrichment** (for pod-level FlowIQ identity): automated — verify in CoPilot -> DCF -> Settings -> Log Enrichment (should show On)
+1. **DCF Kubernetes Enforcement**: automated by `null_resource.k8s_dcf_features` (controller feature flags) — verify in CoPilot -> DCF -> Settings -> Enforcement on Kubernetes (should show Enabled)
+2. **Log Enrichment** (for pod-level FlowIQ identity): automated by `null_resource.k8s_dcf_features` — verify in CoPilot -> DCF -> Settings -> Log Enrichment (should show On)
+3. **CoPilot K8s cluster onboarding**: automated by `null_resource.copilot_k8s_onboard` — verify in CoPilot -> Cloud Resources -> Cloud Workloads -> Kubernetes Clusters (obot-qa-cluster should show as onboarded with pod count populated)
 
+> **Note:** On a fresh cluster (first deploy), per-pod FirewallPolicy enforcement may take a minute or two to activate after onboarding completes. If test scenarios return HTTP:000 immediately after deploy, wait a minute and retry.
 
-### Step 7: Verify Deployment
+### Step 6: Verify Deployment
 
 ```bash
+# Update kubeconfig for the new cluster
+aws eks update-kubeconfig \
+  --name $(terraform output -raw eks_cluster_name) \
+  --region <your-aws-region>
+
 # Check Terraform outputs
 terraform output
 
@@ -185,7 +194,7 @@ kubectl port-forward -n obot-system svc/obot-obot 8080:80
 | `obot_mcp_namespace` | Kubernetes namespace for MCP server pods | `string` | `"obot-mcp"` | no |
 | `obot_mcp_pod_cidrs` | Optional `/32` CIDRs for obot-mcp pods; creates an explicit V1 DENY SmartGroup alongside Default Action deny-all | `list(string)` | `[]` | no |
 | `name_prefix` | Prefix for all created resource names | `string` | `"obot-mcp"` | no |
-| `copilot_syslog_index` | Remote syslog index slot on the Controller (0-9); must be free | `number` | `9` | no |
+| `copilot_syslog_index` | Remote syslog index slot on the Controller (0-9); must be free. Verify the slot is free: in the Aviatrix Controller UI, go to Settings > Logging > Remote Syslog and confirm no entry occupies the chosen slot before applying. | `number` | `9` | no |
 
 ## Outputs
 
@@ -221,6 +230,10 @@ echo "Server ID: $SERVER_ID"
 
 # Launch the server (required after every create or update)
 curl -s -X POST http://localhost:8080/api/mcp-servers/${SERVER_ID}/launch
+# Note: the launch command may return a CrashLoopBackOff error for
+# @modelcontextprotocol/server-filesystem — this is expected (the server requires
+# directory arguments to stay running). The shim container used for egress testing
+# (${SERVER_ID}-shim) starts and stays running independently.
 
 # Wait for pod to start (shim container starts; mcp container may stay 1/2 — this is normal for filesystem server without dir args)
 kubectl get pods -n obot-mcp -w
@@ -278,7 +291,7 @@ POD=$(kubectl get pods -n obot-mcp -l app=${SERVER_ID} --field-selector=status.p
 kubectl exec -n obot-mcp $POD -c ${SERVER_ID}-shim -- \
   curl -s --max-time 10 -o /dev/null -w "HTTP:%{http_code}" https://api.openai.com
 
-# Expected: HTTP:401 (reached upstream — OpenAI rejects unauthenticated requests, but connection was permitted by DCF)
+# Expected: HTTP:4xx Exit:0 (any 4xx with exit code 0 means DCF permitted the connection and OpenAI responded)
 ```
 
 ## Cleanup
@@ -287,7 +300,7 @@ kubectl exec -n obot-mcp $POD -c ${SERVER_ID}-shim -- \
 terraform destroy
 ```
 
-If destroy hangs on `obot-system` or `obot-mcp` namespaces (PVC protection finalizer blocks deletion):
+If destroy hangs on `obot-system` or `obot-mcp` namespaces (PVC or FirewallPolicy finalizers block deletion):
 
 ```bash
 for NS in obot-system obot-mcp; do

@@ -213,6 +213,72 @@ resource "aviatrix_distributed_firewalling_default_action_rule" "deny_all" {
   depends_on = [aviatrix_distributed_firewalling_policy_list.infra]
 }
 
+# Onboard the EKS cluster into CoPilot for K8S_POLICY_LIST enforcement.
+# aviatrix_kubernetes_cluster TF resource is absent (EKS auto-discovered by controller
+# on CSP scan; explicit registration via the TF resource returns HTTP 409).
+# This null_resource calls the CoPilot onboard API directly, matching what the
+# CoPilot UI does: POST /api/kubernetes/onboard with the cluster ARN.
+# Idempotent: checks fetcher_status via GET /api/kubernetes/clusters before calling
+# onboard; no-ops if the cluster already shows RUNNING.
+resource "null_resource" "copilot_k8s_onboard" {
+  triggers = {
+    cluster_arn = module.eks.cluster_arn
+  }
+
+  provisioner "local-exec" {
+    command     = <<-EOT
+      set -euo pipefail
+      # Login to CoPilot (session cookie in /tmp)
+      COOKIE_JAR=$(mktemp)
+      trap 'rm -f "$COOKIE_JAR"' EXIT
+      HTTP=$(curl -sk -c "$COOKIE_JAR" -o /dev/null -w "%%{http_code}" \
+        -X POST "https://$${COPILOT}/api/login" \
+        -H "Content-Type: application/json" \
+        -d "{\"username\":\"$${USERNAME}\",\"password\":\"$${PASSWORD}\"}")
+      if [ "$HTTP" != "200" ]; then echo "ERROR: CoPilot login failed (HTTP $HTTP)" >&2; exit 1; fi
+      # Skip if already onboarded
+      STATUS=$(curl -sk -b "$COOKIE_JAR" "https://$${COPILOT}/api/kubernetes/clusters" \
+        | python3 -c "
+import sys, json
+clusters = json.load(sys.stdin)
+arn = '$${CLUSTER_ARN}'
+for c in clusters:
+    if c.get('cluster_id') == arn and c.get('fetcher_status','UNSPECIFIED') != 'UNSPECIFIED':
+        print('ALREADY_ONBOARDED')
+        sys.exit(0)
+print('NOT_ONBOARDED')
+" 2>/dev/null || echo "NOT_ONBOARDED")
+      if [ "$STATUS" = "ALREADY_ONBOARDED" ]; then
+        echo "Cluster already onboarded, skipping."
+        exit 0
+      fi
+      # Onboard
+      HTTP=$(curl -sk -b "$COOKIE_JAR" -o /tmp/onboard_resp.json -w "%%{http_code}" \
+        -X POST "https://$${COPILOT}/api/kubernetes/onboard" \
+        -H "Content-Type: application/json" \
+        -d "{\"clusterId\":\"$${CLUSTER_ARN}\"}")
+      if [ "$HTTP" != "200" ]; then
+        echo "ERROR: onboard failed (HTTP $HTTP): $(cat /tmp/onboard_resp.json)" >&2
+        exit 1
+      fi
+      echo "Cluster onboarded successfully."
+    EOT
+    interpreter = ["/bin/bash", "-c"]
+    environment = {
+      COPILOT     = var.copilot_public_ip
+      USERNAME    = var.controller_username
+      PASSWORD    = var.controller_password
+      CLUSTER_ARN = module.eks.cluster_arn
+    }
+  }
+
+  depends_on = [
+    aws_eks_access_policy_association.aviatrix_controller,
+    null_resource.k8s_dcf_features,
+    time_sleep.cai_sync,
+  ]
+}
+
 # CoPilot association via direct API call (provider resource lacks public_ip field).
 resource "null_resource" "copilot_association" {
   triggers = {

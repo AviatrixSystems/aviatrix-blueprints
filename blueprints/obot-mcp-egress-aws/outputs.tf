@@ -45,8 +45,10 @@ output "next_steps" {
     2. Access Obot UI:
        kubectl port-forward -n ${var.obot_namespace} svc/obot-obot 8080:80
 
-    3. Enable DCF enforcement on Kubernetes (required once after deploy):
-       CoPilot -> DCF -> Settings -> Enforcement on Kubernetes -> Enable
+    3. Verify DCF enforcement was applied (automated by terraform apply):
+       CoPilot -> DCF -> Settings -> Enforcement on Kubernetes (should show Enabled)
+       CoPilot -> DCF -> Settings -> Log Enrichment (should show On)
+       CoPilot -> Cloud Resources -> Cloud Workloads -> Kubernetes Clusters (cluster should show as onboarded)
 
     4. (Optional) Populate obot_mcp_pod_cidrs for explicit V1 DENY SmartGroup:
        kubectl get pods -n ${var.obot_mcp_namespace} -o wide
