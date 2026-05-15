@@ -24,24 +24,32 @@ output "obot_mcp_namespace" {
   value       = var.obot_mcp_namespace
 }
 
+output "aks_cluster_name" {
+  description = "Name of the deployed AKS cluster"
+  value       = azurerm_kubernetes_cluster.obot.name
+}
+
+output "resource_group_name" {
+  description = "Name of the Azure resource group containing all resources"
+  value       = azurerm_kubernetes_cluster.obot.resource_group_name
+}
+
 output "next_steps" {
   description = "Post-deployment actions"
   value       = <<-EOT
     Deployment complete. Next steps:
 
-    1. Access Obot UI:
+    1. Update kubeconfig:
+       az aks get-credentials \
+         --resource-group ${azurerm_kubernetes_cluster.obot.resource_group_name} \
+         --name ${azurerm_kubernetes_cluster.obot.name}
+
+    2. Access Obot UI:
        kubectl port-forward -n ${var.obot_namespace} svc/obot-obot 8080:80
 
-    2. Enable DCF enforcement on Kubernetes (required once after deploy):
-       CoPilot -> DCF -> Settings -> Enforcement on Kubernetes -> Enable
-
-    3. Enable Log Enrichment for pod-level FlowIQ identity:
-       CoPilot -> Feature Previews -> Log Enrichment -> Enable
-
-    4. Apply an MCPNetworkPolicy to allow egress for an MCP server:
-       kubectl apply -f k8s-apps/example-mcpnetworkpolicy.yaml
-
-    5. Verify enforcement in CoPilot:
-       CoPilot -> DCF -> Monitor -> filter by MCP server SmartGroup
+    3. Verify DCF enforcement was applied (automated by terraform apply):
+       CoPilot -> DCF -> Settings -> Enforcement on Kubernetes (should show Enabled)
+       CoPilot -> DCF -> Settings -> Log Enrichment (should show On)
+       CoPilot -> Cloud Resources -> Cloud Workloads -> Kubernetes Clusters (cluster should show as onboarded)
   EOT
 }

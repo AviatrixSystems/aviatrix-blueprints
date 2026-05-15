@@ -114,17 +114,20 @@ Deployment takes approximately 15–20 minutes (spoke gateway provisioning is th
 
 ### Step 4: Enable K8s Enforcement in CoPilot
 
-Items 1 and 2 are automated by `null_resource.k8s_dcf_features` during `terraform apply` (controller feature flags propagate to CoPilot automatically). Item 3 requires a one-time manual action:
+All three items are automated by Terraform during `terraform apply`. Verify after deploy:
 
-1. **DCF Kubernetes Enforcement**: automated — `k8s` feature flag enabled by Terraform; verify status in CoPilot → DCF → Settings → Enforcement on Kubernetes (should show Enabled)
-2. **Log Enrichment** (for pod-level FlowIQ identity): automated — `log_enrichment` feature flag enabled by Terraform; verify in CoPilot → DCF → Settings → Log Enrichment (should show On)
-3. **Kubernetes Clusters Onboarding**: CoPilot → Cloud Resources → Cloud Workloads → Kubernetes Clusters → click **Onboard** for the AKS cluster → keep "Permissions on Cloud Account" selected → click **Onboard**
-
-Step 3 is required for K8S_POLICY_LIST per-pod enforcement. Without it, the gateway cannot resolve pod labels to IPs and `egressDomains` allow rules will not fire.
+1. **DCF Kubernetes Enforcement**: automated by `null_resource.k8s_dcf_features` — verify in CoPilot → DCF → Settings → Enforcement on Kubernetes (should show Enabled)
+2. **Log Enrichment** (for pod-level FlowIQ identity): automated by `null_resource.k8s_dcf_features` — verify in CoPilot → DCF → Settings → Log Enrichment (should show On)
+3. **Kubernetes Clusters Onboarding**: automated by `aviatrix_kubernetes_cluster.aks` — verify in CoPilot → Cloud Resources → Cloud Workloads → Kubernetes Clusters (the AKS cluster should show as onboarded with pod count populated)
 
 ### Step 5: Verify Deployment
 
 ```bash
+# Update kubeconfig for the new cluster
+az aks get-credentials \
+  --resource-group "$(terraform output -raw resource_group_name)" \
+  --name "$(terraform output -raw aks_cluster_name)"
+
 # Check Terraform outputs
 terraform output
 
@@ -239,7 +242,7 @@ POD=$(kubectl get pods -n obot-mcp -l app=${SERVER_ID} --field-selector=status.p
 kubectl exec -n obot-mcp $POD -c ${SERVER_ID}-shim -- \
   curl -s --max-time 10 -o /dev/null -w "HTTP:%{http_code}" https://api.openai.com
 
-# Expected: HTTP:401 (DCF permitted; OpenAI rejected unauthenticated request)
+# Expected: HTTP:4xx Exit:0 (any 4xx with exit code 0 means DCF permitted the connection and OpenAI responded)
 ```
 
 ## Cleanup
@@ -298,10 +301,9 @@ terraform output -raw spoke_gateway_public_ip
 ### egressDomains configured but traffic still blocked
 
 1. Check feature flags were applied: `terraform apply` re-runs the `k8s_dcf_features` provisioner each apply. Verify in CoPilot → DCF → Settings: Enforcement on Kubernetes = Enabled, Log Enrichment = On.
-2. Confirm Kubernetes Clusters Onboarding (Step 4.3) was completed — this is the only manual step not automated by Terraform.
+2. Confirm the AKS cluster is onboarded in CoPilot: Cloud Resources → Cloud Workloads → Kubernetes Clusters (cluster should show pods). If missing, check whether `aviatrix_kubernetes_cluster.aks` in terraform state is healthy; re-run `terraform apply` to retry.
 3. Confirm a `FirewallPolicy` exists for the server: `kubectl get firewallpolicies -n obot-mcp`
-4. Confirm a `FirewallPolicy` exists for the server: `kubectl get firewallpolicies -n obot-mcp`
-5. Check pod labels match the FirewallPolicy selector: `kubectl get pod <pod-name> -n obot-mcp --show-labels`
+4. Check pod labels match the FirewallPolicy selector: `kubectl get pod <pod-name> -n obot-mcp --show-labels`
 
 ### NPC pod logs: `no matches for kind 'FirewallPolicy' in group 'networking.aviatrix.com'`
 

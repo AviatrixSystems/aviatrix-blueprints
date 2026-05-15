@@ -145,6 +145,7 @@ resource "aviatrix_web_group" "aks_infra_egress" {
     match_expressions { snifilter = "login.microsoftonline.com" }
     match_expressions { snifilter = "packages.microsoft.com" }
     match_expressions { snifilter = "acs-mirror.azureedge.net" }
+    match_expressions { snifilter = "*.aks.azure.com" }
     match_expressions { snifilter = "ghcr.io" }
     match_expressions { snifilter = "*.ghcr.io" }
     match_expressions { snifilter = "pkg-containers.githubusercontent.com" }
