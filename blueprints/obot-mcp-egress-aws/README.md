@@ -2,6 +2,9 @@
 
 Deploy [Obot](https://obot.ai) onto a new EKS cluster with network-layer zero-trust egress enforcement for all MCP server pods. An Aviatrix Gateway (Policy Enforcement Point) intercepts outbound traffic; MCPNetworkPolicy CRDs (reconciled by Obot's bundled aviatrix-network-policy-controller) translate per-server allowlists into live FirewallPolicy rules. No sidecars, no service mesh, no code changes required.
 
+> [!TIP]
+> **Deploying with an AI agent?** This blueprint includes [`AGENTS.md`](AGENTS.md) — a machine-readable guide with required variables, exact deploy commands, verification steps, and common errors. Works with Claude Code, Codex, Cursor, and Gemini CLI.
+
 ## Architecture
 
 ![Architecture Diagram](architecture.svg)
