@@ -89,7 +89,7 @@ The Aviatrix Gateway (Policy Enforcement Point) intercepts all pod egress at the
 | Kubernetes ClusterRole                      | `aviatrix-crd-view` (CRD list/watch for `networking.aviatrix.com`)                       | 1        |
 
 
-**Estimated Cost**: ~~$0.15-0.25/hour for the spoke gateway EC2 instance plus EKS node costs (~~$0.10-0.20/hour for m5.large at 2 nodes). EKS control plane: $0.10/hour.
+**Estimated Cost**: ~$0.15-0.25/hour for the spoke gateway EC2 instance plus EKS node costs (~$0.10-0.20/hour for m5.large at 2 nodes). EKS control plane: $0.10/hour.
 
 > **Storage note:** This blueprint uses Obot's embedded SQLite (`dev.useEmbeddedDb: true`), which stores data on an EBS-backed PVC (gp3, 8 GiB). This is appropriate for lab and demo use. For production, replace with an external Postgres database: set `OBOT_SERVER_DSN` to your RDS or Aurora endpoint in the Obot Helm values and remove `dev.useEmbeddedDb: true`. Doing so eliminates the EBS PVC and the aws-ebs-csi-driver dependency, at the cost of an additional RDS instance (~$0.02–0.05/hr for t3.micro).
 
