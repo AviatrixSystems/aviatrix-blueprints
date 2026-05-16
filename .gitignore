@@ -39,9 +39,10 @@ Thumbs.db
 # Local development (environment-specific, not for public repo)
 MEMORY.md
 
-# Diagram generation scripts (machine-specific absolute paths, not for public repo)
+# Diagram generation scripts and local icon refs (machine-specific, not for public repo)
 blueprints/**/architecture.py
 docs/diagrams/*.py
+docs/diagrams/icon-*.svg
 
 # Credentials (should never be committed)
 *.pem
