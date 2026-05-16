@@ -44,6 +44,9 @@ blueprints/**/architecture.py
 docs/diagrams/*.py
 docs/diagrams/icon-*.svg
 
+# Internal Claude Code planning artifacts
+docs/superpowers/
+
 # Credentials (should never be committed)
 *.pem
 *.key
