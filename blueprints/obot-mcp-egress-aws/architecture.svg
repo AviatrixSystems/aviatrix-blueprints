@@ -87,11 +87,11 @@
 <g class="connections">
 <g class="connection"><path d="M 741 295 L 960 295" fill="none" stroke="#10b981"
             stroke-width="1.5"  marker-end="url(#arrow-end)" stroke-linecap="round" stroke-linejoin="round"/></g>
-<g class="connection"><path d="M 960 435 L 882 435 L 882 325 L 753 325 L 741 295" fill="none" stroke="#78909C"
+<g class="connection"><path d="M 960 155 L 741 155 L 741 295" fill="none" stroke="#78909C"
             stroke-width="1.2" stroke-dasharray="3 3" marker-end="url(#arrow-end)" stroke-linecap="round" stroke-linejoin="round"/></g>
 </g>
 <g class="nodes">
-<g id="node-obot-logo"><svg x="198.0" y="237.0" width="26" height="26" viewBox="0 0 1892.2 720.92"
+<g id="node-obot-logo"><svg x="193.0" y="232.0" width="36" height="36" viewBox="0 0 1892.2 720.92"
             overflow="visible"><style type="text/css">
 	.st0{display:none;}
 	.st1{display:inline;}
@@ -177,7 +177,7 @@
                 fill="#111118">Internet Gateway</text><text x="960" y="344.0" text-anchor="middle"
                 font-family="'Anthropic Sans', 'SF Mono', ui-monospace, 'Segoe UI Mono', monospace" font-size="10" font-weight="400"
                 fill="#4A5568">AWS IGW</text></g>
-<g id="node-controller"><svg x="940.0" y="415.0" width="40" height="40" viewBox="0 0 128 128"
+<g id="node-controller"><svg x="940.0" y="135.0" width="40" height="40" viewBox="0 0 128 128"
             overflow="visible">
   <!-- Same circle container as gateway icon -->
   <circle cx="64" cy="64" r="60" fill="white" stroke="#3B304F" stroke-width="8"/>
@@ -191,14 +191,14 @@
   <rect x="50" y="50" width="10" height="12" rx="2" fill="#3B304F"/>
   <rect x="64" y="41" width="10" height="21" rx="2" fill="#3B304F"/>
   <rect x="78" y="47" width="10" height="15" rx="2" fill="#3B304F"/>
-</svg><text x="960" y="470.0" text-anchor="middle"
+</svg><text x="960" y="190.0" text-anchor="middle"
                 font-family="'Anthropic Sans', 'SF Mono', ui-monospace, 'Segoe UI Mono', monospace" font-size="11" font-weight="600"
-                fill="#111118">Controller · CoPilot</text><text x="960" y="484.0" text-anchor="middle"
+                fill="#111118">Controller · CoPilot</text><text x="960" y="204.0" text-anchor="middle"
                 font-family="'Anthropic Sans', 'SF Mono', ui-monospace, 'Segoe UI Mono', monospace" font-size="10" font-weight="400"
                 fill="#4A5568">policy · audit</text></g>
 </g>
 <text x="211" y="282" text-anchor="middle" font-family="'Anthropic Sans', 'SF Mono', ui-monospace, 'Segoe UI Mono', monospace" font-size="9" font-weight="normal" fill="#4A5568">aviatrix-network-policy-controller</text><text x="211" y="300" text-anchor="middle" font-family="'Anthropic Sans', 'SF Mono', ui-monospace, 'Segoe UI Mono', monospace" font-size="8" font-weight="normal" fill="#6B7280">Watches MCPNetworkPolicy objects</text><text x="211" y="316" text-anchor="middle" font-family="'Anthropic Sans', 'SF Mono', ui-monospace, 'Segoe UI Mono', monospace" font-size="8" font-weight="normal" fill="#6B7280">Reconciles FirewallPolicy CRDs</text><text x="461" y="252" text-anchor="middle" font-family="'Anthropic Sans', 'SF Mono', ui-monospace, 'Segoe UI Mono', monospace" font-size="11" font-weight="600" fill="#2c2826">MCP server pods</text><text x="461" y="272" text-anchor="middle" font-family="'Anthropic Sans', 'SF Mono', ui-monospace, 'Segoe UI Mono', monospace" font-size="9" font-weight="normal" fill="#4A5568">spawned on demand by Obot</text><text x="461" y="290" text-anchor="middle" font-family="'Anthropic Sans', 'SF Mono', ui-monospace, 'Segoe UI Mono', monospace" font-size="8" font-weight="normal" fill="#6B7280">one pod per server · ephemeral</text><text x="461" y="314" text-anchor="middle" font-family="'Anthropic Sans', 'SF Mono', ui-monospace, 'Segoe UI Mono', monospace" font-size="9" font-weight="600" fill="#10b981">egress → route table → Gateway</text><text x="741" y="375" text-anchor="middle" font-family="'Anthropic Sans', 'SF Mono', ui-monospace, 'Segoe UI Mono', monospace" font-size="9" font-weight="normal" fill="#4A5568">DCF · SNAT · eBPF</text>
-<g class="watermark" opacity="0.1">
+<g class="watermark" opacity="0.15">
     <svg x="1054" y="518" width="130" height="26" viewBox="0 0 400 80" overflow="visible">
         <path fill="#fa6b1e" d="M80.6,49.3l-8.4-10.5-15.6-19.5-4.8-5.9c-2.3-2.9-5.9-4.6-9.6-4.6s-7.3,1.7-9.7,4.6l-4.8,5.9-15.6,19.5-8.4,10.5c-4.2,5.2-3.3,12.8,2,16.9,2.3,1.7,4.9,2.6,7.6,2.6s7.2-1.6,9.7-4.6l4.8-5.9,12.3-15.4-6.6-13.5,23.1,28.9,4.8,5.9c2.4,3,6,4.6,9.7,4.6s5.3-.8,7.6-2.6c5.3-4.1,6.1-11.7,1.9-16.9h0Z"/>
         <path fill="#111118" d="M285,18.7h-36.8c-.8,0-1.3.8-.9,1.5l2,4.1c.2.4.5.6,1,.6h13.9v32.7c0,.6.5,1,1.1,1h5c.6,0,1.1-.5,1.1-1V24.9h13.7c.6,0,1-.5,1-1v-4.1c0-.6-.5-1.1-1.1-1.1h0Z"/>
