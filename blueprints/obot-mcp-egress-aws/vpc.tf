@@ -12,7 +12,7 @@ locals {
     cidrsubnet(var.vpc_cidr, 8, 3),
   ]
   public_subnets = [
-    cidrsubnet(var.vpc_cidr, 8, 0), # Aviatrix spoke gateway
+    cidrsubnet(var.vpc_cidr, 8, 0), # Aviatrix Gateway (Policy Enforcement Point)
   ]
 
   tags = { project = local.name }

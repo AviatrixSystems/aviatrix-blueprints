@@ -1,6 +1,6 @@
 # Zero-Trust MCP Egress: Obot on AKS with Aviatrix DCF
 
-Deploy [Obot](https://obot.ai) onto a new AKS cluster with network-layer zero-trust egress enforcement for all MCP server pods. An Aviatrix spoke gateway intercepts outbound traffic; MCPNetworkPolicy CRDs (reconciled by Obot's bundled aviatrix-network-policy-controller) translate per-server allowlists into live FirewallPolicy rules. No sidecars, no service mesh, no code changes required.
+Deploy [Obot](https://obot.ai) onto a new AKS cluster with network-layer zero-trust egress enforcement for all MCP server pods. An Aviatrix Gateway (Policy Enforcement Point) intercepts outbound traffic; MCPNetworkPolicy CRDs (reconciled by Obot's bundled aviatrix-network-policy-controller) translate per-server allowlists into live FirewallPolicy rules. No sidecars, no service mesh, no code changes required.
 
 ## Architecture
 
@@ -62,12 +62,12 @@ Azure IP masquerade is disabled for all pod traffic so the spoke gateway sees or
 | Azure Resource Group | Contains all created resources | 1 |
 | Azure Virtual Network | VNet for AKS nodes and spoke gateway | 1 |
 | Azure Subnet | AKS node subnet (Azure CNI, pod IPs from VNet) | 1 |
-| Azure Subnet | Aviatrix spoke gateway subnet | 1 |
+| Azure Subnet | Aviatrix Gateway (Policy Enforcement Point) subnet | 1 |
 | Azure Route Table | Public RT for spoke gateway subnet | 1 |
 | Azure Route Table | Private RT for AKS node subnet (routes pod egress via spoke) | 1 |
 | Azure Kubernetes Cluster | AKS cluster with Azure CNI | 1 |
 | Azure Role Assignment | Network Contributor for AKS identity on resource group | 1 |
-| Aviatrix Spoke Gateway | DCF-enforced egress gateway (no transit required) | 1 |
+| Aviatrix Gateway (Policy Enforcement Point) | DCF-enforced egress gateway (no transit required) | 1 |
 | Aviatrix Kubernetes Cluster | AKS onboarding for pod identity resolution | 1 |
 | Aviatrix SmartGroup | MCP server pods (by namespace) | 1 |
 | Aviatrix SmartGroup | AKS node subnet CIDR | 1 |
@@ -158,7 +158,7 @@ kubectl port-forward -n obot-system svc/obot-obot 8080:80
 | `aks_node_count` | Number of AKS nodes | `number` | `2` | no |
 | `aks_service_cidr` | CIDR for K8s services (must not overlap VNet) | `string` | `"172.16.0.0/17"` | no |
 | `aks_dns_service_ip` | K8s DNS service IP (must be within `aks_service_cidr`) | `string` | `"172.16.0.10"` | no |
-| `spoke_gateway_subnet_cidr` | Subnet CIDR for Aviatrix spoke gateway | `string` | `"10.1.200.0/26"` | no |
+| `spoke_gateway_subnet_cidr` | Subnet CIDR for Aviatrix Gateway (Policy Enforcement Point) | `string` | `"10.1.200.0/26"` | no |
 | `spoke_gateway_size` | Azure VM size for spoke gateway | `string` | `"Standard_B2ms"` | no |
 | `obot_version` | Obot Helm chart version (>= 0.21.0) | `string` | `"0.21.0"` | no |
 | `npc_chart_version` | aviatrix-network-policy-controller chart version | `string` | `"v0.0.1"` | no |
@@ -172,7 +172,7 @@ kubectl port-forward -n obot-system svc/obot-obot 8080:80
 
 | Output | Description |
 |--------|-------------|
-| `spoke_gateway_name` | Name of the deployed Aviatrix spoke gateway |
+| `spoke_gateway_name` | Name of the deployed Aviatrix Gateway (Policy Enforcement Point) |
 | `spoke_gateway_public_ip` | Public IP of the spoke gateway (all pod egress SNATs to this) |
 | `obot_namespace` | Kubernetes namespace where Obot is deployed |
 | `obot_mcp_namespace` | Kubernetes namespace where Obot deploys MCP server pods |

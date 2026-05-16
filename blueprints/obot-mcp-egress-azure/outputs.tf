@@ -3,13 +3,13 @@
 # =============================================================================
 
 output "spoke_gateway_name" {
-  description = "Name of the deployed Aviatrix spoke gateway"
+  description = "Name of the deployed Aviatrix Gateway (Policy Enforcement Point)"
   value       = aviatrix_spoke_gateway.obot.gw_name
   sensitive   = true
 }
 
 output "spoke_gateway_public_ip" {
-  description = "Public IP (EIP) of the Aviatrix spoke gateway. All MCP server pod egress SNATs to this IP."
+  description = "Public IP (EIP) of the Aviatrix Gateway (Policy Enforcement Point). All MCP server pod egress SNATs to this IP."
   value       = aviatrix_spoke_gateway.obot.eip
   sensitive   = true
 }

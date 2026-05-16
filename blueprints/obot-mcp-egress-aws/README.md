@@ -1,6 +1,6 @@
 # Zero-Trust MCP Egress: Obot on EKS with Aviatrix DCF
 
-Deploy [Obot](https://obot.ai) onto a new EKS cluster with network-layer zero-trust egress enforcement for all MCP server pods. An Aviatrix spoke gateway intercepts outbound traffic; MCPNetworkPolicy CRDs (reconciled by Obot's bundled aviatrix-network-policy-controller) translate per-server allowlists into live FirewallPolicy rules. No sidecars, no service mesh, no code changes required.
+Deploy [Obot](https://obot.ai) onto a new EKS cluster with network-layer zero-trust egress enforcement for all MCP server pods. An Aviatrix Gateway (Policy Enforcement Point) intercepts outbound traffic; MCPNetworkPolicy CRDs (reconciled by Obot's bundled aviatrix-network-policy-controller) translate per-server allowlists into live FirewallPolicy rules. No sidecars, no service mesh, no code changes required.
 
 ## Architecture
 
@@ -54,7 +54,7 @@ The vpc-cni addon is configured with `EXTERNALSNAT=true`, which disables per-nod
 |----------|-------------|----------|
 | AWS VPC | VPC for EKS nodes and spoke gateway | 1 |
 | AWS Subnet (private) | EKS node subnets, one per AZ (/24 each) | 3 |
-| AWS Subnet (public) | Aviatrix spoke gateway subnet (/24) | 1 |
+| AWS Subnet (public) | Aviatrix Gateway (Policy Enforcement Point) subnet (/24) | 1 |
 | AWS Internet Gateway | Provides outbound path for spoke gateway | 1 |
 | AWS Route Table | Public RT for spoke gateway subnet | 1 |
 | AWS Route Table | Private RT for EKS node subnets (routes pod egress via spoke) | 1 |
@@ -62,7 +62,7 @@ The vpc-cni addon is configured with `EXTERNALSNAT=true`, which disables per-nod
 | EKS Managed Node Group | EC2 managed node group (default desired=2; set `node_desired_size=0` to delay startup) | 1 |
 | IAM Role | vpc-cni IRSA role (EXTERNALSNAT=true requires IRSA) | 1 |
 | aws_eks_addon (vpc-cni) | Manages pod networking with EXTERNALSNAT=true | 1 |
-| Aviatrix Spoke Gateway | DCF-enforced egress gateway (no transit required) | 1 |
+| Aviatrix Gateway (Policy Enforcement Point) | DCF-enforced egress gateway (no transit required) | 1 |
 | Aviatrix SmartGroup | MCP server pods (K8s label selector; resolves pod IPs when RBAC is correctly configured) | 1 |
 | Aviatrix SmartGroup | EKS VPC CIDR | 1 |
 | Aviatrix SmartGroup | obot-system namespace (K8s selector, scopes orchestration-tier V1 permits) | 1 |
@@ -112,7 +112,7 @@ terraform apply
 
 > **Note:** If apply fails with `clusterroles.rbac.authorization.k8s.io is forbidden`, re-run `terraform apply`. This is a short EKS access entry propagation delay on first deploy; the second apply succeeds.
 
-`node_desired_size` defaults to `2`. Nodes start during this apply. If the Aviatrix spoke gateway has not yet programmed VPC routes when nodes attempt to bootstrap, nodes may fail with CSE exit 50 (EKS API server unreachable). EKS managed node groups replace failed nodes automatically; re-bootstrap succeeds once routes are in place. See Troubleshooting → EKS nodes fail to bootstrap.
+`node_desired_size` defaults to `2`. Nodes start during this apply. If the Aviatrix Gateway (Policy Enforcement Point) has not yet programmed VPC routes when nodes attempt to bootstrap, nodes may fail with CSE exit 50 (EKS API server unreachable). EKS managed node groups replace failed nodes automatically; re-bootstrap succeeds once routes are in place. See Troubleshooting → EKS nodes fail to bootstrap.
 
 Deployment takes approximately 20-30 minutes (EKS control plane + spoke gateway provisioning are the longest steps).
 

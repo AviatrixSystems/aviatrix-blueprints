@@ -1,6 +1,6 @@
 # =============================================================================
 # Blueprint: obot-mcp-egress-aws
-# Deploys an EKS cluster with Aviatrix spoke gateway and Obot, enforcing
+# Deploys an EKS cluster with Aviatrix Gateway (Policy Enforcement Point) and Obot, enforcing
 # zero-trust egress on all MCP server pods via DCF + MCPNetworkPolicy.
 # =============================================================================
 

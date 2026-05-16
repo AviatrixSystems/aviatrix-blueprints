@@ -19,13 +19,13 @@ output "eks_nodegroup_name" {
 }
 
 output "spoke_gateway_name" {
-  description = "Name of the deployed Aviatrix spoke gateway"
+  description = "Name of the deployed Aviatrix Gateway (Policy Enforcement Point)"
   value       = module.spoke.spoke_gateway.gw_name
   sensitive   = true
 }
 
 output "spoke_gateway_public_ip" {
-  description = "Public IP of the Aviatrix spoke gateway. All MCP server pod egress SNATs to this IP."
+  description = "Public IP of the Aviatrix Gateway (Policy Enforcement Point). All MCP server pod egress SNATs to this IP."
   value       = module.spoke.spoke_gateway.eip
   sensitive   = true
 }

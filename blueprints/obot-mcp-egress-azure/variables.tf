@@ -135,7 +135,7 @@ variable "aks_kubernetes_version" {
 # -----------------------------------------------------------------------------
 
 variable "spoke_gateway_subnet_cidr" {
-  description = "CIDR for the Aviatrix spoke gateway subnet. Must be within vnet_address_space and must not overlap with aks_subnet_cidr. A /26 is sufficient."
+  description = "CIDR for the Aviatrix Gateway (Policy Enforcement Point) subnet. Must be within vnet_address_space and must not overlap with aks_subnet_cidr. A /26 is sufficient."
   type        = string
   default     = "10.1.200.0/26"
 
@@ -146,7 +146,7 @@ variable "spoke_gateway_subnet_cidr" {
 }
 
 variable "spoke_gateway_size" {
-  description = "Azure VM size for the Aviatrix spoke gateway"
+  description = "Azure VM size for the Aviatrix Gateway (Policy Enforcement Point)"
   type        = string
   default     = "Standard_B2ms"
 }
