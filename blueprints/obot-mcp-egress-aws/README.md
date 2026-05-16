@@ -15,6 +15,12 @@ Traffic flow:
 
 The vpc-cni addon is configured with `EXTERNALSNAT=true`, which disables per-node SNAT and ensures the spoke gateway sees original pod IPs. SmartGroups resolve pod identities via Kubernetes label selectors; however, see the EKS Limitation section below.
 
+## Enforcement Model
+
+![Enforcement Flow](../../docs/diagrams/enforcement-flow.svg)
+
+The Aviatrix Gateway (Policy Enforcement Point) intercepts all pod egress at the network layer. The `aviatrix-network-policy-controller` (bundled with Obot) watches `MCPNetworkPolicy` objects and reconciles them into `FirewallPolicy` CRDs. The Aviatrix controller pushes those policies to the spoke gateway, which enforces FQDN-based allow/deny without modifying pods or requiring a service mesh.
+
 ## Scope and Limitations
 
 - **Supported MCP runtimes:** `npx`, `uvx`, and containerized servers only. Stdio-mode servers are not covered.
