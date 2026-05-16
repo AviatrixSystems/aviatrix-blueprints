@@ -28,9 +28,7 @@ resource "aviatrix_distributed_firewalling_config" "enabled" {
 }
 
 # Enable the five feature flags required for Kubernetes CRD enforcement.
-# These flags reset on controller reboot — the null_resource ensures they
-# are re-applied on every `terraform apply`. Without k8s_discovery and
-# log_enrichment, CoPilot cannot resolve pod IPs to Kubernetes workloads,
+# Without k8s_discovery and log_enrichment, CoPilot cannot resolve pod IPs to Kubernetes workloads,
 # causing SmartGroup label-based matching to silently fail.
 resource "null_resource" "k8s_dcf_features" {
   triggers = {

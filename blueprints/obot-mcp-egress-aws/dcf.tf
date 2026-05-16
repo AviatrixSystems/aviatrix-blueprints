@@ -41,7 +41,7 @@ resource "aviatrix_distributed_firewalling_config" "enabled" {
   enable_distributed_firewalling = true
 }
 
-# Re-enable 5 DCF feature flags (reset on controller reboot).
+# Enable the five feature flags required for Kubernetes CRD enforcement.
 resource "null_resource" "k8s_dcf_features" {
   triggers = { controller_ip = var.controller_ip }
 
