@@ -29,7 +29,7 @@ The Aviatrix Gateway (Policy Enforcement Point) intercepts all pod egress at the
 - **Domain format:** `egressDomains` entries must be bare hostnames. No protocols (`https://`), paths, ports, or IP addresses. `localhost` and `*.svc` cluster-local names are rejected by Obot at admission. Wildcard prefix notation is supported (e.g., `*.anthropic.com`).
 - **EKS K8s SmartGroup resolution requires correct RBAC setup.** CoPilot authenticates to EKS using `aviatrix-role-app` (not `aviatrix-role-ec2`). The blueprint creates an EKS access entry for `aviatrix-role-app` with `AmazonEKSClusterAdminPolicy` plus `view-nodes` and `aviatrix-crd-view` ClusterRoles. If the cluster shows "Partial" after deploy, verify `aviatrix_app_role_arn` points to the correct role ARN and re-toggle "Enforcement on Kubernetes" in CoPilot. Per-pod enforcement via `FirewallPolicy` CRDs and `K8S_POLICY_LIST` works correctly (confirmed: permitted domains pass, non-permitted domains blocked).
 - **Obot-specific domains are scoped to the `obot-system` namespace.** The blueprint creates a V1 permit SmartGroup using a K8s namespace selector (`k8s_namespace = var.obot_namespace`). This restricts the permit covering `api.anthropic.com`, GitHub, and `charts.obot.ai` to orchestration pods only. MCP server pods in `obot-mcp` do not match this rule and cannot reach those domains unless declared in `egressDomains`.
-- **`npx` runtime servers require `registry.npmjs.org` in `egressDomains`.** The npx shim downloads the package from npm at pod startup. A server deployed without `registry.npmjs.org` in its `egressDomains` will have its `mcp` container fail (package download blocked) while the `shim` container stays running. This is intentional: zero-trust requires explicit declaration of every outbound dependency, including package registries.
+- `**npx` runtime servers require `registry.npmjs.org` in `egressDomains`.** The npx shim downloads the package from npm at pod startup. A server deployed without `registry.npmjs.org` in its `egressDomains` will have its `mcp` container fail (package download blocked) while the `shim` container stays running. This is intentional: zero-trust requires explicit declaration of every outbound dependency, including package registries.
 - **Node bootstrap race with spoke gateway.** `node_desired_size` defaults to `2`. EKS nodes that start before the Aviatrix spoke gateway programs the VPC route tables fail to bootstrap (CSE exit 50, unreachable API server). EKS managed node groups replace failed nodes automatically; re-bootstrap succeeds once routes are in place. Set `node_desired_size = 0` in `terraform.tfvars` if you need to avoid this race (then use Step 4 to scale up after the apply).
 
 ## Prerequisites
@@ -46,7 +46,7 @@ The Aviatrix Gateway (Policy Enforcement Point) intercepts all pod egress at the
 
 - AWS account with permissions to create VPCs, subnets, IAM roles, EKS clusters, and managed node groups
 - Aviatrix Controller with an AWS access account (`aws_access_account`) already onboarded
-- IAM permissions: `eks:*`, `ec2:*`, `iam:CreateRole`, `iam:AttachRolePolicy`, `iam:PassRole`
+- IAM permissions: `eks:`*, `ec2:*`, `iam:CreateRole`, `iam:AttachRolePolicy`, `iam:PassRole`
 
 ### Blueprint-Specific Requirements
 
@@ -56,38 +56,40 @@ The Aviatrix Gateway (Policy Enforcement Point) intercepts all pod egress at the
 
 ## Resources Created
 
-| Resource | Description | Quantity |
-|----------|-------------|----------|
-| AWS VPC | VPC for EKS nodes and spoke gateway | 1 |
-| AWS Subnet (private) | EKS node subnets, one per AZ (/24 each) | 3 |
-| AWS Subnet (public) | Aviatrix Gateway (Policy Enforcement Point) subnet (/24) | 1 |
-| AWS Internet Gateway | Provides outbound path for spoke gateway | 1 |
-| AWS Route Table | Public RT for spoke gateway subnet | 1 |
-| AWS Route Table | Private RT for EKS node subnets (routes pod egress via spoke) | 1 |
-| EKS Cluster | EKS cluster with vpc-cni (EXTERNALSNAT=true) | 1 |
-| EKS Managed Node Group | EC2 managed node group (default desired=2; set `node_desired_size=0` to delay startup) | 1 |
-| IAM Role | vpc-cni IRSA role (EXTERNALSNAT=true requires IRSA) | 1 |
-| aws_eks_addon (vpc-cni) | Manages pod networking with EXTERNALSNAT=true | 1 |
-| Aviatrix Gateway (Policy Enforcement Point) | DCF-enforced egress gateway (no transit required) | 1 |
-| Aviatrix SmartGroup | MCP server pods (K8s label selector; resolves pod IPs when RBAC is correctly configured) | 1 |
-| Aviatrix SmartGroup | EKS VPC CIDR | 1 |
-| Aviatrix SmartGroup | obot-system namespace (K8s selector, scopes orchestration-tier V1 permits) | 1 |
-| Aviatrix SmartGroup | obot-mcp pod /32 CIDRs (conditional on var) | 1 |
-| Aviatrix WebGroup | EKS infrastructure egress domains (ECR, S3, SSM, EC2, EKS endpoints, charts.obot.ai) | 1 |
-| Aviatrix WebGroup | Obot application domains (Anthropic, GitHub) | 1 |
-| Aviatrix DCF Policy List | V1 infrastructure permits (P1: infra, P2: obot-system, P3: obot-mcp deny conditional) | 1 |
-| Aviatrix DCF Default Action | Deny-all at POST_RULES level | 1 |
-| CoPilot Association | null_resource to associate spoke with CoPilot | 1 |
-| Remote Syslog | Index 9, UDP 5000 to CoPilot private IP | 1 |
-| Kubernetes Namespace | Obot system namespace | 1 |
-| Kubernetes Namespace | Obot MCP server namespace | 1 |
-| Helm Release | k8s-firewall (Aviatrix CRDs: FirewallPolicy + WebgroupPolicy; no pods) | 1 |
-| Helm Release | Obot platform (embedded SQLite, NPC self-managed) | 1 |
-| EKS Access Entry | `aviatrix-role-app` with `AmazonEKSClusterAdminPolicy` (CoPilot K8s API auth) | 1 |
-| Kubernetes ClusterRole | `view-nodes` (node enumeration for CoPilot) | 1 |
-| Kubernetes ClusterRole | `aviatrix-crd-view` (CRD list/watch for `networking.aviatrix.com`) | 1 |
 
-**Estimated Cost**: ~$0.15-0.25/hour for the spoke gateway EC2 instance plus EKS node costs (~$0.10-0.20/hour for m5.large at 2 nodes). EKS control plane: $0.10/hour.
+| Resource                                    | Description                                                                              | Quantity |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------- | -------- |
+| AWS VPC                                     | VPC for EKS nodes and spoke gateway                                                      | 1        |
+| AWS Subnet (private)                        | EKS node subnets, one per AZ (/24 each)                                                  | 3        |
+| AWS Subnet (public)                         | Aviatrix Gateway (Policy Enforcement Point) subnet (/24)                                 | 1        |
+| AWS Internet Gateway                        | Provides outbound path for spoke gateway                                                 | 1        |
+| AWS Route Table                             | Public RT for spoke gateway subnet                                                       | 1        |
+| AWS Route Table                             | Private RT for EKS node subnets (routes pod egress via spoke)                            | 1        |
+| EKS Cluster                                 | EKS cluster with vpc-cni (EXTERNALSNAT=true)                                             | 1        |
+| EKS Managed Node Group                      | EC2 managed node group (default desired=2; set `node_desired_size=0` to delay startup)   | 1        |
+| IAM Role                                    | vpc-cni IRSA role (EXTERNALSNAT=true requires IRSA)                                      | 1        |
+| aws_eks_addon (vpc-cni)                     | Manages pod networking with EXTERNALSNAT=true                                            | 1        |
+| Aviatrix Gateway (Policy Enforcement Point) | DCF-enforced egress gateway (no transit required)                                        | 1        |
+| Aviatrix SmartGroup                         | MCP server pods (K8s label selector; resolves pod IPs when RBAC is correctly configured) | 1        |
+| Aviatrix SmartGroup                         | EKS VPC CIDR                                                                             | 1        |
+| Aviatrix SmartGroup                         | obot-system namespace (K8s selector, scopes orchestration-tier V1 permits)               | 1        |
+| Aviatrix SmartGroup                         | obot-mcp pod /32 CIDRs (conditional on var)                                              | 1        |
+| Aviatrix WebGroup                           | EKS infrastructure egress domains (ECR, S3, SSM, EC2, EKS endpoints, charts.obot.ai)     | 1        |
+| Aviatrix WebGroup                           | Obot application domains (Anthropic, GitHub)                                             | 1        |
+| Aviatrix DCF Policy List                    | V1 infrastructure permits (P1: infra, P2: obot-system, P3: obot-mcp deny conditional)    | 1        |
+| Aviatrix DCF Default Action                 | Deny-all at POST_RULES level                                                             | 1        |
+| CoPilot Association                         | null_resource to associate spoke with CoPilot                                            | 1        |
+| Remote Syslog                               | Index 9, UDP 5000 to CoPilot private IP                                                  | 1        |
+| Kubernetes Namespace                        | Obot system namespace                                                                    | 1        |
+| Kubernetes Namespace                        | Obot MCP server namespace                                                                | 1        |
+| Helm Release                                | k8s-firewall (Aviatrix CRDs: FirewallPolicy + WebgroupPolicy; no pods)                   | 1        |
+| Helm Release                                | Obot platform (embedded SQLite, NPC self-managed)                                        | 1        |
+| EKS Access Entry                            | `aviatrix-role-app` with `AmazonEKSClusterAdminPolicy` (CoPilot K8s API auth)            | 1        |
+| Kubernetes ClusterRole                      | `view-nodes` (node enumeration for CoPilot)                                              | 1        |
+| Kubernetes ClusterRole                      | `aviatrix-crd-view` (CRD list/watch for `networking.aviatrix.com`)                       | 1        |
+
+
+**Estimated Cost**: ~~$0.15-0.25/hour for the spoke gateway EC2 instance plus EKS node costs (~~$0.10-0.20/hour for m5.large at 2 nodes). EKS control plane: $0.10/hour.
 
 > **Storage note:** This blueprint uses Obot's embedded SQLite (`dev.useEmbeddedDb: true`), which stores data on an EBS-backed PVC (gp3, 8 GiB). This is appropriate for lab and demo use. For production, replace with an external Postgres database: set `OBOT_SERVER_DSN` to your RDS or Aurora endpoint in the Obot Helm values and remove `dev.useEmbeddedDb: true`. Doing so eliminates the EBS PVC and the aws-ebs-csi-driver dependency, at the cost of an additional RDS instance (~$0.02–0.05/hr for t3.micro).
 
@@ -176,43 +178,48 @@ kubectl port-forward -n obot-system svc/obot-obot 8080:80
 
 ## Variables
 
-| Variable | Description | Type | Default | Required |
-|----------|-------------|------|---------|----------|
-| `controller_ip` | Aviatrix Controller IP or hostname | `string` | n/a | yes |
-| `controller_username` | Controller admin username | `string` | `"admin"` | no |
-| `controller_password` | Controller admin password | `string` | n/a | yes |
-| `aws_access_account` | AWS access account name onboarded in Controller | `string` | n/a | yes |
-| `aviatrix_app_role_arn` | ARN of the `aviatrix-role-app` IAM role (find under IAM > Roles > aviatrix-role-app). Used as the EKS access entry principal (`AmazonEKSClusterAdminPolicy`) so CoPilot can authenticate to the K8s API and read cluster state. | `string` | n/a | yes |
-| `copilot_private_ip` | CoPilot private IP (syslog) | `string` | n/a | yes |
-| `copilot_public_ip` | CoPilot public IP (OTEL/DCF Monitor) | `string` | n/a | yes |
-| `obot_admin_password` | Obot admin password | `string` | n/a | yes |
-| `aws_region` | AWS region for all resources | `string` | `"us-east-1"` | no |
-| `vpc_cidr` | VPC CIDR block (private subnets are /24 slices; public subnet for spoke GW is /24) | `string` | `"10.10.0.0/16"` | no |
-| `cluster_version` | Kubernetes version for the EKS cluster | `string` | `"1.32"` | no |
-| `node_instance_type` | EC2 instance type for EKS managed node group | `string` | `"m5.large"` | no |
-| `node_desired_size` | Desired node count (default 2; set to 0 to delay node startup past spoke gateway provision) | `number` | `2` | no |
-| `node_max_size` | Maximum number of EKS nodes | `number` | `4` | no |
-| `obot_version` | Obot Helm chart version (>= 0.21.0) | `string` | `"0.21.0"` | no |
-| `npc_chart_version` | aviatrix-network-policy-controller chart version | `string` | `"v0.0.1"` | no |
-| `obot_namespace` | Kubernetes namespace for Obot | `string` | `"obot-system"` | no |
-| `obot_mcp_namespace` | Kubernetes namespace for MCP server pods | `string` | `"obot-mcp"` | no |
-| `obot_mcp_pod_cidrs` | Optional `/32` CIDRs for obot-mcp pods; creates an explicit V1 DENY SmartGroup alongside Default Action deny-all | `list(string)` | `[]` | no |
-| `name_prefix` | Prefix for all created resource names | `string` | `"obot-mcp"` | no |
-| `copilot_syslog_index` | Remote syslog index slot on the Controller (0-9); must be free. Verify the slot is free: in the Aviatrix Controller UI, go to Settings > Logging > Remote Syslog and confirm no entry occupies the chosen slot before applying. | `number` | `9` | no |
+
+| Variable                | Description                                                                                                                                                                                                                     | Type           | Default          | Required |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ---------------- | -------- |
+| `controller_ip`         | Aviatrix Controller IP or hostname                                                                                                                                                                                              | `string`       | n/a              | yes      |
+| `controller_username`   | Controller admin username                                                                                                                                                                                                       | `string`       | `"admin"`        | no       |
+| `controller_password`   | Controller admin password                                                                                                                                                                                                       | `string`       | n/a              | yes      |
+| `aws_access_account`    | AWS access account name onboarded in Controller                                                                                                                                                                                 | `string`       | n/a              | yes      |
+| `aviatrix_app_role_arn` | ARN of the `aviatrix-role-app` IAM role (find under IAM > Roles > aviatrix-role-app). Used as the EKS access entry principal (`AmazonEKSClusterAdminPolicy`) so CoPilot can authenticate to the K8s API and read cluster state. | `string`       | n/a              | yes      |
+| `copilot_private_ip`    | CoPilot private IP (syslog)                                                                                                                                                                                                     | `string`       | n/a              | yes      |
+| `copilot_public_ip`     | CoPilot public IP (OTEL/DCF Monitor)                                                                                                                                                                                            | `string`       | n/a              | yes      |
+| `obot_admin_password`   | Obot admin password                                                                                                                                                                                                             | `string`       | n/a              | yes      |
+| `aws_region`            | AWS region for all resources                                                                                                                                                                                                    | `string`       | `"us-east-1"`    | no       |
+| `vpc_cidr`              | VPC CIDR block (private subnets are /24 slices; public subnet for spoke GW is /24)                                                                                                                                              | `string`       | `"10.10.0.0/16"` | no       |
+| `cluster_version`       | Kubernetes version for the EKS cluster                                                                                                                                                                                          | `string`       | `"1.32"`         | no       |
+| `node_instance_type`    | EC2 instance type for EKS managed node group                                                                                                                                                                                    | `string`       | `"m5.large"`     | no       |
+| `node_desired_size`     | Desired node count (default 2; set to 0 to delay node startup past spoke gateway provision)                                                                                                                                     | `number`       | `2`              | no       |
+| `node_max_size`         | Maximum number of EKS nodes                                                                                                                                                                                                     | `number`       | `4`              | no       |
+| `obot_version`          | Obot Helm chart version (>= 0.21.0)                                                                                                                                                                                             | `string`       | `"0.21.0"`       | no       |
+| `npc_chart_version`     | aviatrix-network-policy-controller chart version                                                                                                                                                                                | `string`       | `"v0.0.1"`       | no       |
+| `obot_namespace`        | Kubernetes namespace for Obot                                                                                                                                                                                                   | `string`       | `"obot-system"`  | no       |
+| `obot_mcp_namespace`    | Kubernetes namespace for MCP server pods                                                                                                                                                                                        | `string`       | `"obot-mcp"`     | no       |
+| `obot_mcp_pod_cidrs`    | Optional `/32` CIDRs for obot-mcp pods; creates an explicit V1 DENY SmartGroup alongside Default Action deny-all                                                                                                                | `list(string)` | `[]`             | no       |
+| `name_prefix`           | Prefix for all created resource names                                                                                                                                                                                           | `string`       | `"obot-mcp"`     | no       |
+| `copilot_syslog_index`  | Remote syslog index slot on the Controller (0-9); must be free. Verify the slot is free: in the Aviatrix Controller UI, go to Settings > Logging > Remote Syslog and confirm no entry occupies the chosen slot before applying. | `number`       | `9`              | no       |
+
 
 ## Outputs
 
-| Output | Description |
-|--------|-------------|
-| `eks_cluster_name` | Name of the deployed EKS cluster |
-| `eks_nodegroup_name` | Name of the EKS managed node group (use with `aws eks update-nodegroup-config`) |
-| `spoke_gateway_name` | Name of the deployed Aviatrix spoke gateway (**sensitive** — use `terraform output -raw`) |
+
+| Output                    | Description                                                                                          |
+| ------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `eks_cluster_name`        | Name of the deployed EKS cluster                                                                     |
+| `eks_nodegroup_name`      | Name of the EKS managed node group (use with `aws eks update-nodegroup-config`)                      |
+| `spoke_gateway_name`      | Name of the deployed Aviatrix spoke gateway (**sensitive** — use `terraform output -raw`)            |
 | `spoke_gateway_public_ip` | Public IP of the spoke gateway (**sensitive** — use `terraform output -raw spoke_gateway_public_ip`) |
-| `next_steps` | Post-deployment instructions |
+| `next_steps`              | Post-deployment instructions                                                                         |
+
 
 ## Test Scenarios
 
 > **Prerequisite:** Complete Steps 4–5 (scale up nodes, enable DCF Kubernetes Enforcement in CoPilot) before running these scenarios. Port-forward Obot before any API calls:
+>
 > ```bash
 > kubectl port-forward -n obot-system svc/obot-obot 8080:80
 > # If 8080 is taken: kubectl port-forward -n obot-system svc/obot-obot 8081:80
@@ -417,14 +424,16 @@ EKS uses the AWS CLI as a credential exec plugin. Ensure:
 
 ## Tested With
 
-| Component | Version |
-|-----------|---------|
-| Aviatrix Controller | 8.2.x |
-| Aviatrix Terraform Provider | 8.2.0 |
-| Terraform | 1.9.x |
-| AWS Provider | 5.x |
-| EKS | 1.32 |
-| Obot | 0.21.0 |
+
+| Component                   | Version |
+| --------------------------- | ------- |
+| Aviatrix Controller         | 8.2.x   |
+| Aviatrix Terraform Provider | 8.2.0   |
+| Terraform                   | 1.9.x   |
+| AWS Provider                | 5.x     |
+| EKS                         | 1.32    |
+| Obot                        | 0.21.0  |
+
 
 ## Built With
 
