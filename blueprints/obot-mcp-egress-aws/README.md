@@ -3,7 +3,7 @@
 Deploy [Obot](https://obot.ai) onto a new EKS cluster with network-layer zero-trust egress enforcement for all MCP server pods. An Aviatrix Gateway (Policy Enforcement Point) intercepts outbound traffic; MCPNetworkPolicy CRDs (reconciled by Obot's bundled aviatrix-network-policy-controller) translate per-server allowlists into live FirewallPolicy rules. No sidecars, no service mesh, no code changes required.
 
 > [!TIP]
-> **Deploying with an AI agent?** This blueprint includes [`AGENTS.md`](AGENTS.md) — a machine-readable guide with required variables, exact deploy commands, verification steps, and common errors. Works with Claude Code, Codex, Cursor, and Gemini CLI.
+> **Deploying with an AI agent?** This blueprint includes [`AGENTS.md`](AGENTS.md): a machine-readable guide with required variables, exact deploy commands, verification steps, and common errors. Works with Claude Code, Codex, Cursor, and Gemini CLI.
 
 ## Architecture
 
@@ -43,7 +43,7 @@ The Aviatrix Gateway (Policy Enforcement Point) intercepts all pod egress at the
 - [Terraform](../../docs/prerequisites/terraform.md) (v1.5+)
 - [AWS CLI](../../docs/prerequisites/aws-cli.md), authenticated (`aws configure` or equivalent)
 - [kubectl](../../docs/prerequisites/kubectl.md), configured for your cluster (EKS authentication uses the AWS CLI exec plugin)
-- **Python 3** — required by `local-exec` provisioners for JSON parsing (`curl | python3 -c`)
+- **Python 3**: required by `local-exec` provisioners for JSON parsing (`curl | python3 -c`)
 
 ### Required Access
 
@@ -135,7 +135,7 @@ Skip this step if `node_desired_size` was left at the default of `2`. If you ove
 terraform output next_steps
 ```
 
-Or run it directly. The EKS module appends a timestamp to the node group name — use the output rather than hardcoding `system`:
+Or run it directly. The EKS module appends a timestamp to the node group name; use the output rather than hardcoding `system`:
 
 ```bash
 aws eks update-nodegroup-config \
@@ -155,7 +155,7 @@ kubectl get nodes -w
 
 Three settings are automated by Terraform during `terraform apply`. Verify after deploy:
 
-1. **DCF Kubernetes Enforcement**: automated by `null_resource.k8s_dcf_features` (controller feature flags) — verify in CoPilot -> DCF -> Settings -> Enforcement on Kubernetes (should show Enabled)
+1. **DCF Kubernetes Enforcement**: automated by `null_resource.k8s_dcf_features` (controller feature flags): verify in CoPilot -> DCF -> Settings -> Enforcement on Kubernetes (should show Enabled)
 2. **Log Enrichment** (for pod-level FlowIQ identity): automated by `null_resource.k8s_dcf_features` — verify in CoPilot -> DCF -> Settings -> Log Enrichment (should show On)
 3. **CoPilot K8s cluster onboarding**: automated by `null_resource.copilot_k8s_onboard` — verify in CoPilot -> Cloud Resources -> Cloud Workloads -> Kubernetes Clusters (obot-qa-cluster should show as onboarded with pod count populated)
 
@@ -214,8 +214,8 @@ kubectl port-forward -n obot-system svc/obot-obot 8080:80
 | ------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `eks_cluster_name`        | Name of the deployed EKS cluster                                                                     |
 | `eks_nodegroup_name`      | Name of the EKS managed node group (use with `aws eks update-nodegroup-config`)                      |
-| `spoke_gateway_name`      | Name of the deployed Aviatrix spoke gateway (**sensitive** — use `terraform output -raw`)            |
-| `spoke_gateway_public_ip` | Public IP of the spoke gateway (**sensitive** — use `terraform output -raw spoke_gateway_public_ip`) |
+| `spoke_gateway_name`      | Name of the deployed Aviatrix spoke gateway (**sensitive**; use `terraform output -raw`)            |
+| `spoke_gateway_public_ip` | Public IP of the spoke gateway (**sensitive**; use `terraform output -raw spoke_gateway_public_ip`) |
 | `next_steps`              | Post-deployment instructions                                                                         |
 
 
@@ -230,7 +230,7 @@ kubectl port-forward -n obot-system svc/obot-obot 8080:80
 
 ### Step 0: Deploy a Test MCP Server
 
-Create an MCP server via the Obot API (or Obot UI — navigate to `http://localhost:8080`, go to MCP Servers, and add a server with the desired `egressDomains`):
+Create an MCP server via the Obot API (or Obot UI: navigate to `http://localhost:8080`, go to MCP Servers, and add a server with the desired `egressDomains`):
 
 ```bash
 # Create a server with registry.npmjs.org permitted (required for npx package download)
@@ -245,11 +245,11 @@ echo "Server ID: $SERVER_ID"
 # Launch the server (required after every create or update)
 curl -s -X POST http://localhost:8080/api/mcp-servers/${SERVER_ID}/launch
 # Note: the launch command may return a CrashLoopBackOff error for
-# @modelcontextprotocol/server-filesystem — this is expected (the server requires
+# @modelcontextprotocol/server-filesystem; this is expected (the server requires
 # directory arguments to stay running). The shim container used for egress testing
 # (${SERVER_ID}-shim) starts and stays running independently.
 
-# Wait for pod to start (shim container starts; mcp container may stay 1/2 — this is normal for filesystem server without dir args)
+# Wait for pod to start (shim container starts; mcp container may stay 1/2; this is normal for filesystem server without dir args)
 kubectl get pods -n obot-mcp -w
 ```
 
@@ -286,7 +286,7 @@ Check CoPilot → DCF → Monitor to see the denied flow logged with source pod 
 
 ### Scenario 3: Update egressDomains and Verify New Domain is Permitted
 
-`MCPNetworkPolicy` is an internal Obot concept; there is no user-facing Kubernetes CRD to apply. Configure `egressDomains` via the Obot API — Obot creates the MCPNetworkPolicy internally; the NPC reconciles it into a `FirewallPolicy` CRD before the pod restarts.
+`MCPNetworkPolicy` is an internal Obot concept; there is no user-facing Kubernetes CRD to apply. Configure `egressDomains` via the Obot API; Obot creates the MCPNetworkPolicy internally; the NPC reconciles it into a `FirewallPolicy` CRD before the pod restarts.
 
 ```bash
 # Add api.openai.com to egressDomains (PUT uses unwrapped manifest, no wrapper)
@@ -419,7 +419,7 @@ K8s label SmartGroups resolve correctly on fresh deploy (confirmed 2026-05-13). 
 
 ### kubectl cannot authenticate to the cluster
 
-EKS uses the AWS CLI as a credential exec plugin. Ensure:
+EKS uses the AWS CLI as a credential exec plugin. Requirements:
 
 1. AWS CLI is installed and on `PATH`.
 2. The IAM identity used by the CLI has `eks:DescribeCluster` permission.

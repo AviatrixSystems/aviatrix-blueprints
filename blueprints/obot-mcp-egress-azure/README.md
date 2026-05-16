@@ -3,7 +3,7 @@
 Deploy [Obot](https://obot.ai) onto a new AKS cluster with network-layer zero-trust egress enforcement for all MCP server pods. An Aviatrix Gateway (Policy Enforcement Point) intercepts outbound traffic; MCPNetworkPolicy CRDs (reconciled by Obot's bundled aviatrix-network-policy-controller) translate per-server allowlists into live FirewallPolicy rules. No sidecars, no service mesh, no code changes required.
 
 > [!TIP]
-> **Deploying with an AI agent?** This blueprint includes [`AGENTS.md`](AGENTS.md) — a machine-readable guide with required variables, exact deploy commands, verification steps, and common errors. Works with Claude Code, Codex, Cursor, and Gemini CLI.
+> **Deploying with an AI agent?** This blueprint includes [`AGENTS.md`](AGENTS.md): a machine-readable guide with required variables, exact deploy commands, verification steps, and common errors. Works with Claude Code, Codex, Cursor, and Gemini CLI.
 
 ## Architecture
 
@@ -42,7 +42,7 @@ The Aviatrix Gateway (Policy Enforcement Point) intercepts all pod egress at the
 - [Terraform](../../docs/prerequisites/terraform.md) (v1.5+)
 - [Azure CLI](../../docs/prerequisites/azure-cli.md), authenticated (`az login`)
 - [kubectl](../../docs/prerequisites/kubectl.md), configured for your cluster
-- **Python 3** — required by `local-exec` provisioners for JSON parsing (`curl | python3 -c`)
+- **Python 3**: required by `local-exec` provisioners for JSON parsing (`curl | python3 -c`)
 
 ### Required Access
 
@@ -125,9 +125,9 @@ Deployment takes approximately 15–20 minutes (spoke gateway provisioning is th
 
 All three items are automated by Terraform during `terraform apply`. Verify after deploy:
 
-1. **DCF Kubernetes Enforcement**: automated by `null_resource.k8s_dcf_features` — verify in CoPilot → DCF → Settings → Enforcement on Kubernetes (should show Enabled)
-2. **Log Enrichment** (for pod-level FlowIQ identity): automated by `null_resource.k8s_dcf_features` — verify in CoPilot → DCF → Settings → Log Enrichment (should show On)
-3. **Kubernetes Clusters Onboarding**: automated by `aviatrix_kubernetes_cluster.aks` — verify in CoPilot → Cloud Resources → Cloud Workloads → Kubernetes Clusters (the AKS cluster should show as onboarded with pod count populated)
+1. **DCF Kubernetes Enforcement**: automated by `null_resource.k8s_dcf_features`: verify in CoPilot → DCF → Settings → Enforcement on Kubernetes (should show Enabled)
+2. **Log Enrichment** (for pod-level FlowIQ identity): automated by `null_resource.k8s_dcf_features`: verify in CoPilot → DCF → Settings → Log Enrichment (should show On)
+3. **Kubernetes Clusters Onboarding**: automated by `aviatrix_kubernetes_cluster.aks`: verify in CoPilot → Cloud Resources → Cloud Workloads → Kubernetes Clusters (the AKS cluster should show as onboarded with pod count populated)
 
 ### Step 5: Verify Deployment
 
@@ -318,7 +318,7 @@ terraform output -raw spoke_gateway_public_ip
 
 The `FirewallPolicy` CRD is installed by the Aviatrix controller when DCF Kubernetes Enforcement is activated. The `aviatrix-network-policy-controller` cannot reconcile MCPNetworkPolicy objects until the CRD exists, and will log this error in a requeue loop.
 
-1. The `firewallpolicies.networking.aviatrix.com` CRD is installed by the `k8s-firewall` Helm chart (part of this blueprint's `terraform apply`) — if missing, the chart may have failed; check: `helm list -n aviatrix-system`
+1. The `firewallpolicies.networking.aviatrix.com` CRD is installed by the `k8s-firewall` Helm chart (part of this blueprint's `terraform apply`); if missing, the chart may have failed; check: `helm list -n aviatrix-system`
 2. The NPC error loop resolves automatically within 30–60 seconds once the CRD exists
 3. Verify: `kubectl get crds | grep networking.aviatrix.com`
 
