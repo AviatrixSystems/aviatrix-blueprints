@@ -77,9 +77,9 @@
 </g>
 </g>
 <g class="connections">
-<g class="connection"><path d="M 128 228 L 338 228 L 338 156 L 600 156" fill="none" stroke="#10b981"
+<g class="connection"><path d="M 128 228 L 287 228 L 287 156 L 600 156" fill="none" stroke="#10b981"
             stroke-width="1.5"  marker-end="url(#arrow-end)" stroke-linecap="round" stroke-linejoin="round"/></g>
-<g class="connection"><path d="M 128 418 L 348 418 L 348 162 L 600 162 L 600 156" fill="none" stroke="#C62828"
+<g class="connection"><path d="M 128 418 L 297 418 L 297 162 L 600 162 L 600 156" fill="none" stroke="#C62828"
             stroke-width="1.5"  marker-end="url(#arrow-end)" stroke-linecap="round" stroke-linejoin="round"/></g>
 <g class="connection"><path d="M 600 156 L 862 156 L 862 228 L 1100 228" fill="none" stroke="#10b981"
             stroke-width="1.5"  marker-end="url(#arrow-end)" stroke-linecap="round" stroke-linejoin="round"/></g>
