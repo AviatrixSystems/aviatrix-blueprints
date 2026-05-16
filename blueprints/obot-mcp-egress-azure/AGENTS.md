@@ -20,7 +20,16 @@ All variables must be set in `terraform.tfvars` before deploying.
 | `copilot_public_ip` | CoPilot VM public IP — same VM → Overview | `52.2.3.4` |
 | `obot_admin_password` | Set any strong password; becomes the Obot admin credential | (sensitive — never commit to git) |
 
-**Non-obvious optional:** `copilot_syslog_index` defaults to `9`. Verify slot 9 is free before applying: Controller UI → Settings → Logging → Remote Syslog → confirm slot 9 is empty.
+**Non-obvious optional — `aks_kube_config`:** Defaults to `""` but required for K8S_POLICY_LIST per-pod enforcement. Without it, enforcement falls back to subnet-level only. Get the value with:
+```bash
+export TF_VAR_aks_kube_config=$(az aks get-credentials \
+  --resource-group <resource_group_name> \
+  --name <aks_cluster_name> \
+  --admin --file - 2>/dev/null)
+```
+Set before running `terraform apply` for full per-pod enforcement.
+
+**Non-obvious optional — `copilot_syslog_index`:** defaults to `9`. Verify slot 9 is free before applying: Controller UI → Settings → Logging → Remote Syslog → confirm slot 9 is empty.
 
 ## Deploy Sequence
 

@@ -68,13 +68,22 @@ Fix: re-run terraform apply — second run succeeds (idempotent)
 ```
 Error: EKS nodes NotReady / kubectl shows CSE exit 50
 Cause: nodes started before spoke gateway programmed VPC route tables (bootstrap race)
-Fix: wait — EKS managed node group replaces failed nodes automatically once routes are in place; no action required
+Fix: terminate the stuck node instance to speed up replacement:
+  aws ec2 terminate-instances --instance-ids <instance-id>
+  EKS managed node group re-launches it once spoke gateway routes are in place.
+  Alternatively, wait — replacement is automatic but slower.
 ```
 
 ```
 Error: no matches for kind 'FirewallPolicy' in group 'networking.aviatrix.com'
 Cause: k8s-firewall Helm release failed during apply
 Fix: terraform apply -target=helm_release.aviatrix_crds
+```
+
+```
+Error: cannot re-use a name that is still in use
+Cause: previous terraform apply left the obot Helm release in failed state
+Fix: helm uninstall obot -n obot-system && terraform apply
 ```
 
 ## Constraints
