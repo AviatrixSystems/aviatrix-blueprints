@@ -95,7 +95,7 @@ Fix: re-run terraform apply (re-runs null_resource.k8s_dcf_features); verify CoP
 
 ## Constraints
 
-- Azure has no Internet Gateway concept. Pod egress routes via the AKS node subnet UDR → Aviatrix Gateway EIP. The gateway subnet has a direct default route to Internet.
+- Azure has no Internet Gateway concept. Pod egress routes via the AKS node subnet UDR → Aviatrix Gateway Public IP. The gateway subnet has a direct default route to Internet.
 - `dc.services.visualstudio.com` (Azure node telemetry) is intentionally blocked by default-deny. This is expected and correct zero-trust posture.
 - `ip-masq-agent` ConfigMap disables pod SNAT for all destinations — required for CoPilot to see pod IPs in DCF Monitor and SmartGroup resolution. Do not remove this ConfigMap.
 - Port 31284 (OTEL) must be open inbound on the CoPilot NSG from the spoke gateway public IP — required for DCF Monitor to populate.
