@@ -76,9 +76,9 @@ resource "aws_lb_target_group" "ui" {
   vpc_id      = aws_vpc.client.id
   target_type = "instance"
 
-  # Streamlit exposes a health endpoint at /_stcore/health (200 when ready).
+  # FastAPI exposes /healthz returning 200 when ready.
   health_check {
-    path                = "/_stcore/health"
+    path                = "/healthz"
     matcher             = "200"
     interval            = 15
     timeout             = 5

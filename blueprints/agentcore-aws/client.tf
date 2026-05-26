@@ -70,22 +70,23 @@ resource "aws_instance" "client_invoker" {
     export AWS_REGION=${var.aws_region}
     ENV
 
-    # ---- Streamlit scenario UI -------------------------------------------------
+    # ---- AgentCore VCA AI Attack Simulation UI (FastAPI) ----------------------
     # Fetch UI bundle from S3 (see ui.tf) so user_data stays under 16 KB.
+    # Layout: bucket prefix "ui/" maps to /opt/agentcore-ui/ — recursive cp
+    # picks up the python package (ui/), templates, static assets, scenarios.json,
+    # and rules.json. requirements.txt and the service file land one level up.
     mkdir -p /opt/agentcore-ui
     UI_BUCKET='${aws_s3_bucket.ui.id}'
-    aws s3 cp "s3://$${UI_BUCKET}/ui/app.py"            /opt/agentcore-ui/app.py
-    aws s3 cp "s3://$${UI_BUCKET}/ui/scenarios.py"      /opt/agentcore-ui/scenarios.py
-    aws s3 cp "s3://$${UI_BUCKET}/ui/scenarios.json"    /opt/agentcore-ui/scenarios.json
-    aws s3 cp "s3://$${UI_BUCKET}/ui/requirements.txt"  /opt/agentcore-ui/requirements.txt
-    aws s3 cp "s3://$${UI_BUCKET}/ui/agentcore-ui.service" /etc/systemd/system/agentcore-ui.service
+    aws s3 cp --recursive "s3://$${UI_BUCKET}/ui/" /opt/agentcore-ui/
+    mv /opt/agentcore-ui/agentcore-ui.service /etc/systemd/system/agentcore-ui.service
+
     python3 -m venv /opt/agentcore-ui/venv
     /opt/agentcore-ui/venv/bin/pip install --upgrade pip >/dev/null
     /opt/agentcore-ui/venv/bin/pip install -r /opt/agentcore-ui/requirements.txt >/dev/null
-    # Env file fields that depend on other terraform resources are
-    # populated post-deploy via SSM (see ui-refresh.sh). On first boot
-    # we leave placeholders; the service still starts and tells the
-    # user what's missing.
+
+    # Env file fields that depend on other terraform resources are populated
+    # post-deploy via SSM. On first boot we leave placeholders; the service
+    # still starts and surfaces a "config pending" state per /api/run/*.
     cat > /etc/agentcore-ui.env <<ENVEOF
 AWS_REGION=${var.aws_region}
 AGENTCORE_DATA_HOST=${local.agentcore_data_host}
@@ -93,6 +94,7 @@ AGENTCORE_RUNTIME_ARN=UNSET_POPULATED_POST_APPLY
 AGENTCORE_RUNTIME_ROLE_ARN=UNSET_POPULATED_POST_APPLY
 AGENTCORE_AGENT_IMAGE_URI=UNSET_POPULATED_POST_APPLY
 ADVERSARY_MCP_URL=UNSET_POPULATED_POST_APPLY
+AVIATRIX_CONTROLLER_VERSION=9.0.10
 ENVEOF
     systemctl daemon-reload
     systemctl enable --now agentcore-ui.service || true
