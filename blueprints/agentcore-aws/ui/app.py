@@ -104,8 +104,19 @@ def run_scenario(
     scenario = _scenario_by_id(scenario_id)
 
     if scenario_id == "drift_public_mode":
-        # Drift uses a local handler — added in Task 14.
-        raise HTTPException(status_code=501, detail="drift handler not wired yet")
+        from ui import drift_handler
+        raw, elapsed = drift_handler.attempt_public_runtime_create()
+        # Drift is always real, regardless of toggle. If toggle is off, the
+        # template renders the IAM note explaining the layered-controls story.
+        simulated = (containment == "off")
+        result = augment(raw, simulated=simulated, elapsed=elapsed)
+        fragment = templates.get_template("scenario.html").render(
+            scenario=scenario,
+            result=result,
+            index=6, total=6,
+            containment=containment,
+        )
+        return HTMLResponse(_extract_live_pane(fragment))
 
     if containment == "off":
         raw = dict(SIMULATED_PAYLOADS[scenario_id])
