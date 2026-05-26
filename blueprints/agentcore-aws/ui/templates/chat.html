@@ -1,0 +1,29 @@
+<style>
+  .chat-card { background: #fff; border: 1px solid #e7e0d4; border-radius: 16px; padding: 22px; }
+  .chat-card h2 { font-family: 'Sora'; font-weight: 700; font-size: 18px; margin: 0 0 4px; }
+  .chat-card .badge { display: inline-block; background: #22C55E; color: #00170a; padding: 3px 8px; border-radius: 4px; font-family: 'Sora'; font-weight: 600; font-size: 10px; letter-spacing: 0.06em; }
+  .chat-thread { margin: 20px 0; }
+  .chat-msg { padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; font-size: 13px; line-height: 1.5; }
+  .chat-msg.user { background: #FFF7ED; border-left: 3px solid #E24402; }
+  .chat-msg.assistant { background: #030712; color: #fff; }
+  .chat-form { display: flex; gap: 8px; }
+  .chat-form input { flex: 1; padding: 10px 12px; border: 1px solid #e7e0d4; border-radius: 6px; font-family: ui-sans-serif; font-size: 13px; }
+  .chat-form button { padding: 10px 16px; background: #E24402; color: #fff; border: none; border-radius: 6px; font-family: 'Sora'; font-weight: 600; font-size: 12px; cursor: pointer; }
+</style>
+
+<div class="chat-card">
+  <h2>Chat with the agent <span class="badge">DCF -30- allowed-models</span></h2>
+  <p style="color: #6b7280; font-size: 13px;">Every turn traverses the allowed-models WebGroup. Off-allowlist model destinations are blocked at the spoke gateway.</p>
+
+  <div class="chat-thread" id="chat-thread">
+    {# Messages appear here. v1: client-side state. #}
+  </div>
+
+  <form class="chat-form"
+        hx-post="/api/chat"
+        hx-target="#chat-thread"
+        hx-swap="beforeend">
+    <input type="text" name="message" placeholder="Message the agent…" required autofocus />
+    <button type="submit">Send</button>
+  </form>
+</div>

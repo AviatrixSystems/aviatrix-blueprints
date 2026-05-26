@@ -1,0 +1,30 @@
+<style>
+  .forensics-card { background: #fff; border: 1px solid #e7e0d4; border-radius: 16px; padding: 22px; margin-bottom: 18px; }
+  .forensics-card h2 { font-family: 'Sora'; font-weight: 700; font-size: 18px; margin: 0 0 4px; }
+  .forensics-card form { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+  .forensics-card textarea, .forensics-card input { padding: 8px 10px; border: 1px solid #e7e0d4; border-radius: 6px; font-family: ui-monospace, monospace; font-size: 12px; }
+  .forensics-card button { align-self: flex-start; padding: 8px 14px; background: #E24402; color: #fff; border: none; border-radius: 6px; font-family: 'Sora'; font-weight: 600; font-size: 12px; cursor: pointer; }
+  .forensics-result { background: #030712; color: #d4d4d8; padding: 14px; border-radius: 8px; margin-top: 12px; font-family: ui-monospace, monospace; font-size: 11px; white-space: pre-wrap; }
+</style>
+
+<div class="forensics-card">
+  <h2>Tool use — github_search_issues <span style="font-family: ui-monospace, monospace; font-size: 11px; color: #6b7280;">DCF -31- allowed-tools</span></h2>
+  <p style="color: #6b7280; font-size: 13px;">Claude decides when to call the tool; the call hits <code>api.github.com</code>, which the allowed-tools WebGroup permits.</p>
+  <form hx-post="/api/forensics/tool" hx-target="#tool-result">
+    <textarea name="query" rows="3" placeholder="Find recent GitHub issues about Bedrock AgentCore...">Find recent GitHub issues about Bedrock AgentCore.</textarea>
+    <button type="submit">Run tool-use loop</button>
+  </form>
+  <div id="tool-result"></div>
+</div>
+
+<div class="forensics-card">
+  <h2>MCP — list/call tools on a remote server <span style="font-family: ui-monospace, monospace; font-size: 11px; color: #6b7280;">DCF -33- allowed-mcp-servers</span></h2>
+  <p style="color: #6b7280; font-size: 13px;">Allowlisted MCP sources only. Off-list servers see TLS UNEXPECTED_EOF at the spoke gateway.</p>
+  <form hx-post="/api/forensics/mcp" hx-target="#mcp-result">
+    <input type="url" name="server_url" placeholder="https://mcp.deepwiki.com/mcp" value="https://mcp.deepwiki.com/mcp" required />
+    <input type="text" name="tool" placeholder="Tool to call (optional)" />
+    <textarea name="args" rows="2" placeholder='{"k":"v"}'>{}</textarea>
+    <button type="submit">Send MCP request</button>
+  </form>
+  <div id="mcp-result"></div>
+</div>

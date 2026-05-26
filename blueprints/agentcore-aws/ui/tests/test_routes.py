@@ -65,3 +65,20 @@ def test_run_live_path_returns_html_fragment(client, monkeypatch):
     assert "CONTAINED" in r.text
     assert "Aviatrix Gateway" in r.text  # inserted between last-ok and first-blocked
     assert "agentcore-vca-100-runtime-default-deny" in r.text
+
+
+def test_chat_page_renders(client):
+    r = client.get("/chat")
+    assert r.status_code == 200
+    assert "Chat with the agent" in r.text
+
+
+def test_forensics_tool_page_renders(client):
+    r = client.get("/forensics/tool")
+    assert r.status_code == 200
+    assert "github_search_issues" in r.text
+
+
+def test_forensics_unknown_returns_404(client):
+    r = client.get("/forensics/whatever")
+    assert r.status_code == 404

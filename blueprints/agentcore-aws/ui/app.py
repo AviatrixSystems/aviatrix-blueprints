@@ -1,6 +1,7 @@
 """FastAPI application for the AgentCore VCA simulation UI."""
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -163,3 +164,70 @@ def _extract_live_pane(full_card_html: str) -> str:
             depth -= 1
             pos = next_close + 6
     return full_card_html[start:pos - 6]
+
+
+@app.get("/chat", response_class=HTMLResponse)
+def chat_page(request: Request):
+    body = templates.get_template("chat.html").render()
+    return templates.TemplateResponse(
+        request=request,
+        name="base.html",
+        context={
+            "page_title": "Chat",
+            "scenarios": [],
+            "active_scenario_id": None,
+            "active_nav": "chat",
+            "status": _status(),
+            "containment": "on",
+            "body_content": body,
+        },
+    )
+
+
+@app.post("/api/chat", response_class=HTMLResponse)
+def chat_turn(message: str = Form(...)):
+    raw, elapsed = runtime_client.invoke({"mode": "chat", "messages": [{"role": "user", "content": message}]})
+    reply = raw.get("reply", "(no reply)") if raw.get("ok") else f"error: {raw.get('error')}"
+    return HTMLResponse(
+        f'<div class="chat-msg user">{message}</div>'
+        f'<div class="chat-msg assistant">{reply}</div>'
+    )
+
+
+@app.get("/forensics/{kind}", response_class=HTMLResponse)
+def forensics_page(kind: str, request: Request):
+    if kind not in ("tool", "mcp"):
+        raise HTTPException(404, "unknown forensics page")
+    body = templates.get_template("forensics.html").render()
+    return templates.TemplateResponse(
+        request=request,
+        name="base.html",
+        context={
+            "page_title": f"Forensics — {kind}",
+            "scenarios": [],
+            "active_scenario_id": None,
+            "active_nav": "forensics",
+            "status": _status(),
+            "containment": "on",
+            "body_content": body,
+        },
+    )
+
+
+@app.post("/api/forensics/tool", response_class=HTMLResponse)
+def forensics_tool(query: str = Form(...)):
+    raw, _ = runtime_client.invoke({"mode": "tool", "query": query})
+    return HTMLResponse(f'<div class="forensics-result">{json.dumps(raw, indent=2)}</div>')
+
+
+@app.post("/api/forensics/mcp", response_class=HTMLResponse)
+def forensics_mcp(server_url: str = Form(...), tool: str = Form(""), args: str = Form("{}")):
+    try:
+        args_obj = json.loads(args) if args.strip() else {}
+    except json.JSONDecodeError as e:
+        return HTMLResponse(f'<div class="forensics-result">invalid args JSON: {e}</div>')
+    raw, _ = runtime_client.invoke({
+        "mode": "mcp", "server_url": server_url,
+        "tool": tool or None, "args": args_obj,
+    })
+    return HTMLResponse(f'<div class="forensics-result">{json.dumps(raw, indent=2)}</div>')
