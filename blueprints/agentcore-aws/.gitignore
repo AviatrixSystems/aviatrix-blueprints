@@ -5,3 +5,9 @@ adversary/build.zip
 
 # Podman / Docker build temp (if any).
 agent/.dockerignore.swp
+
+# Local dev only
+ui/.venv/
+ui/__pycache__/
+ui/**/__pycache__/
+ui/.pytest_cache/
