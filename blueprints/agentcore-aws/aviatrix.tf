@@ -63,12 +63,11 @@ module "spoke_client" {
 
   ha_gw         = false
   instance_size = var.gateway_size
-  # Decryption (9.0) and single_ip_snat are mutually-exclusive on the
-  # same spoke gateway today - the controller's enable_decryption flow
-  # disables SNAT to avoid conflicts with learned default routes. Keep
-  # this at false to match the controller's post-decryption-enable state.
-  # Internet egress continues to function via the transit's egress path.
-  single_ip_snat = false
+  # Client spoke does NOT do TLS decryption (decryption is only on the
+  # agentcore spoke for runtime egress URL filtering). SNAT here is safe
+  # and required so the client invoker EC2 can reach pypi/SSM/etc during
+  # cloud-init. Without it the workload subnet has no path to the internet.
+  single_ip_snat = true
 
   enable_vpc_dns_server = false
 
