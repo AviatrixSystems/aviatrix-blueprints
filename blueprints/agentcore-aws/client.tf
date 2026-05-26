@@ -40,35 +40,38 @@ resource "aws_instance" "client_invoker" {
     set -euo pipefail
     dnf -y install awscli python3-pip python3-devel jq gcc
     # ---- containment-probe CLI (SSM-invocable) ---------------------------------
-    cat > /usr/local/bin/probe-agentcore.sh <<'EOF'
-    #!/bin/bash
-    # Invoke the sample AgentCore runtime and pretty-print the probe results.
-    set -euo pipefail
-    RUNTIME_ARN="$${1:-$${AGENTCORE_RUNTIME_ARN:-}}"
-    REGION="$${AWS_REGION:-us-east-2}"
-    DATA_HOST="$${AGENTCORE_DATA_HOST:-bedrock-agentcore.$${REGION}.amazonaws.com}"
-    if [[ -z "$${RUNTIME_ARN}" ]]; then
-      echo "usage: probe-agentcore.sh <runtime-arn>" >&2
-      exit 1
-    fi
-    echo "[probe] resolving $${DATA_HOST}"
-    getent ahosts "$${DATA_HOST}" | head -1
-    OUT=$(mktemp)
-    PAYLOAD_B64=$(printf '%s' '{"task":"run-probes"}' | base64 -w0)
-    SESSION="probe-$$(date +%s)-$$RANDOM-$$(head /dev/urandom | tr -dc a-f0-9 | head -c 16)"
-    aws bedrock-agentcore invoke-agent-runtime \
-      --region "$${REGION}" \
-      --agent-runtime-arn "$${RUNTIME_ARN}" \
-      --runtime-session-id "$${SESSION}" \
-      --payload "$${PAYLOAD_B64}" \
-      "$${OUT}" >/dev/null
-    echo "[probe] runtime response:"
-    cat "$${OUT}" | jq .
-    EOF
+    # Inner heredoc terminators MUST be at column 0 (no leading whitespace).
+    # The outer <<-BASH strips leading TABS only; this file is space-indented,
+    # so <<'EOF' with an indented EOF would swallow the rest of user_data.
+    cat > /usr/local/bin/probe-agentcore.sh <<'PROBE_EOF'
+#!/bin/bash
+# Invoke the sample AgentCore runtime and pretty-print the probe results.
+set -euo pipefail
+RUNTIME_ARN="$${1:-$${AGENTCORE_RUNTIME_ARN:-}}"
+REGION="$${AWS_REGION:-us-east-2}"
+DATA_HOST="$${AGENTCORE_DATA_HOST:-bedrock-agentcore.$${REGION}.amazonaws.com}"
+if [[ -z "$${RUNTIME_ARN}" ]]; then
+  echo "usage: probe-agentcore.sh <runtime-arn>" >&2
+  exit 1
+fi
+echo "[probe] resolving $${DATA_HOST}"
+getent ahosts "$${DATA_HOST}" | head -1
+OUT=$(mktemp)
+PAYLOAD_B64=$(printf '%s' '{"task":"run-probes"}' | base64 -w0)
+SESSION="probe-$$(date +%s)-$$RANDOM-$$(head /dev/urandom | tr -dc a-f0-9 | head -c 16)"
+aws bedrock-agentcore invoke-agent-runtime \
+  --region "$${REGION}" \
+  --agent-runtime-arn "$${RUNTIME_ARN}" \
+  --runtime-session-id "$${SESSION}" \
+  --payload "$${PAYLOAD_B64}" \
+  "$${OUT}" >/dev/null
+echo "[probe] runtime response:"
+cat "$${OUT}" | jq .
+PROBE_EOF
     chmod +x /usr/local/bin/probe-agentcore.sh
-    cat > /etc/profile.d/agentcore.sh <<'ENV'
-    export AWS_REGION=${var.aws_region}
-    ENV
+    cat > /etc/profile.d/agentcore.sh <<'PROFILE_ENV'
+export AWS_REGION=${var.aws_region}
+PROFILE_ENV
 
     # ---- Streamlit scenario UI -------------------------------------------------
     # Fetch UI bundle from S3 (see ui.tf) so user_data stays under 16 KB.
