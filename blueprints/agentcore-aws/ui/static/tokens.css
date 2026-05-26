@@ -1,0 +1,32 @@
+/* Design tokens — source of truth: research/tokens.json + spec § Visual design system */
+:root {
+  --brand-orange-primary: #E24402;
+  --brand-orange-warm: #FA6B1E;
+  --brand-purple: #7A5DDC;
+
+  --surface-cream: #FCF9F3;
+  --surface-orange-50: #FFF7ED;
+  --surface-white: #FFFFFF;
+  --surface-panel-deep: #030712;
+  --surface-panel-ink: #111827;
+  --surface-border: #e7e0d4;
+  --surface-divider: #E5E7EB;
+
+  --text-ink: #181818;
+  --text-muted: #6B7280;
+  --text-on-dark: #FFFFFF;
+  --text-on-dark-muted: rgba(255,255,255,0.65);
+
+  --severity-green: #22C55E;
+  --severity-yellow: #EAB308;
+  --severity-red: #DC2626;
+  --severity-gray: #9CA3AF;
+
+  --radius-panel: 16px;
+  --radius-card: 12px;
+  --radius-pill: 9999px;
+
+  --font-display: 'Sora', system-ui, sans-serif;
+  --font-body: ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
