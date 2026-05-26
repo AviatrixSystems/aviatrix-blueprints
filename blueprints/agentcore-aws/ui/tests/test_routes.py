@@ -41,3 +41,27 @@ def test_scenario_fragment_returns_card_only(client):
     # No chrome in a fragment response:
     assert "AI ATTACK SIMULATION" not in r.text
     assert "<footer" not in r.text and "<nav" not in r.text
+
+
+def test_run_live_path_returns_html_fragment(client, monkeypatch):
+    """containment=on calls runtime_client.invoke and returns the rendered fragment."""
+    from ui import runtime_client
+
+    def fake_invoke(payload):
+        return ({
+            "ok": True,
+            "title": "LLM01",
+            "steps": [
+                {"label": "Attacker prompt", "outcome": "info", "detail": "x"},
+                {"label": "Egress to evil.attacker.example", "outcome": "blocked", "detail": "URLError"},
+            ],
+            "dcf_rule": "agentcore-vca-100-runtime-default-deny",
+        }, 2.1)
+
+    monkeypatch.setattr(runtime_client, "invoke", fake_invoke)
+
+    r = client.post("/api/run/llm01_prompt_inject_exfil", data={"containment": "on"})
+    assert r.status_code == 200
+    assert "CONTAINED" in r.text
+    assert "Aviatrix Gateway" in r.text  # inserted between last-ok and first-blocked
+    assert "agentcore-vca-100-runtime-default-deny" in r.text

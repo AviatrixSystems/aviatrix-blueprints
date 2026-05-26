@@ -49,6 +49,7 @@
 
         {% if result.steps %}
         <div style="font-family:'Sora';font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:#FA6B1E;margin:0 0 10px;">Attack flow</div>
+        {% set steps = result.steps %}
         {% include 'partials/flow.html' %}
         {% endif %}
 
