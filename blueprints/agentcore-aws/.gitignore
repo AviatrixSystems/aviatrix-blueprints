@@ -11,3 +11,5 @@ ui/.venv/
 ui/__pycache__/
 ui/**/__pycache__/
 ui/.pytest_cache/
+ui/.env
+ui/.env.local
