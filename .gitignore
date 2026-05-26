@@ -47,6 +47,11 @@ docs/diagrams/icon-*.svg
 # Internal Claude Code planning artifacts
 docs/superpowers/
 
+# Environment variable files
+.env
+.env.*
+.env.blueprint
+
 # Credentials (should never be committed)
 *.pem
 *.key

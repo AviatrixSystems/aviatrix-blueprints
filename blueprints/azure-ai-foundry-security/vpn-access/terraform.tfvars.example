@@ -1,0 +1,16 @@
+# Aviatrix Control Plane Configuration
+# Set these via environment variables (recommended):
+#   export TF_VAR_avx_controller_ip="<controller-ip>"
+#   export TF_VAR_avx_username="<username>"
+#   export TF_VAR_avx_password="<password>"
+
+subscription_id  = "00000000-0000-0000-0000-000000000000"
+vpn_user_email   = "user@example.com"
+avx_account_name = "my-azure-account"
+
+# Optional overrides — defaults match the network-infra module defaults
+# foundry_vnet_cidr  = "10.11.0.0/23"          # must match network-infra vnet_address_space
+# vpn_gw_subnet_cidr = "10.11.0.32/28"         # must not overlap with existing subnets
+# vpn_client_cidr    = "192.168.43.0/24"        # IP pool for VPN clients
+# avx_vpn_gw_name    = "avx-vpn-foundry"
+# avx_vpn_gw_size    = "Standard_B2ms"

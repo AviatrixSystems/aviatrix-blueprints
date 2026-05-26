@@ -1,0 +1,20 @@
+# Aviatrix Control Plane Configuration
+# Set these via environment variables (recommended):
+#   export TF_VAR_avx_controller_ip="<controller-ip>"
+#   export TF_VAR_avx_username="<username>"
+#   export TF_VAR_avx_password="<password>"
+#
+# Or without TF_VAR prefix (e.g. sourced from a credentials file):
+#   export avx_controller_ip="<controller-ip>"
+#   export avx_username="<username>"
+#   export avx_password="<password>"
+
+subscription_id   = "00000000-0000-0000-0000-000000000000"
+avx_account_name  = "my-azure-account"
+
+# Optional overrides — defaults are set in variables.tf
+# location               = "francecentral"                          # must be an Azure AI Foundry supported region
+# vnet_address_space     = "10.11.0.0/23"                          # must be at least /23; subnets derived via cidrsubnet()
+# tool_call_fqdns        = ["api.ipify.org"]                        # sanctioned MCP server FQDNs and external API endpoints
+# aca_requirements_fqdns = ["mcr.microsoft.com", ...]               # override only if adding extra ACA FQDNs; defaults cover standard ACA runtime
+# aca_platform_svc_tags  = ["AzureActiveDirectory", ...]            # override to adjust service tags
