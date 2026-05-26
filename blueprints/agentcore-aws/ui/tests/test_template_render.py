@@ -88,3 +88,46 @@ def test_evidence_partial(env):
     })
     assert "Control evidence" in out
     assert "evil.attacker.example" in out
+
+
+def test_scenario_template_renders_with_result(env):
+    tmpl = env.get_template("scenario.html")
+    scenario = {
+        "id": "llm01_prompt_inject_exfil",
+        "short_id": "LLM01",
+        "title": "Prompt Injection → Tool-Abuse Exfil",
+        "owasp": "LLM01 + LLM07", "mitre": "AML.T0051",
+        "setup": "Agent has a sanctioned tool.",
+        "attack": "Prompt asks for exfil.",
+        "expected_behavior": "DCF -100- closes the egress.",
+        "control": "rule -100-",
+    }
+    result = {
+        "ok": True, "verdict": "CONTAINED", "steps": [
+            {"label": "Attacker prompt", "outcome": "info", "detail": "x"},
+        ],
+        "rule_definition": {
+            "type": "dcf", "name": "rule-x", "priority": 100, "action": "DENY",
+            "protocol": "ANY", "src_smart_groups": ["s"], "dst_smart_groups": ["d"],
+            "decrypt_policy": None, "logging": True, "watch": False,
+        },
+        "control_evidence": {"match_attribute": "x"},
+        "elapsed_seconds": 2.1,
+        "simulated": False,
+    }
+    out = tmpl.render(scenario=scenario, result=result, index=1, total=6)
+    assert "Prompt Injection" in out
+    assert "CONTAINED" in out
+    assert "SCENARIO 1 of 6" in out
+
+
+def test_scenario_template_renders_without_result(env):
+    """Pre-Run: no result yet, live pane shows a Run button only."""
+    tmpl = env.get_template("scenario.html")
+    scenario = {
+        "id": "x", "short_id": "X", "title": "T",
+        "owasp": "", "mitre": "", "setup": "", "attack": "", "expected_behavior": "",
+    }
+    out = tmpl.render(scenario=scenario, result=None, index=1, total=6)
+    assert "Run scenario" in out
+    assert "CONTAINED" not in out

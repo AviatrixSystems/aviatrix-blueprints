@@ -1,0 +1,82 @@
+<style>
+  .scenario-block { background: #fff; border: 1px solid #e7e0d4; border-radius: 16px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .scn-head { padding: 18px 22px; border-bottom: 1px solid #e7e0d4; }
+  .scn-eyebrow { font-family: 'Sora'; font-weight: 600; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #E24402; margin-bottom: 4px; }
+  .scn-title { font-family: 'Sora'; font-weight: 700; font-size: 22px; margin: 0; color: #181818; }
+  .scn-meta { font-size: 12px; color: #6b7280; margin-top: 4px; font-family: ui-monospace, monospace; }
+  .panes { display: grid; grid-template-columns: 0.9fr 1.4fr; gap: 0; }
+  .story-pane { background: #fff; padding: 22px; border-right: 1px solid #e7e0d4; }
+  .live-pane { background: #030712; color: #fff; padding: 22px; min-height: 220px; }
+  .story-pane .pane-h { font-family: 'Sora'; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; margin: 0 0 10px; }
+  .story-pane p { font-size: 13px; line-height: 1.55; margin: 0 0 10px; color: #374151; }
+  .story-pane b { color: #181818; }
+  .story-pane code { font-family: ui-monospace, monospace; font-size: 12px; }
+  .verdict-row { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+  .verdict { padding: 5px 12px; border-radius: 4px; font-family: 'Sora'; font-weight: 700; font-size: 11px; letter-spacing: 0.04em; }
+  .verdict.contained { background: #22C55E; color: #00170a; }
+  .verdict.breach { background: #DC2626; color: #fff; }
+  .verdict-row .rt { font-size: 11px; color: rgba(255,255,255,0.55); font-family: ui-monospace, monospace; }
+  .verdict-row .sim-ribbon { background: rgba(250,107,30,0.18); color: #FA6B1E; font-family: 'Sora'; font-weight: 700; font-size: 10px; letter-spacing: 0.08em; padding: 3px 8px; border-radius: 4px; }
+  .runbtn { display: inline-block; padding: 9px 20px; border-radius: 6px; background: #E24402; color: #fff; font-family: 'Sora'; font-weight: 600; font-size: 12px; margin-top: 18px; cursor: pointer; border: none; }
+  .runbtn:hover { background: #c93a01; }
+  .pre-run-pane { display: flex; align-items: center; justify-content: center; min-height: 160px; flex-direction: column; gap: 8px; color: rgba(255,255,255,0.55); }
+  .iam-note { background: rgba(122,93,220,0.07); border-left: 3px solid #7A5DDC; padding: 8px 12px; border-radius: 0 4px 4px 0; font-size: 11px; color: rgba(255,255,255,0.85); margin-bottom: 14px; }
+</style>
+
+<div class="scenario-block">
+  <div class="scn-head">
+    <div class="scn-eyebrow">SCENARIO {{ index }} of {{ total }}{% if scenario.owasp %} · {{ scenario.owasp }}{% endif %}</div>
+    <h3 class="scn-title">{{ scenario.title }}</h3>
+    {% if scenario.mitre %}<div class="scn-meta">{{ scenario.mitre }}</div>{% endif %}
+  </div>
+  <div class="panes">
+    <div class="story-pane">
+      <div class="pane-h">Attack path</div>
+      {% if scenario.setup %}<p><b>Setup.</b> {{ scenario.setup }}</p>{% endif %}
+      {% if scenario.attack %}<p><b>Attack.</b> {{ scenario.attack }}</p>{% endif %}
+      {% if scenario.expected_behavior %}<p><b>Containment.</b> {{ scenario.expected_behavior }}</p>{% endif %}
+    </div>
+    <div class="live-pane" id="live-pane-{{ scenario.id }}">
+      {% if result %}
+        {% if result.simulated and scenario.id == 'drift_public_mode' %}
+          <div class="iam-note">IAM is a separate enforcement plane; this toggle's scope is DCF only. Drift remains contained.</div>
+        {% endif %}
+        <div class="verdict-row">
+          <span class="verdict {{ 'contained' if result.ok else 'breach' }}">{{ 'CONTAINED' if result.ok else 'BREACH' }}</span>
+          {% if result.simulated %}<span class="sim-ribbon">SIMULATED</span>{% endif %}
+          <span class="rt">round-trip {{ '%.1f'|format(result.elapsed_seconds or 0) }}s</span>
+        </div>
+
+        {% if result.steps %}
+        <div style="font-family:'Sora';font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:#FA6B1E;margin:0 0 10px;">Attack flow</div>
+        {% include 'partials/flow.html' %}
+        {% endif %}
+
+        {% if result.rule_definition %}
+        {% set rule = result.rule_definition %}
+        {% include 'partials/rule_block.html' %}
+        {% endif %}
+
+        {% if result.control_evidence %}
+        {% set evidence = result.control_evidence %}
+        {% include 'partials/evidence.html' %}
+        {% endif %}
+
+        <button class="runbtn"
+                hx-post="/api/run/{{ scenario.id }}"
+                hx-vals='{"containment": "{{ containment | default("on") }}"}'
+                hx-target="#live-pane-{{ scenario.id }}"
+                hx-swap="innerHTML">Run scenario again</button>
+      {% else %}
+        <div class="pre-run-pane">
+          <span style="font-family:'Sora';font-weight:600;font-size:12px;letter-spacing:0.04em;">Press Run to execute this attack against the live runtime.</span>
+          <button class="runbtn"
+                  hx-post="/api/run/{{ scenario.id }}"
+                  hx-vals='{"containment": "{{ containment | default("on") }}"}'
+                  hx-target="#live-pane-{{ scenario.id }}"
+                  hx-swap="innerHTML">Run scenario</button>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
