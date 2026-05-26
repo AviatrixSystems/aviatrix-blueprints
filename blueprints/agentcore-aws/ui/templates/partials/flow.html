@@ -1,0 +1,40 @@
+<style>
+  .flow { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; row-gap: 14px; margin: 4px 0 20px; }
+  .node { position: relative; display: flex; flex-direction: column; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 12px; min-width: 140px; max-width: 180px; flex: 1 1 140px; color: #fff; }
+  .node + .node { margin-left: 30px; }
+  .node + .node::before { content: ""; position: absolute; left: -30px; top: 50%; width: 30px; height: 2px; background: rgba(255,255,255,0.18); transform: translateY(-1px); }
+  .node + .node::after { content: ""; position: absolute; left: -8px; top: 50%; border: 5px solid transparent; border-left-color: rgba(255,255,255,0.4); transform: translateY(-50%); }
+  .node .marker { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; font-weight: 700; font-size: 12px; color: #fff; margin-bottom: 6px; }
+  .node .lbl { font-family: 'Sora', sans-serif; font-weight: 600; font-size: 11px; line-height: 1.3; margin-bottom: 4px; }
+  .node .det { font-size: 10px; color: rgba(255,255,255,0.6); line-height: 1.4; font-family: ui-monospace, monospace; }
+  .node.info .marker { background: rgba(255,255,255,0.15); color: #d4d4d8; }
+  .node.ok { background: rgba(34,197,94,0.06); border-color: rgba(34,197,94,0.25); }
+  .node.ok .marker { background: #22C55E; color: #00170a; }
+  .node.blocked { background: rgba(220,38,38,0.08); border-color: rgba(220,38,38,0.35); opacity: 0.55; }
+  .node.blocked .marker { background: #DC2626; color: #fff; }
+  .node.blocked .lbl { text-decoration: line-through; }
+  .node.permitted { background: rgba(226,68,2,0.07); border: 1.5px solid #E24402; box-shadow: 0 0 0 4px rgba(226,68,2,0.08); min-width: 160px; }
+  .node.permitted .marker { background: #E24402; color: #fff; }
+  .node.permitted .lbl { color: #FA6B1E; }
+  .node.permitted .det { color: rgba(255,170,140,0.85); }
+</style>
+
+<div class="flow">
+  {% for step in steps %}
+  <div class="node {{ step.outcome }}">
+    <span class="marker">
+      {%- if step.outcome == 'ok' -%}&#x2713;
+      {%- elif step.outcome == 'blocked' -%}&#x2715;
+      {%- elif step.outcome == 'permitted' -%}&#x2715;
+      {%- else -%}&middot;
+      {%- endif -%}
+    </span>
+    <div class="lbl">{{ step.label }}</div>
+    {% if step.detail is mapping %}
+      <div class="det">{{ step.detail | tojson }}</div>
+    {% else %}
+      <div class="det">{{ step.detail }}</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>

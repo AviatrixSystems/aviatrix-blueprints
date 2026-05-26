@@ -31,3 +31,60 @@ def test_base_template_renders(env):
     assert "AI ATTACK SIMULATION" in out
     assert "us-east-2" in out
     assert "<p>body</p>" in out
+
+
+def test_flow_partial_renders_step_types(env):
+    tmpl = env.get_template("partials/flow.html")
+    out = tmpl.render(steps=[
+        {"label": "Attacker prompt", "outcome": "info", "detail": "x"},
+        {"label": "Tool", "outcome": "ok", "detail": "y"},
+        {"label": "Aviatrix Gateway", "outcome": "permitted", "detail": "rule -100-"},
+        {"label": "Egress", "outcome": "blocked", "detail": "z"},
+    ])
+    assert "Attacker prompt" in out
+    assert "Aviatrix Gateway" in out
+    assert "node info" in out  # info-class node present
+    assert "node ok" in out
+
+
+def test_rule_block_dcf(env):
+    tmpl = env.get_template("partials/rule_block.html")
+    rule = {
+        "type": "dcf", "name": "test-rule", "priority": 100, "action": "DENY",
+        "protocol": "ANY",
+        "src_smart_groups": ["runtime-subnet"],
+        "dst_smart_groups": ["any"],
+        "decrypt_policy": None, "logging": True, "watch": False,
+    }
+    out = tmpl.render(rule=rule)
+    assert "test-rule" in out
+    assert "DENY" in out
+    assert "DCF" in out
+
+
+def test_rule_block_iam(env):
+    tmpl = env.get_template("partials/rule_block.html")
+    rule = {
+        "type": "iam", "name": "vpc-mode-guardrail", "effect": "DENY",
+        "action": "bedrock-agentcore-control:CreateAgentRuntime",
+        "resource": "arn:…", "condition": "Null on subnets",
+        "attached_to": "platform-eng",
+    }
+    out = tmpl.render(rule=rule)
+    assert "vpc-mode-guardrail" in out
+    assert "IAM" in out
+    assert "CreateAgentRuntime" in out
+
+
+def test_evidence_partial(env):
+    tmpl = env.get_template("partials/evidence.html")
+    out = tmpl.render(evidence={
+        "match_attribute": "destination SNI evil.attacker.example",
+        "matched_group": "dst = any (default-deny fallback)",
+        "enforcement_point": "AgentCore spoke GW (L4 stateful)",
+        "decryption": "not required",
+        "termination": "TLS handshake closed pre-egress",
+        "audit": "FlowIQ entry: action=DENY",
+    })
+    assert "Control evidence" in out
+    assert "evil.attacker.example" in out

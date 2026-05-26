@@ -1,0 +1,42 @@
+<style>
+  .rule-block { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 14px 16px; margin-bottom: 14px; }
+  .rule-block .pane-h { font-family: 'Sora', sans-serif; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #FA6B1E; margin: 0 0 10px; }
+  .rule-block .rule-name { font-family: 'Sora', sans-serif; font-weight: 600; font-size: 13px; color: #fff; }
+  .rule-block .rule-name code { color: #FA6B1E; font-family: ui-monospace, monospace; }
+  .rule-block .type-pill { display: inline-block; font-family: 'Sora', sans-serif; font-weight: 600; font-size: 9px; padding: 2px 7px; border-radius: 3px; letter-spacing: 0.06em; margin-left: 8px; vertical-align: middle; }
+  .rule-block .type-pill.dcf { background: rgba(250,107,30,0.12); color: #FA6B1E; }
+  .rule-block .type-pill.iam { background: rgba(122,93,220,0.15); color: #C4B5FD; }
+  .rule-grid { display: grid; grid-template-columns: 130px 1fr; gap: 4px 14px; margin-top: 10px; font-family: ui-monospace, monospace; font-size: 11px; }
+  .rule-grid .k { color: rgba(255,255,255,0.5); }
+  .rule-grid .v { color: #d4d4d8; }
+  .rule-grid .v.deny { color: #FCA5A5; font-weight: 600; }
+  .rule-grid .v code { color: #FA6B1E; }
+</style>
+
+<div class="pane-h">{% if rule.type == 'iam' %}IAM policy{% else %}DCF rule{% endif %}</div>
+<div class="rule-block">
+  <div class="rule-name">
+    <code>{{ rule.name }}</code>
+    <span class="type-pill {{ rule.type }}">{{ rule.type | upper }}</span>
+  </div>
+  <div class="rule-grid">
+  {% if rule.type == 'dcf' %}
+    <span class="k">priority</span><span class="v"><code>{{ rule.priority }}</code></span>
+    <span class="k">action</span><span class="v deny">{{ rule.action }}</span>
+    <span class="k">protocol</span><span class="v"><code>{{ rule.protocol }}</code></span>
+    {% if rule.port_ranges %}<span class="k">port</span><span class="v"><code>{{ rule.port_ranges | join(', ') }}</code></span>{% endif %}
+    <span class="k">src_smart_groups</span><span class="v">{% for g in rule.src_smart_groups %}<code>{{ g }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</span>
+    <span class="k">dst_smart_groups</span><span class="v">{% for g in rule.dst_smart_groups %}<code>{{ g }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</span>
+    {% if rule.web_groups %}<span class="k">web_groups</span><span class="v">{% for g in rule.web_groups %}<code>{{ g }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</span>{% endif %}
+    <span class="k">decrypt_policy</span><span class="v">{{ rule.decrypt_policy or '(none — SNI/L4 only)' }}</span>
+    <span class="k">logging</span><span class="v">{{ 'enabled' if rule.logging else 'disabled' }}</span>
+    <span class="k">watch</span><span class="v">{{ rule.watch | string }}</span>
+  {% else %}
+    <span class="k">effect</span><span class="v deny">{{ rule.effect }}</span>
+    <span class="k">action</span><span class="v"><code>{{ rule.action }}</code></span>
+    <span class="k">resource</span><span class="v"><code>{{ rule.resource }}</code></span>
+    <span class="k">condition</span><span class="v">{{ rule.condition }}</span>
+    <span class="k">attached_to</span><span class="v">{{ rule.attached_to }}</span>
+  {% endif %}
+  </div>
+</div>
