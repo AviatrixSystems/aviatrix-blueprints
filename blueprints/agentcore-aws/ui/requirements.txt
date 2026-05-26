@@ -1,2 +1,6 @@
-streamlit>=1.36
+fastapi>=0.110
+uvicorn[standard]>=0.27
+jinja2>=3.1
 boto3>=1.34
+pytest>=8.0
+httpx>=0.27
