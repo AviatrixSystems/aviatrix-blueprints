@@ -28,6 +28,18 @@ variable "arm_account_name" {
   type        = string
 }
 
+variable "arm_account_principal_id" {
+  description = "Azure AD service principal Object ID for the Aviatrix ARM access account. Required to grant AKS Cluster Admin role so the controller can do K8s workload discovery (pod label → IP resolution). Get with: az ad sp show --id <arm_ad_client_id> --query id -o tsv"
+  type        = string
+}
+
+variable "aks_kube_config" {
+  description = "AKS admin kubeconfig content (YAML, single context, cert-based auth, must include preferences: {} field). Required for K8S_POLICY_LIST enforcement. Get with: az aks get-credentials --admin and add 'preferences: {}'. Set via env var: export TF_VAR_aks_kube_config=$(python3 scripts/get-aks-kubeconfig.py)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "copilot_private_ip" {
   description = "CoPilot private IP — used for syslog stream configuration"
   type        = string
@@ -112,12 +124,18 @@ variable "aks_dns_service_ip" {
   default     = "172.16.0.10"
 }
 
+variable "aks_kubernetes_version" {
+  description = "Kubernetes version for the AKS cluster. Leave unset to use the Azure-managed default. Pin to a specific version (e.g. '1.34.4') when testing version-dependent behavior or working around Aviatrix CAI compatibility issues."
+  type        = string
+  default     = null
+}
+
 # -----------------------------------------------------------------------------
 # Spoke Gateway
 # -----------------------------------------------------------------------------
 
 variable "spoke_gateway_subnet_cidr" {
-  description = "CIDR for the Aviatrix spoke gateway subnet. Must be within vnet_address_space and must not overlap with aks_subnet_cidr. A /26 is sufficient."
+  description = "CIDR for the Aviatrix Gateway (Policy Enforcement Point) subnet. Must be within vnet_address_space and must not overlap with aks_subnet_cidr. A /26 is sufficient."
   type        = string
   default     = "10.1.200.0/26"
 
@@ -128,7 +146,7 @@ variable "spoke_gateway_subnet_cidr" {
 }
 
 variable "spoke_gateway_size" {
-  description = "Azure VM size for the Aviatrix spoke gateway"
+  description = "Azure VM size for the Aviatrix Gateway (Policy Enforcement Point)"
   type        = string
   default     = "Standard_B2ms"
 }
@@ -166,24 +184,6 @@ variable "obot_admin_password" {
   sensitive   = true
 }
 
-variable "obot_system_pod_cidrs" {
-  description = <<-EOT
-    List of /32 CIDRs for obot-system pods. Used to scope Obot-specific
-    egress permits (Anthropic, GitHub, charts.obot.ai) to the orchestration
-    layer only, preventing obot-mcp pods from inheriting them.
-
-    TWO-STEP DEPLOY: Leave empty ([]) on first apply. After Obot is running,
-    get pod IPs with:
-      kubectl get pods -n <obot_namespace> -o jsonpath='{range .items[*]}{.status.podIP}{"\n"}{end}'
-    Then re-apply with those IPs as /32 CIDRs.
-
-    Workaround for Aviatrix V1 policy list limitation: V1 does not support
-    k8s namespace SmartGroups as source — only CIDR SmartGroups are valid.
-    Update these values when obot-system pods restart.
-  EOT
-  type        = list(string)
-  default     = []
-}
 
 variable "npc_chart_version" {
   description = "Version of the aviatrix-network-policy-controller Helm chart from charts.obot.ai. Update when Aviatrix releases a new NPC chart version."

@@ -61,10 +61,21 @@ resource "helm_release" "obot" {
     })
   ]
 
+  # wait=false: if node_desired_size is overridden to 0, no nodes exist to schedule
+  # Obot pods at deploy time and wait=true would time out. Pods schedule automatically
+  # when nodes join. Even at default node_desired_size=2, wait=false is correct here
+  # because nodes may still be bootstrapping when the Helm release is applied.
+  wait = false
+  # cleanup_on_fail removes a failed release automatically, making re-apply
+  # idempotent without requiring manual `helm uninstall` after a failure.
+  cleanup_on_fail = true
+
   depends_on = [
     kubernetes_namespace_v1.obot_system,
     kubernetes_namespace_v1.obot_mcp,
     null_resource.k8s_dcf_features,
+    kubernetes_storage_class_v1.gp3,
+    helm_release.aviatrix_crds, # CRDs must exist before NPC starts
     module.spoke,
     aviatrix_distributed_firewalling_policy_list.infra,
     aviatrix_distributed_firewalling_default_action_rule.deny_all,

@@ -32,6 +32,7 @@ resource "azurerm_kubernetes_cluster" "obot" {
   resource_group_name               = azurerm_resource_group.obot.name
   node_resource_group               = "${var.name_prefix}-aksnode-rg"
   dns_prefix                        = "${var.name_prefix}-aks"
+  kubernetes_version                = var.aks_kubernetes_version
   local_account_disabled            = false
   role_based_access_control_enabled = true
   oidc_issuer_enabled               = true
@@ -66,4 +67,16 @@ resource "azurerm_role_assignment" "aks_network" {
   scope                = azurerm_resource_group.obot.id
   role_definition_name = "Network Contributor"
   principal_id         = azurerm_kubernetes_cluster.obot.identity[0].principal_id
+}
+
+# Grant the Aviatrix ARM account service principal AKS Cluster Admin access.
+# Required for two reasons:
+#   1. kube_config_raw (used by aviatrix_kubernetes_cluster.aks) contains user-level
+#      kubeconfig; the role may be needed for CoPilot K8s workload discovery.
+#   2. CoPilot Kubernetes Clusters onboarding ("Permissions on Cloud Account" option)
+#      calls Azure listClusterAdminCredential, which requires this role.
+resource "azurerm_role_assignment" "aviatrix_aks_admin" {
+  scope                = azurerm_kubernetes_cluster.obot.id
+  role_definition_name = "Azure Kubernetes Service Cluster Admin Role"
+  principal_id         = var.arm_account_principal_id
 }

@@ -6,8 +6,9 @@
 # This enables the controller to discover pod identities and resolve
 # Kubernetes workload labels inside SmartGroup selectors.
 resource "aviatrix_kubernetes_cluster" "aks" {
-  cluster_id          = lower(azurerm_kubernetes_cluster.obot.id)
-  use_csp_credentials = true
+  cluster_id          = azurerm_kubernetes_cluster.obot.id
+  kube_config         = var.aks_kube_config != "" ? var.aks_kube_config : null
+  use_csp_credentials = var.aks_kube_config == ""
 }
 
 # Allow the controller's Cloud Asset Inventory (CAI) to sync Kubernetes
@@ -27,9 +28,7 @@ resource "aviatrix_distributed_firewalling_config" "enabled" {
 }
 
 # Enable the five feature flags required for Kubernetes CRD enforcement.
-# These flags reset on controller reboot — the null_resource ensures they
-# are re-applied on every `terraform apply`. Without k8s_discovery and
-# log_enrichment, CoPilot cannot resolve pod IPs to Kubernetes workloads,
+# Without k8s_discovery and log_enrichment, CoPilot cannot resolve pod IPs to Kubernetes workloads,
 # causing SmartGroup label-based matching to silently fail.
 resource "null_resource" "k8s_dcf_features" {
   triggers = {
@@ -113,19 +112,15 @@ resource "aviatrix_smart_group" "k8s_api_server" {
   depends_on = [time_sleep.cai_sync]
 }
 
-# SmartGroup: obot-system pods via /32 CIDRs (workaround for V1 CIDR-only source).
+# SmartGroup: obot-system namespace (K8s label selector).
 # Scopes Obot application domains (Anthropic, GitHub) to orchestration pods only.
-# On first apply, var.obot_system_pod_cidrs is empty — the SmartGroup is created
-# but matches nothing until re-applied with pod IPs after Obot is running.
 resource "aviatrix_smart_group" "obot_system_pods" {
   name = "${var.name_prefix}-obot-system"
 
   selector {
-    dynamic "match_expressions" {
-      for_each = var.obot_system_pod_cidrs
-      content {
-        cidr = match_expressions.value
-      }
+    match_expressions {
+      type          = "k8s"
+      k8s_namespace = var.obot_namespace
     }
   }
 
@@ -148,6 +143,7 @@ resource "aviatrix_web_group" "aks_infra_egress" {
     match_expressions { snifilter = "login.microsoftonline.com" }
     match_expressions { snifilter = "packages.microsoft.com" }
     match_expressions { snifilter = "acs-mirror.azureedge.net" }
+    match_expressions { snifilter = "*.aks.azure.com" }
     match_expressions { snifilter = "ghcr.io" }
     match_expressions { snifilter = "*.ghcr.io" }
     match_expressions { snifilter = "pkg-containers.githubusercontent.com" }
