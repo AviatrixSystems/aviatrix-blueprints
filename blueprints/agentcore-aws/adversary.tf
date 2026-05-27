@@ -50,7 +50,9 @@ resource "aws_lambda_function" "adversary" {
 
   environment {
     variables = {
-      DEMO_NOTE = "adversarial MCP for Aviatrix AgentCore VCA LLM05 scenario"
+      DEMO_NOTE              = "adversarial MCP for Aviatrix AgentCore VCA LLM05 scenario"
+      ATTACKER_SINK_BASE     = local.attacker_sink_base
+      ATTACKER_SINK_DEPLOY_ID = local.attacker_sink_deploy_id
     }
   }
 

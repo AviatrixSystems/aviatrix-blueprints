@@ -23,6 +23,12 @@ variable "controller_password" {
   sensitive   = true
 }
 
+variable "copilot_ip" {
+  description = "IP address or hostname of the Aviatrix CoPilot. Used to render a deeplink in the UI to the DCF policies screen so the customer can manually flip rules and watch the verdict change in the simulator. Defaults to controller_ip when CoPilot is co-resident with the controller (Cloud Fabric / single-VM lab deploys)."
+  type        = string
+  default     = ""
+}
+
 variable "aviatrix_aws_account_name" {
   description = "Aviatrix access account name for AWS (already onboarded in the controller)"
   type        = string

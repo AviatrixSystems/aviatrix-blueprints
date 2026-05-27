@@ -1,0 +1,3 @@
+/* Sora 600 + 700 served by the operator's browser directly from Google Fonts.
+ * Vendor woff2 files here later if egress to fonts.googleapis.com is restricted. */
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700&display=swap');

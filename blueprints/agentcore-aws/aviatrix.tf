@@ -37,12 +37,13 @@ module "spoke_agentcore" {
 
   ha_gw         = false
   instance_size = var.gateway_size
-  # Decryption (9.0) and single_ip_snat are mutually-exclusive on the
-  # same spoke gateway today - the controller's enable_decryption flow
-  # disables SNAT to avoid conflicts with learned default routes. Keep
-  # this at false to match the controller's post-decryption-enable state.
-  # Internet egress continues to function via the transit's egress path.
-  single_ip_snat = false
+  # SNAT must be enabled for the runtime subnet to have working internet
+  # egress through this spoke. If TLS decryption is later turned on for
+  # URL-path filtering scenarios (LLM05b), the controller's enable_decryption
+  # flow will disable SNAT automatically and reroute egress via the transit;
+  # leaving SNAT=true here keeps the default-deploy state in sync with what
+  # the runtime actually needs.
+  single_ip_snat = true
 
   enable_vpc_dns_server = false
 

@@ -1,0 +1,71 @@
+<style>
+  .flow { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; row-gap: 14px; margin: 4px 0 20px; }
+  .node {
+    position: relative; display: flex; flex-direction: column;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px; padding: 10px 12px;
+    min-width: 150px; max-width: 200px; flex: 1 1 150px; color: #fff;
+    opacity: 0; transform: translateX(-12px);
+    animation: node-reveal 0.4s ease-out forwards;
+  }
+  @keyframes node-reveal { to { opacity: 1; transform: translateX(0); } }
+  /* Staggered reveal: each node animates ~150ms after the previous */
+  .node:nth-child(1) { animation-delay: 0.00s; }
+  .node:nth-child(2) { animation-delay: 0.15s; }
+  .node:nth-child(3) { animation-delay: 0.30s; }
+  .node:nth-child(4) { animation-delay: 0.45s; }
+  .node:nth-child(5) { animation-delay: 0.60s; }
+  .node:nth-child(6) { animation-delay: 0.75s; }
+  .node:nth-child(7) { animation-delay: 0.90s; }
+  .node:nth-child(8) { animation-delay: 1.05s; }
+  .node + .node { margin-left: 30px; }
+  .node + .node::before { content: ""; position: absolute; left: -30px; top: 50%; width: 30px; height: 2px; background: rgba(255,255,255,0.18); transform: translateY(-1px); }
+  .node + .node::after { content: ""; position: absolute; left: -8px; top: 50%; border: 5px solid transparent; border-left-color: rgba(255,255,255,0.4); transform: translateY(-50%); }
+  .node .marker { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; font-weight: 700; font-size: 12px; color: #fff; margin-bottom: 6px; }
+  .node .lbl { font-family: 'Sora', sans-serif; font-weight: 600; font-size: 11px; line-height: 1.3; margin-bottom: 4px; }
+  .node .det {
+    font-size: 10px; color: rgba(255,255,255,0.6); line-height: 1.4;
+    font-family: ui-monospace, monospace;
+    /* Multi-line ellipsis truncation — caps at 4 lines, adds "…" */
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+  }
+  .node.info .marker { background: rgba(255,255,255,0.15); color: #d4d4d8; }
+  .node.ok { background: rgba(34,197,94,0.06); border-color: rgba(34,197,94,0.25); }
+  .node.ok .marker { background: #22C55E; color: #00170a; }
+  .node.blocked { background: rgba(220,38,38,0.08); border-color: rgba(220,38,38,0.35); opacity: 0.55; }
+  .node.blocked .marker { background: #DC2626; color: #fff; }
+  .node.blocked .lbl { text-decoration: line-through; }
+  .node.permitted {
+    background: rgba(226,68,2,0.07); border: 1.5px solid #E24402;
+    box-shadow: 0 0 0 4px rgba(226,68,2,0.08);
+    min-width: 190px; max-width: 230px;
+  }
+  .node.permitted .marker { background: #E24402; color: #fff; }
+  .node.permitted .lbl { color: #FA6B1E; }
+  .node.permitted .det { color: rgba(255,170,140,0.85); }
+</style>
+
+<div class="flow">
+  {% for step in steps %}
+  <div class="node {{ step.outcome }}">
+    <span class="marker">
+      {%- if step.outcome == 'ok' -%}&#x2713;
+      {%- elif step.outcome == 'blocked' -%}&#x2715;
+      {%- elif step.outcome == 'permitted' -%}&#x2715;
+      {%- else -%}&middot;
+      {%- endif -%}
+    </span>
+    <div class="lbl">{{ step.label }}</div>
+    {% if step.detail is mapping or step.detail is iterable and step.detail is not string %}
+      <div class="det" title="{{ step.detail | tojson }}">{{ step.detail | tojson }}</div>
+    {% else %}
+      <div class="det" title="{{ step.detail }}">{{ step.detail }}</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>

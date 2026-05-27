@@ -18,7 +18,7 @@ resource "aws_security_group" "ui_alb" {
   vpc_id      = aws_vpc.client.id
 
   ingress {
-    description = "HTTP from allowlisted operator CIDRs"
+    description = "HTTP from allowlisted operator CIDRs (UI)"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -26,7 +26,7 @@ resource "aws_security_group" "ui_alb" {
   }
 
   egress {
-    description = "Forward to Streamlit targets"
+    description = "Forward to FastAPI target"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -76,9 +76,9 @@ resource "aws_lb_target_group" "ui" {
   vpc_id      = aws_vpc.client.id
   target_type = "instance"
 
-  # Streamlit exposes a health endpoint at /_stcore/health (200 when ready).
+  # FastAPI exposes /healthz returning 200 when ready.
   health_check {
-    path                = "/_stcore/health"
+    path                = "/healthz"
     matcher             = "200"
     interval            = 15
     timeout             = 5
@@ -120,3 +120,4 @@ resource "aws_lb_listener" "ui_http" {
     Name = "${local.name_prefix}-ui-http"
   }
 }
+

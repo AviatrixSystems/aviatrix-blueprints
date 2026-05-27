@@ -1,266 +1,355 @@
-"""Streamlit UI for the Aviatrix AgentCore VCA.
-
-Threat-model-centric layout. The main tab is Scenarios - five cards
-covering four OWASP LLM attack patterns + one control-plane drift case.
-Chat / Tool / MCP remain as hands-on modes that demonstrate the
-"positive" agent behaviors DCF permits.
-"""
+"""FastAPI application for the AgentCore VCA simulation UI."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
-import secrets
 import socket
 import time
+import urllib.error
+import urllib.request
+from pathlib import Path
 
-import boto3
-import streamlit as st
-from botocore.config import Config
-from botocore.exceptions import BotoCoreError, ClientError
+from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
-from scenarios import load_scenarios, render_drift_card, render_scenario_card
+from ui import runtime_client
+from ui.evidence_builder import augment
+from ui.scenario_loader import load_scenarios
 
-REGION = os.environ.get("AWS_REGION", "us-east-2")
-RUNTIME_ARN = os.environ.get("AGENTCORE_RUNTIME_ARN", "")
-RUNTIME_ROLE_ARN = os.environ.get("AGENTCORE_RUNTIME_ROLE_ARN", "")
-AGENT_IMAGE_URI = os.environ.get("AGENTCORE_AGENT_IMAGE_URI", "")
-DATA_HOST = os.environ.get(
-    "AGENTCORE_DATA_HOST",
-    f"bedrock-agentcore.{REGION}.amazonaws.com",
-)
+app = FastAPI(title="AgentCore VCA — AI Attack Simulation")
 
-st.set_page_config(page_title="AgentCore VCA", page_icon="🛡️", layout="wide")
+BASE_DIR = Path(__file__).parent
+STATIC_DIR = BASE_DIR / "static"
+TEMPLATE_DIR = BASE_DIR / "templates"
 
-_client = boto3.client(
-    "bedrock-agentcore",
-    region_name=REGION,
-    config=Config(connect_timeout=10, read_timeout=180, retries={"max_attempts": 1}),
-)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
 
-def resolve_host(hostname: str) -> str:
-    try:
-        addrs = sorted({x[4][0] for x in socket.getaddrinfo(hostname, 443, proto=socket.IPPROTO_TCP)})
-        return ", ".join(addrs) if addrs else "(no answer)"
-    except socket.gaierror as e:
-        return f"(resolve failed: {e})"
+# Aviatrix-hosted attack sink configuration. The agent POSTs exfil payloads to
+# <sink_base>/<deploy_id>/<path>; this server reads receipts back via
+# <sink_base>/api/receipts/<deploy_id>?since=<ts> after each scenario run.
+ATTACKER_SINK_BASE = os.environ.get("ATTACKER_SINK_BASE", "https://avx-vca-sink.vercel.app").rstrip("/")
+ATTACKER_SINK_DEPLOY_ID = os.environ.get("ATTACKER_SINK_DEPLOY_ID") or hashlib.sha256(
+    f"{os.environ.get('AWS_REGION','us-east-2')}-{os.environ.get('AGENTCORE_RUNTIME_ARN','')}".encode()
+).hexdigest()[:16]
 
 
-def invoke(payload: dict) -> tuple[dict, float]:
-    start = time.perf_counter()
-    sid = f"ui-{int(time.time())}-{secrets.token_hex(16)}"
-    resp = _client.invoke_agent_runtime(
-        agentRuntimeArn=RUNTIME_ARN,
-        runtimeSessionId=sid,
-        payload=json.dumps(payload).encode(),
-    )
-    raw = resp["response"].read()
-    return json.loads(raw), time.perf_counter() - start
+def _status() -> dict[str, str]:
+    return {
+        "region": os.environ.get("AWS_REGION", "us-east-2"),
+        "runtime": os.environ.get("AGENTCORE_RUNTIME_ARN", "(unset)").rsplit("/", 1)[-1],
+        "data_plane": os.environ.get("AGENTCORE_DATA_HOST", "(unset)"),
+        "dcf_rules": "-29- -30- -31- -33- -50- -100-",
+        "controller_version": os.environ.get("AVIATRIX_CONTROLLER_VERSION", "9.0+"),
+        "copilot_url": os.environ.get("AVIATRIX_COPILOT_URL", "").rstrip("/"),
+    }
 
 
-# ----------------------------------------------------------------------------
-# Scenarios tab
-# ----------------------------------------------------------------------------
+@app.get("/healthz")
+def healthz() -> dict:
+    return {"status": "healthy"}
 
-def scenarios_tab() -> None:
-    st.caption(
-        "Each card runs a named attack path end-to-end. Verdict is **CONTAINED** when "
-        "Aviatrix DCF (or IAM, for the drift case) blocks the attack; **BREACH** otherwise."
-    )
+
+@app.get("/", include_in_schema=False)
+def root():
     scenarios = load_scenarios()
-    for scn in scenarios:
-        if scn["id"] == "drift_public_mode":
-            render_drift_card(
-                scn, region=REGION,
-                runtime_role_arn=RUNTIME_ROLE_ARN,
-                image_uri=AGENT_IMAGE_URI,
-            )
-        else:
-            render_scenario_card(scn, invoke_fn=invoke)
+    return RedirectResponse(url=f"/s/{scenarios[0]['id']}", status_code=302)
 
 
-# ----------------------------------------------------------------------------
-# Chat tab
-# ----------------------------------------------------------------------------
-
-def chat_tab() -> None:
-    st.caption("Every turn traverses the allowed-models WebGroup (rule `-30-`).")
-    if "chat_messages" not in st.session_state:
-        st.session_state.chat_messages = []
-    for m in st.session_state.chat_messages:
-        with st.chat_message(m["role"]):
-            st.markdown(m["content"])
-    prompt = st.chat_input("Message the agent…")
-    if prompt:
-        st.session_state.chat_messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-        with st.chat_message("assistant"):
-            ph = st.empty()
-            with st.spinner("thinking…"):
-                try:
-                    result, elapsed = invoke({"mode": "chat", "messages": st.session_state.chat_messages})
-                except (BotoCoreError, ClientError) as e:
-                    ph.error(f"{type(e).__name__}: {e}")
-                    return
-            if not result.get("ok"):
-                err = result.get("error") or f"runtime returned: {json.dumps(result)[:400]}"
-                ph.error(err)
-                return
-            reply = result.get("reply", "")
-            ph.markdown(reply)
-            usage = result.get("usage", {})
-            st.caption(f"{elapsed:.1f}s | in={usage.get('inputTokens','?')} "
-                       f"out={usage.get('outputTokens','?')} stop={result.get('stop_reason','?')}")
-            st.session_state.chat_messages.append({"role": "assistant", "content": reply})
-    if st.button("Reset chat", key="chat-reset"):
-        st.session_state.chat_messages = []
-        st.rerun()
-
-
-# ----------------------------------------------------------------------------
-# Tool tab
-# ----------------------------------------------------------------------------
-
-def tool_tab() -> None:
-    st.caption("Claude decides when to call `github_search_issues` -> `api.github.com`. "
-               "Watch DCF rule `-31-` (allowed-tools).")
-    default_q = "Find recent open GitHub issues mentioning Bedrock AgentCore in the past month."
-    query = st.text_area("User prompt", value=default_q, height=80, key="tool-q")
-    if st.button("Send to agent", type="primary", key="tool-run"):
-        with st.spinner("Tool-use loop running…"):
-            try:
-                result, elapsed = invoke({"mode": "tool", "query": query})
-            except (BotoCoreError, ClientError) as e:
-                st.error(f"{type(e).__name__}: {e}")
-                return
-        st.caption(f"Round-trip: {elapsed:.1f}s")
-        if not result.get("ok"):
-            st.error(result.get("error", "unknown error"))
-        else:
-            st.markdown("**Reply**")
-            st.markdown(result.get("reply", "(empty)"))
-            usage = result.get("usage", {})
-            st.caption(f"in={usage.get('inputTokens','?')} out={usage.get('outputTokens','?')}")
-        with st.expander("Tool-use trace"):
-            st.json(result.get("trace", []))
-        with st.expander("Raw response"):
-            st.json(result)
-
-
-# ----------------------------------------------------------------------------
-# MCP tab
-# ----------------------------------------------------------------------------
-
-def mcp_tab() -> None:
-    st.caption("Connects to a remote MCP server via streamable-http. Allowed servers "
-               "match the `allowed-mcp-servers` WebGroup (rule `-33-`).")
-    preset = st.radio(
-        "Server", options=["DeepWiki (allowed)", "Adversary MCP (allowed, compromised)",
-                            "mcp.example.com (deny test)", "Custom"],
-        horizontal=True, key="mcp-preset",
+def _render_scenario_card(scenario_id: str) -> tuple[dict, str]:
+    """Return (scenario, card_html) — the scenario.html partial with no chrome."""
+    scenarios = load_scenarios()
+    index = next((i for i, s in enumerate(scenarios) if s["id"] == scenario_id), None)
+    if index is None:
+        raise HTTPException(status_code=404, detail=f"unknown scenario: {scenario_id}")
+    scenario = scenarios[index]
+    card = templates.get_template("scenario.html").render(
+        scenario=scenario,
+        result=None,
+        index=index + 1,
+        total=len(scenarios),
     )
-    adversary_url = os.environ.get("ADVERSARY_MCP_URL", "")
-    if preset == "DeepWiki (allowed)":
-        url = "https://mcp.deepwiki.com/mcp"
-        st.code(url, language="text")
-    elif preset == "Adversary MCP (allowed, compromised)":
-        url = adversary_url or "(ADVERSARY_MCP_URL not set)"
-        st.code(url, language="text")
-        st.warning("This is the LLM05 scenario's MCP source. Allowlisted but hostile - "
-                   "tool descriptions carry injection pointing at evil.attacker.example.")
-    elif preset == "mcp.example.com (deny test)":
-        url = "https://mcp.example.com/mcp"
-        st.code(url, language="text")
-        st.info("Expected: TLS UNEXPECTED_EOF or timeout - DCF closes on SNI.")
+    return scenario, card
+
+
+@app.get("/s/{scenario_id}", response_class=HTMLResponse)
+def scenario_page(scenario_id: str, request: Request):
+    scenario, card = _render_scenario_card(scenario_id)
+    return templates.TemplateResponse(
+        request=request,
+        name="base.html",
+        context={
+            "page_title": scenario["short_title"],
+            "scenarios": load_scenarios(),
+            "active_scenario_id": scenario_id,
+            "active_nav": "scenarios",
+            "status": _status(),
+            "body_content": card,
+        },
+    )
+
+
+@app.get("/s/{scenario_id}/fragment", response_class=HTMLResponse)
+def scenario_fragment(scenario_id: str):
+    """HTMX target for picker chip clicks — returns just the card."""
+    _, card = _render_scenario_card(scenario_id)
+    return HTMLResponse(card)
+
+
+def _scenario_by_id(scenario_id: str) -> dict:
+    scenarios = load_scenarios()
+    scn = next((s for s in scenarios if s["id"] == scenario_id), None)
+    if scn is None:
+        raise HTTPException(status_code=404, detail=f"unknown scenario: {scenario_id}")
+    return scn
+
+
+@app.post("/api/run/{scenario_id}", response_class=HTMLResponse)
+def run_scenario(scenario_id: str, request: Request):
+    scenario = _scenario_by_id(scenario_id)
+    run_started = time.time()
+
+    if scenario_id == "drift_public_mode":
+        from ui import drift_handler
+        raw, elapsed = drift_handler.attempt_public_runtime_create()
+        result = augment(raw, elapsed=elapsed)
+        result["sink_status"] = None
+        fragment = templates.get_template("scenario.html").render(
+            scenario=scenario,
+            result=result,
+            index=6, total=6,
+        )
+        return HTMLResponse(_extract_live_pane(fragment))
+
+    raw, elapsed = runtime_client.invoke({"mode": "scenario", "scenario": scenario_id})
+    result = augment(raw, elapsed=elapsed)
+    result["sink_status"] = _fetch_sink_status(scenario_id, run_started)
+
+    fragment = templates.get_template("scenario.html").render(
+        scenario=scenario,
+        result=result,
+        index=1, total=6,
+    )
+    return HTMLResponse(_extract_live_pane(fragment))
+
+
+def _extract_live_pane(full_card_html: str) -> str:
+    """Extract the inner HTML of <div class="live-pane" id="live-pane-...">.
+
+    Naive depth-counting parser; safe because scenario.html structure is known
+    and stable. If templates grow more complex, swap for a dedicated
+    live_pane.html partial.
+    """
+    marker_open = 'class="live-pane"'
+    open_idx = full_card_html.find(marker_open)
+    if open_idx < 0:
+        return full_card_html
+    start = full_card_html.find(">", open_idx) + 1
+    depth = 1
+    pos = start
+    while depth > 0 and pos < len(full_card_html):
+        next_open = full_card_html.find("<div", pos)
+        next_close = full_card_html.find("</div>", pos)
+        if next_close < 0:
+            break
+        if 0 <= next_open < next_close:
+            depth += 1
+            pos = next_open + 4
+        else:
+            depth -= 1
+            pos = next_close + 6
+    return full_card_html[start:pos - 6]
+
+
+@app.get("/chat", response_class=HTMLResponse)
+def chat_page(request: Request):
+    body = templates.get_template("chat.html").render()
+    return templates.TemplateResponse(
+        request=request,
+        name="base.html",
+        context={
+            "page_title": "Chat",
+            "scenarios": [],
+            "active_scenario_id": None,
+            "active_nav": "chat",
+            "status": _status(),
+            "body_content": body,
+        },
+    )
+
+
+@app.post("/api/chat", response_class=HTMLResponse)
+def chat_turn(message: str = Form(...)):
+    raw, elapsed = runtime_client.invoke({"mode": "chat", "messages": [{"role": "user", "content": message}]})
+    reply = raw.get("reply", "(no reply)") if raw.get("ok") else f"error: {raw.get('error')}"
+    return HTMLResponse(
+        f'<div class="chat-msg user">{message}</div>'
+        f'<div class="chat-msg assistant">{reply}</div>'
+    )
+
+
+@app.get("/forensics/{kind}", response_class=HTMLResponse)
+def forensics_page(kind: str, request: Request):
+    if kind not in ("tool", "mcp"):
+        raise HTTPException(404, "unknown forensics page")
+    body = templates.get_template("forensics.html").render()
+    return templates.TemplateResponse(
+        request=request,
+        name="base.html",
+        context={
+            "page_title": f"Forensics — {kind}",
+            "scenarios": [],
+            "active_scenario_id": None,
+            "active_nav": "forensics",
+            "status": _status(),
+            "body_content": body,
+        },
+    )
+
+
+@app.post("/api/forensics/tool", response_class=HTMLResponse)
+def forensics_tool(query: str = Form(...)):
+    raw, _ = runtime_client.invoke({"mode": "tool", "query": query})
+    return HTMLResponse(f'<div class="forensics-result">{json.dumps(raw, indent=2)}</div>')
+
+
+@app.post("/api/forensics/mcp", response_class=HTMLResponse)
+def forensics_mcp(server_url: str = Form(...), tool: str = Form(""), args: str = Form("{}")):
+    try:
+        args_obj = json.loads(args) if args.strip() else {}
+    except json.JSONDecodeError as e:
+        return HTMLResponse(f'<div class="forensics-result">invalid args JSON: {e}</div>')
+    raw, _ = runtime_client.invoke({
+        "mode": "mcp", "server_url": server_url,
+        "tool": tool or None, "args": args_obj,
+    })
+    return HTMLResponse(f'<div class="forensics-result">{json.dumps(raw, indent=2)}</div>')
+
+
+# ============================================================================
+# Aviatrix attack sink integration
+#
+# The sink runs on Vercel at ATTACKER_SINK_BASE. Exfil scenarios (LLM01,
+# LLM05) POST to <sink>/<deploy_id>/<path>; this server reads receipts back
+# via <sink>/api/receipts/<deploy_id>?since=<ts> after each run and embeds
+# the result in the rendered scenario fragment.
+#
+# DCF default-deny blocks runtime egress to the sink, so receipts.count is
+# typically 0 (containment confirmed). In v2 PERMIT mode the count becomes
+# >0 (breach confirmed) and the panel renders the actual receipt data.
+# ============================================================================
+
+_SINK_SCENARIOS = {
+    "llm01_prompt_inject_exfil",
+    "llm05_compromised_mcp",
+}
+
+
+def _fetch_sink_status(scenario_id: str, since: float) -> dict | None:
+    """Fetch receipts from the Aviatrix sink for the post-run panel. Only
+    LLM01 and LLM05 loop through the sink — other scenarios return None."""
+    if scenario_id not in _SINK_SCENARIOS:
+        return None
+
+    url = f"{ATTACKER_SINK_BASE}/api/receipts/{ATTACKER_SINK_DEPLOY_ID}?since={since:.2f}&limit=5"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "agentcore-vca-ui/1.0"})
+        with urllib.request.urlopen(req, timeout=4) as resp:  # noqa: S310
+            payload = json.loads(resp.read())
+    except (urllib.error.URLError, json.JSONDecodeError, TimeoutError) as e:
+        return {
+            "count": 0,
+            "entries": [],
+            "scenario_id": scenario_id,
+            "unreachable": True,
+            "error": f"{type(e).__name__}: {e}",
+        }
+    return {
+        "count": payload.get("count", 0),
+        "entries": payload.get("received", [])[:3],
+        "scenario_id": scenario_id,
+        "unreachable": False,
+    }
+
+
+# ============================================================================
+# Readiness probe
+#
+# Surfaces in the status strip as a green/yellow/red pill. Checks the four
+# things that must be true for the demo to actually work: runtime ARN is
+# configured, runtime is in READY status, sink is reachable, and FastAPI's
+# in-process state (rules.json, scenarios.json) loaded successfully.
+# ============================================================================
+
+def _check_runtime_arn() -> dict:
+    arn = os.environ.get("AGENTCORE_RUNTIME_ARN", "")
+    if not arn or arn.startswith("UNSET"):
+        return {"status": "critical", "detail": "AGENTCORE_RUNTIME_ARN not configured"}
+    return {"status": "ok", "detail": arn.rsplit("/", 1)[-1]}
+
+
+def _check_sink_reachable() -> dict:
+    url = f"{ATTACKER_SINK_BASE}/api/health"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "agentcore-vca-ui/1.0"})
+        with urllib.request.urlopen(req, timeout=3) as resp:  # noqa: S310
+            data = json.loads(resp.read())
+        return {"status": "ok", "detail": f"sink {data.get('status','?')} · backend={data.get('backend','?')}"}
+    except (urllib.error.URLError, json.JSONDecodeError, TimeoutError) as e:
+        return {"status": "degraded", "detail": f"sink unreachable: {type(e).__name__}"}
+
+
+def _check_catalog() -> dict:
+    try:
+        from ui.rules_catalog import load_catalog
+        from ui.scenario_loader import load_scenarios
+        rules = load_catalog()
+        scenarios = load_scenarios()
+        return {"status": "ok", "detail": f"{len(rules)} rules · {len(scenarios)} scenarios"}
+    except Exception as e:  # noqa: BLE001
+        return {"status": "critical", "detail": f"catalog load failed: {type(e).__name__}: {e}"}
+
+
+@app.get("/api/readiness", include_in_schema=False)
+def readiness() -> dict:
+    checks = {
+        "runtime":  _check_runtime_arn(),
+        "sink":     _check_sink_reachable(),
+        "catalog":  _check_catalog(),
+    }
+    statuses = [c["status"] for c in checks.values()]
+    if any(s == "critical" for s in statuses):
+        overall = "not_ready"
+    elif any(s == "degraded" for s in statuses):
+        overall = "degraded"
     else:
-        url = st.text_input("MCP server URL", value="https://", key="mcp-url-custom")
-
-    tool = st.text_input("Tool to call (optional; leave blank for list-only)",
-                         value="", key="mcp-tool")
-    args_str = st.text_area("Tool args (JSON)", value="{}", height=80,
-                            key="mcp-args", disabled=not tool)
-    if st.button("Call MCP server", type="primary", key="mcp-run"):
-        try:
-            args = json.loads(args_str) if args_str.strip() else {}
-        except json.JSONDecodeError as e:
-            st.error(f"args not valid JSON: {e}")
-            return
-        with st.spinner("Talking to MCP server…"):
-            try:
-                result, elapsed = invoke({
-                    "mode": "mcp", "server_url": url,
-                    "tool": tool or None, "args": args,
-                })
-            except (BotoCoreError, ClientError) as e:
-                st.error(f"{type(e).__name__}: {e}")
-                return
-        st.caption(f"Round-trip: {elapsed:.1f}s")
-        if not result.get("ok"):
-            st.error(result.get("error", "unknown error"))
-            st.caption("If the server isn't in `allowed_mcp_server_domains`, you'll see "
-                       "TLS UNEXPECTED_EOF here - that's DCF closing the SNI.")
-        else:
-            srv = result.get("server", {})
-            st.success(f"Connected to **{srv.get('name') or 'unknown'}** "
-                       f"v{srv.get('version') or '?'} (MCP {srv.get('protocolVersion')})")
-            tools = result.get("tools", [])
-            st.markdown(f"**{len(tools)} tools available**")
-            for t in tools:
-                st.markdown(f"- `{t['name']}` - {t['description']}")
-            if "called" in result:
-                st.markdown("**Tool invocation result**")
-                st.json(result["called"])
-        with st.expander("Raw response"):
-            st.json(result)
+        overall = "ready"
+    return {
+        "overall": overall,
+        "checks": checks,
+        "deploy_id": ATTACKER_SINK_DEPLOY_ID,
+        "sink_base": ATTACKER_SINK_BASE,
+        "checked_at": time.time(),
+    }
 
 
-# ----------------------------------------------------------------------------
-# Main
-# ----------------------------------------------------------------------------
-
-def main() -> None:
-    st.title("🛡️ AgentCore VCA")
-    st.caption("Threat-model-centric demo of Aviatrix containment for Bedrock AgentCore.")
-
-    with st.sidebar:
-        st.subheader("Environment")
-        st.code(f"region:       {REGION}\nruntime_arn:  {RUNTIME_ARN}\ndata_host:    {DATA_HOST}",
-                language="text")
-        st.subheader("DNS resolution")
-        st.code(f"{DATA_HOST}\n  -> {resolve_host(DATA_HOST)}", language="text")
-        st.caption("10.50.20.x confirms the shared R53 PHZ is steering to the PrivateLink endpoint.")
-        st.subheader("DCF rules in play")
-        st.markdown("""
-- **-30-** allowed-models (Bedrock egress)
-- **-31-** allowed-tools (GitHub, etc.)
-- **-33-** allowed-mcp-servers
-- **-50-** DNS-exfil deny
-- **-100-** default-deny (catches attacker domains)
-""")
-        st.subheader("Prevention layers")
-        st.markdown("""
-- **IAM guardrail**: `agentcore-vca-agentcore-vpc-mode-guardrail` blocks
-  runtime creation outside VPC mode (drift scenario).
-- **DCF**: SmartGroup+WebGroup enforcement on egress.
-""")
-
-    if not RUNTIME_ARN:
-        st.error("AGENTCORE_RUNTIME_ARN not set in /etc/agentcore-ui.env")
-        return
-
-    scenarios_t, chat_t, tool_t, mcp_t = st.tabs(
-        ["Scenarios", "Chat", "Tool (GitHub)", "MCP"]
+@app.get("/api/readiness/fragment", response_class=HTMLResponse, include_in_schema=False)
+def readiness_fragment():
+    """HTMX-target fragment: small pill rendering of readiness state for the status strip."""
+    r = readiness()
+    overall = r["overall"]
+    label = {"ready": "READY", "degraded": "DEGRADED", "not_ready": "NOT READY"}[overall]
+    cls = {"ready": "ready", "degraded": "degraded", "not_ready": "not-ready"}[overall]
+    detail_lines = "\n".join(
+        f"  {name}: {c['status']} — {c['detail']}" for name, c in r["checks"].items()
     )
-    with scenarios_t:
-        scenarios_tab()
-    with chat_t:
-        chat_tab()
-    with tool_t:
-        tool_tab()
-    with mcp_t:
-        mcp_tab()
-
-
-if __name__ == "__main__":
-    main()
+    title = f"deploy_id={r['deploy_id']}\nsink={r['sink_base']}\n{detail_lines}"
+    return HTMLResponse(
+        f'<span class="ready-pill {cls}" title="{title}" '
+        f'hx-get="/api/readiness/fragment" hx-trigger="every 60s" hx-swap="outerHTML">'
+        f'<span class="dot"></span>{label}</span>'
+    )

@@ -30,8 +30,10 @@ resource "awscc_bedrockagentcore_runtime" "hello" {
   protocol_configuration = "HTTP"
 
   environment_variables = {
-    AGENT_MODEL_ID    = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
-    ADVERSARY_MCP_URL = local.adversary_mcp_url
+    AGENT_MODEL_ID          = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+    ADVERSARY_MCP_URL       = local.adversary_mcp_url
+    ATTACKER_SINK_BASE      = local.attacker_sink_base
+    ATTACKER_SINK_DEPLOY_ID = local.attacker_sink_deploy_id
   }
 
   tags = {

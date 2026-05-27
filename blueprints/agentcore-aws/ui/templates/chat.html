@@ -1,0 +1,72 @@
+<style>
+  .chat-card { background: #fff; border: 1px solid #e7e0d4; border-radius: 16px; padding: 22px; }
+  .chat-card h2 { font-family: 'Sora'; font-weight: 700; font-size: 18px; margin: 0 0 4px; }
+  .chat-card .badge { display: inline-block; background: #22C55E; color: #00170a; padding: 3px 8px; border-radius: 4px; font-family: 'Sora'; font-weight: 600; font-size: 10px; letter-spacing: 0.06em; }
+  .chat-thread { margin: 20px 0; }
+  .chat-msg { padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; font-size: 13px; line-height: 1.5; }
+  .chat-msg.user { background: #FFF7ED; border-left: 3px solid #E24402; }
+  .chat-msg.assistant { background: #030712; color: #fff; }
+  .chat-form { display: flex; gap: 8px; align-items: center; }
+  .chat-form input { flex: 1; padding: 10px 12px; border: 1px solid #e7e0d4; border-radius: 6px; font-family: ui-sans-serif; font-size: 13px; }
+  .chat-form button { padding: 10px 16px; background: #E24402; color: #fff; border: none; border-radius: 6px; font-family: 'Sora'; font-weight: 600; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; min-width: 90px; justify-content: center; }
+  .chat-form button:disabled { background: #9ca3af; cursor: not-allowed; }
+  .chat-form.htmx-request input { background: #f9fafb; color: #6b7280; }
+  .chat-form .btn-spinner { width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff; border-radius: 50%; animation: chatspin 0.8s linear infinite; display: none; }
+  .chat-form.htmx-request .btn-spinner { display: inline-block; }
+  .chat-form.htmx-request .btn-label { display: none; }
+  @keyframes chatspin { to { transform: rotate(360deg); } }
+  /* Optimistic in-thread placeholder rendered by client-side JS until the
+   * server response comes back and HTMX swaps in the real bubbles. */
+  .chat-msg.pending { background: #030712; color: rgba(255,255,255,0.6); display: flex; align-items: center; gap: 10px; }
+  .chat-msg.pending .dots { display: inline-flex; gap: 3px; }
+  .chat-msg.pending .dots span { width: 5px; height: 5px; background: rgba(255,255,255,0.55); border-radius: 50%; animation: chatpulse 1.2s ease-in-out infinite; }
+  .chat-msg.pending .dots span:nth-child(2) { animation-delay: 0.2s; }
+  .chat-msg.pending .dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes chatpulse { 0%, 80%, 100% { opacity: 0.25; } 40% { opacity: 1; } }
+</style>
+
+<div class="chat-card">
+  <h2>Chat with the agent <span class="badge">DCF -30- allowed-models</span></h2>
+  <p style="color: #6b7280; font-size: 13px;">Every turn traverses the allowed-models WebGroup. Off-allowlist model destinations are blocked at the spoke gateway.</p>
+
+  <div class="chat-thread" id="chat-thread">
+    {# Messages appear here. Server appends user + assistant bubbles per turn. #}
+  </div>
+
+  <form class="chat-form"
+        hx-post="/api/chat"
+        hx-target="#chat-thread"
+        hx-swap="beforeend"
+        hx-disabled-elt="find button, find input"
+        onsubmit="window._chatPending(this)">
+    <input type="text" name="message" placeholder="Message the agent…" required autofocus />
+    <button type="submit">
+      <span class="btn-label">Send</span>
+      <span class="btn-spinner" aria-hidden="true"></span>
+    </button>
+  </form>
+</div>
+
+<script>
+  // Inject an optimistic "thinking…" bubble into the thread on submit so the
+  // user sees immediate feedback. HTMX replaces it implicitly on response
+  // (we strip pending bubbles via afterRequest).
+  window._chatPending = function (form) {
+    var thread = document.getElementById('chat-thread');
+    if (!thread) return;
+    var msg = form.elements['message'].value;
+    var ph = document.createElement('div');
+    ph.className = 'chat-msg pending';
+    ph.dataset.pending = '1';
+    ph.innerHTML = '<span>agent is thinking</span><span class="dots"><span></span><span></span><span></span></span>';
+    thread.appendChild(ph);
+    thread.scrollTop = thread.scrollHeight;
+  };
+  document.body.addEventListener('htmx:afterRequest', function (evt) {
+    if (evt.target && evt.target.classList && evt.target.classList.contains('chat-form')) {
+      document.querySelectorAll('#chat-thread [data-pending]').forEach(function (el) { el.remove(); });
+      var input = evt.target.querySelector('input[name="message"]');
+      if (input) { input.value = ''; input.focus(); }
+    }
+  });
+</script>

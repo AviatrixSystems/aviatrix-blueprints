@@ -9,6 +9,9 @@
 controller_ip       = "3.131.22.171"
 controller_username = "admin"
 controller_password = "change-me"
+# CoPilot IP (used to render a deeplink in the UI to DCF policies). Defaults
+# to controller_ip when co-resident (Cloud Fabric / single-VM lab deploys).
+# copilot_ip          = "3.135.75.175"
 
 # Aviatrix-onboarded AWS access account name (not your AWS account ID).
 # This is the name as it appears under "Accounts" in the controller.
