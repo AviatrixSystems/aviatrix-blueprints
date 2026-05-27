@@ -76,6 +76,13 @@ locals {
   agentcore_data_host    = "bedrock-agentcore.${var.aws_region}.amazonaws.com"
   agentcore_control_host = "bedrock-agentcore-control.${var.aws_region}.amazonaws.com"
 
+  # Aviatrix CoPilot deeplink for the UI status strip. CoPilot is co-resident
+  # with the controller in most lab/Cloud Fabric deploys, so we fall back to
+  # controller_ip when copilot_ip is unset. The fragment lands on the
+  # Distributed Cloud Firewall policies screen (CoPilot 9.0+).
+  copilot_host    = coalesce(var.copilot_ip, var.controller_ip)
+  copilot_dcf_url = "https://${local.copilot_host}/security/distributed-cloud-firewall/policy"
+
   common_tags = {
     Blueprint = var.name_prefix
   }

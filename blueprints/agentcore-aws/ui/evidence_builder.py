@@ -1,5 +1,7 @@
 """Augment runtime payloads with rule_definition, control_evidence, and the
-synthetic enforcement node between the last permitted step and the first blocked step."""
+synthetic enforcement node between the last permitted step and the first
+blocked step. The verdict is always 100% driven by the agent's actual
+outcome (`ok`); there is no simulation path."""
 from __future__ import annotations
 
 from typing import Any
@@ -7,24 +9,31 @@ from typing import Any
 from ui.rules_catalog import load_catalog
 
 
-def augment(payload: dict[str, Any], simulated: bool, elapsed: float) -> dict[str, Any]:
+def augment(payload: dict[str, Any], elapsed: float) -> dict[str, Any]:
     rule_name = payload.get("dcf_rule")
     catalog = load_catalog()
     rule = catalog.get(rule_name)
 
     steps: list[dict[str, Any]] = list(payload.get("steps") or [])
-    if not simulated:
-        # Insert an "Aviatrix Gateway" node between the last non-blocked step
-        # and the first blocked step (if any).
+    contained = bool(payload.get("ok"))
+
+    # The enforcement node, rule block, and control evidence only render
+    # when DCF/IAM actually fired (the agent reports the egress was
+    # blocked). On breach we omit all three: the flow shows the unbroken
+    # egress to the sink, and the sink panel + BREACH verdict carry the
+    # story.
+    if contained:
         steps = _insert_enforcement_node(steps, rule)
 
     payload["steps"] = steps
     payload["elapsed_seconds"] = elapsed
-    payload["simulated"] = simulated
-    if rule:
+    if contained and rule:
         payload["rule_definition"] = rule
-    payload["control_evidence"] = _build_evidence(payload, rule, simulated)
-    payload["verdict"] = "CONTAINED" if payload.get("ok") else "BREACH"
+        payload["control_evidence"] = _build_evidence(payload, rule)
+    else:
+        payload["rule_definition"] = None
+        payload["control_evidence"] = None
+    payload["verdict"] = "CONTAINED" if contained else "BREACH"
     return payload
 
 
@@ -48,7 +57,7 @@ def _insert_enforcement_node(steps: list[dict[str, Any]], rule: dict[str, Any] |
     return steps[:block_idx] + [node] + steps[block_idx:]
 
 
-def _build_evidence(payload: dict[str, Any], rule: dict[str, Any] | None, simulated: bool) -> dict[str, str]:
+def _build_evidence(payload: dict[str, Any], rule: dict[str, Any] | None) -> dict[str, str]:
     if not rule:
         return {}
     if rule.get("type") == "iam":
@@ -59,16 +68,6 @@ def _build_evidence(payload: dict[str, Any], rule: dict[str, Any] | None, simula
             "error_returned": "AccessDeniedException · HTTP 403",
             "side_effects": "none — no AgentCore resource created",
             "audit": "CloudTrail entry: errorCode=AccessDenied, eventName=CreateAgentRuntime",
-        }
-    # DCF
-    if simulated:
-        return {
-            "match_attribute": "n/a — Aviatrix policy was overridden to PERMIT in this simulation",
-            "matched_group": f"src = {rule['src_smart_groups'][0]}, dst = {rule['dst_smart_groups'][0]}",
-            "enforcement_point": "AgentCore spoke GW (no decision — pass-through)",
-            "decryption": rule.get("decrypt_policy") or "not configured",
-            "termination": "no termination — egress completed",
-            "audit": f"FlowIQ entry: action=PERMIT (simulated), rule={rule['name']}",
         }
     return {
         "match_attribute": _summarize_match(payload),

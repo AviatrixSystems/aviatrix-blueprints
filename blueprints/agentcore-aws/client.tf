@@ -35,15 +35,17 @@ resource "aws_instance" "client_invoker" {
     http_tokens = "required"
   }
 
-  user_data = <<-BASH
-    #!/bin/bash
-    set -euo pipefail
-    dnf -y install awscli python3-pip python3-devel jq gcc
-    # ---- containment-probe CLI (SSM-invocable) ---------------------------------
-    # Inner heredoc terminators MUST be at column 0 (no leading whitespace).
-    # The outer <<-BASH strips leading TABS only; this file is space-indented,
-    # so <<'EOF' with an indented EOF would swallow the rest of user_data.
-    cat > /usr/local/bin/probe-agentcore.sh <<'PROBE_EOF'
+  # Outer heredoc is NOT indented (no <<-). The inner PROBE_EOF / PROFILE_ENV /
+  # ENVEOF bodies must be at column 0 so bash matches their terminators, which
+  # means the minimum indent across the user_data is 0. <<-BASH would therefore
+  # dedent by 0 anyway, but it also wouldn't strip space-indented wrapper lines
+  # — so cloud-init would reject the shebang. Keep everything flat at column 0.
+  user_data = <<BASH
+#!/bin/bash
+set -euo pipefail
+dnf -y install awscli python3-pip python3-devel jq gcc
+# ---- containment-probe CLI (SSM-invocable) ---------------------------------
+cat > /usr/local/bin/probe-agentcore.sh <<'PROBE_EOF'
 #!/bin/bash
 # Invoke the sample AgentCore runtime and pretty-print the probe results.
 set -euo pipefail
@@ -68,29 +70,28 @@ aws bedrock-agentcore invoke-agent-runtime \
 echo "[probe] runtime response:"
 cat "$${OUT}" | jq .
 PROBE_EOF
-    chmod +x /usr/local/bin/probe-agentcore.sh
-    cat > /etc/profile.d/agentcore.sh <<'PROFILE_ENV'
+chmod +x /usr/local/bin/probe-agentcore.sh
+cat > /etc/profile.d/agentcore.sh <<'PROFILE_ENV'
 export AWS_REGION=${var.aws_region}
 PROFILE_ENV
 
-    # ---- AgentCore VCA AI Attack Simulation UI (FastAPI) ----------------------
-    # Fetch UI bundle from S3 (see ui.tf) so user_data stays under 16 KB.
-    # Layout: bucket prefix "ui/" maps to /opt/agentcore-ui/ — recursive cp
-    # picks up the python package (ui/), templates, static assets, scenarios.json,
-    # and rules.json. requirements.txt and the service file land one level up.
-    mkdir -p /opt/agentcore-ui
-    UI_BUCKET='${aws_s3_bucket.ui.id}'
-    aws s3 cp --recursive "s3://$${UI_BUCKET}/ui/" /opt/agentcore-ui/
-    mv /opt/agentcore-ui/agentcore-ui.service /etc/systemd/system/agentcore-ui.service
+# ---- AgentCore VCA AI Attack Simulation UI (FastAPI) ----------------------
+# Bucket prefix "ui/" maps to /opt/agentcore-ui/ via recursive cp — pulls the
+# python package, templates, static assets, scenarios.json, rules.json,
+# requirements.txt, and the systemd unit.
+mkdir -p /opt/agentcore-ui
+UI_BUCKET='${aws_s3_bucket.ui.id}'
+aws s3 cp --recursive "s3://$${UI_BUCKET}/ui/" /opt/agentcore-ui/
+mv /opt/agentcore-ui/agentcore-ui.service /etc/systemd/system/agentcore-ui.service
 
-    python3 -m venv /opt/agentcore-ui/venv
-    /opt/agentcore-ui/venv/bin/pip install --upgrade pip >/dev/null
-    /opt/agentcore-ui/venv/bin/pip install -r /opt/agentcore-ui/requirements.txt >/dev/null
+python3 -m venv /opt/agentcore-ui/venv
+/opt/agentcore-ui/venv/bin/pip install --upgrade pip >/dev/null
+/opt/agentcore-ui/venv/bin/pip install -r /opt/agentcore-ui/requirements.txt >/dev/null
 
-    # Env file fields that depend on other terraform resources are populated
-    # post-deploy via SSM. On first boot we leave placeholders; the service
-    # still starts and surfaces a "config pending" state per /api/run/*.
-    cat > /etc/agentcore-ui.env <<ENVEOF
+# Env vars dependent on resources outside this instance's apply graph are
+# placeholders here; populated post-apply via SSM. The service still starts
+# and surfaces a "config pending" state via /api/run/*.
+cat > /etc/agentcore-ui.env <<ENVEOF
 AWS_REGION=${var.aws_region}
 AGENTCORE_DATA_HOST=${local.agentcore_data_host}
 AGENTCORE_RUNTIME_ARN=UNSET_POPULATED_POST_APPLY
@@ -98,10 +99,11 @@ AGENTCORE_RUNTIME_ROLE_ARN=UNSET_POPULATED_POST_APPLY
 AGENTCORE_AGENT_IMAGE_URI=UNSET_POPULATED_POST_APPLY
 ADVERSARY_MCP_URL=UNSET_POPULATED_POST_APPLY
 AVIATRIX_CONTROLLER_VERSION=9.0.10
+AVIATRIX_COPILOT_URL=${local.copilot_dcf_url}
 ENVEOF
-    systemctl daemon-reload
-    systemctl enable --now agentcore-ui.service || true
-  BASH
+systemctl daemon-reload
+systemctl enable --now agentcore-ui.service || true
+BASH
 
   tags = {
     Name = "${local.name_prefix}-client-invoker"

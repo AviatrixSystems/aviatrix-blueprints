@@ -24,11 +24,10 @@ def test_base_template_renders(env):
         active_scenario_id=None,
         active_nav="scenarios",
         status={"region": "us-east-2", "runtime": "test-runtime", "data_plane": "10.50.20.110",
-                "dcf_rules": "-100-", "controller_version": "9.0.10"},
-        containment="on",
+                "dcf_rules": "-100-", "controller_version": "9.0.10", "copilot_url": ""},
         body_content="<p>body</p>",
     )
-    assert "AI ATTACK SIMULATION" in out
+    assert "Validated Containment Architecture" in out
     assert "us-east-2" in out
     assert "<p>body</p>" in out
 
@@ -113,7 +112,6 @@ def test_scenario_template_renders_with_result(env):
         },
         "control_evidence": {"match_attribute": "x"},
         "elapsed_seconds": 2.1,
-        "simulated": False,
     }
     out = tmpl.render(scenario=scenario, result=result, index=1, total=6)
     assert "Prompt Injection" in out

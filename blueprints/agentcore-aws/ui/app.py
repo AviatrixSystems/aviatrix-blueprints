@@ -1,8 +1,13 @@
 """FastAPI application for the AgentCore VCA simulation UI."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import socket
+import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from fastapi import FastAPI, Form, HTTPException, Request
@@ -13,7 +18,6 @@ from fastapi.templating import Jinja2Templates
 from ui import runtime_client
 from ui.evidence_builder import augment
 from ui.scenario_loader import load_scenarios
-from ui.simulation import SIMULATED_PAYLOADS
 
 app = FastAPI(title="AgentCore VCA — AI Attack Simulation")
 
@@ -25,6 +29,15 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
 
+# Aviatrix-hosted attack sink configuration. The agent POSTs exfil payloads to
+# <sink_base>/<deploy_id>/<path>; this server reads receipts back via
+# <sink_base>/api/receipts/<deploy_id>?since=<ts> after each scenario run.
+ATTACKER_SINK_BASE = os.environ.get("ATTACKER_SINK_BASE", "https://avx-vca-sink.vercel.app").rstrip("/")
+ATTACKER_SINK_DEPLOY_ID = os.environ.get("ATTACKER_SINK_DEPLOY_ID") or hashlib.sha256(
+    f"{os.environ.get('AWS_REGION','us-east-2')}-{os.environ.get('AGENTCORE_RUNTIME_ARN','')}".encode()
+).hexdigest()[:16]
+
+
 def _status() -> dict[str, str]:
     return {
         "region": os.environ.get("AWS_REGION", "us-east-2"),
@@ -32,6 +45,7 @@ def _status() -> dict[str, str]:
         "data_plane": os.environ.get("AGENTCORE_DATA_HOST", "(unset)"),
         "dcf_rules": "-29- -30- -31- -33- -50- -100-",
         "controller_version": os.environ.get("AVIATRIX_CONTROLLER_VERSION", "9.0+"),
+        "copilot_url": os.environ.get("AVIATRIX_COPILOT_URL", "").rstrip("/"),
     }
 
 
@@ -46,7 +60,7 @@ def root():
     return RedirectResponse(url=f"/s/{scenarios[0]['id']}", status_code=302)
 
 
-def _render_scenario_card(scenario_id: str, containment: str) -> tuple[dict, str]:
+def _render_scenario_card(scenario_id: str) -> tuple[dict, str]:
     """Return (scenario, card_html) — the scenario.html partial with no chrome."""
     scenarios = load_scenarios()
     index = next((i for i, s in enumerate(scenarios) if s["id"] == scenario_id), None)
@@ -58,14 +72,13 @@ def _render_scenario_card(scenario_id: str, containment: str) -> tuple[dict, str
         result=None,
         index=index + 1,
         total=len(scenarios),
-        containment=containment,
     )
     return scenario, card
 
 
 @app.get("/s/{scenario_id}", response_class=HTMLResponse)
-def scenario_page(scenario_id: str, request: Request, containment: str = "on"):
-    scenario, card = _render_scenario_card(scenario_id, containment)
+def scenario_page(scenario_id: str, request: Request):
+    scenario, card = _render_scenario_card(scenario_id)
     return templates.TemplateResponse(
         request=request,
         name="base.html",
@@ -75,16 +88,15 @@ def scenario_page(scenario_id: str, request: Request, containment: str = "on"):
             "active_scenario_id": scenario_id,
             "active_nav": "scenarios",
             "status": _status(),
-            "containment": containment,
             "body_content": card,
         },
     )
 
 
 @app.get("/s/{scenario_id}/fragment", response_class=HTMLResponse)
-def scenario_fragment(scenario_id: str, containment: str = "on"):
+def scenario_fragment(scenario_id: str):
     """HTMX target for picker chip clicks — returns just the card."""
-    _, card = _render_scenario_card(scenario_id, containment)
+    _, card = _render_scenario_card(scenario_id)
     return HTMLResponse(card)
 
 
@@ -97,44 +109,31 @@ def _scenario_by_id(scenario_id: str) -> dict:
 
 
 @app.post("/api/run/{scenario_id}", response_class=HTMLResponse)
-def run_scenario(
-    scenario_id: str,
-    request: Request,
-    containment: str = Form("on"),
-):
+def run_scenario(scenario_id: str, request: Request):
     scenario = _scenario_by_id(scenario_id)
+    run_started = time.time()
 
     if scenario_id == "drift_public_mode":
         from ui import drift_handler
         raw, elapsed = drift_handler.attempt_public_runtime_create()
-        # Drift is always real, regardless of toggle. If toggle is off, the
-        # template renders the IAM note explaining the layered-controls story.
-        simulated = (containment == "off")
-        result = augment(raw, simulated=simulated, elapsed=elapsed)
+        result = augment(raw, elapsed=elapsed)
+        result["sink_status"] = None
         fragment = templates.get_template("scenario.html").render(
             scenario=scenario,
             result=result,
             index=6, total=6,
-            containment=containment,
         )
         return HTMLResponse(_extract_live_pane(fragment))
 
-    if containment == "off":
-        raw = dict(SIMULATED_PAYLOADS[scenario_id])
-        elapsed = 0.4
-        simulated = True
-    else:
-        raw, elapsed = runtime_client.invoke({"mode": "scenario", "scenario": scenario_id})
-        simulated = False
+    raw, elapsed = runtime_client.invoke({"mode": "scenario", "scenario": scenario_id})
+    result = augment(raw, elapsed=elapsed)
+    result["sink_status"] = _fetch_sink_status(scenario_id, run_started)
 
-    result = augment(raw, simulated=simulated, elapsed=elapsed)
     fragment = templates.get_template("scenario.html").render(
         scenario=scenario,
         result=result,
         index=1, total=6,
-        containment=containment,
     )
-    # Return just the live-pane innerHTML — htmx swaps it in.
     return HTMLResponse(_extract_live_pane(fragment))
 
 
@@ -178,7 +177,6 @@ def chat_page(request: Request):
             "active_scenario_id": None,
             "active_nav": "chat",
             "status": _status(),
-            "containment": "on",
             "body_content": body,
         },
     )
@@ -208,7 +206,6 @@ def forensics_page(kind: str, request: Request):
             "active_scenario_id": None,
             "active_nav": "forensics",
             "status": _status(),
-            "containment": "on",
             "body_content": body,
         },
     )
@@ -231,3 +228,128 @@ def forensics_mcp(server_url: str = Form(...), tool: str = Form(""), args: str =
         "tool": tool or None, "args": args_obj,
     })
     return HTMLResponse(f'<div class="forensics-result">{json.dumps(raw, indent=2)}</div>')
+
+
+# ============================================================================
+# Aviatrix attack sink integration
+#
+# The sink runs on Vercel at ATTACKER_SINK_BASE. Exfil scenarios (LLM01,
+# LLM05) POST to <sink>/<deploy_id>/<path>; this server reads receipts back
+# via <sink>/api/receipts/<deploy_id>?since=<ts> after each run and embeds
+# the result in the rendered scenario fragment.
+#
+# DCF default-deny blocks runtime egress to the sink, so receipts.count is
+# typically 0 (containment confirmed). In v2 PERMIT mode the count becomes
+# >0 (breach confirmed) and the panel renders the actual receipt data.
+# ============================================================================
+
+_SINK_SCENARIOS = {
+    "llm01_prompt_inject_exfil",
+    "llm05_compromised_mcp",
+}
+
+
+def _fetch_sink_status(scenario_id: str, since: float) -> dict | None:
+    """Fetch receipts from the Aviatrix sink for the post-run panel. Only
+    LLM01 and LLM05 loop through the sink — other scenarios return None."""
+    if scenario_id not in _SINK_SCENARIOS:
+        return None
+
+    url = f"{ATTACKER_SINK_BASE}/api/receipts/{ATTACKER_SINK_DEPLOY_ID}?since={since:.2f}&limit=5"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "agentcore-vca-ui/1.0"})
+        with urllib.request.urlopen(req, timeout=4) as resp:  # noqa: S310
+            payload = json.loads(resp.read())
+    except (urllib.error.URLError, json.JSONDecodeError, TimeoutError) as e:
+        return {
+            "count": 0,
+            "entries": [],
+            "scenario_id": scenario_id,
+            "unreachable": True,
+            "error": f"{type(e).__name__}: {e}",
+        }
+    return {
+        "count": payload.get("count", 0),
+        "entries": payload.get("received", [])[:3],
+        "scenario_id": scenario_id,
+        "unreachable": False,
+    }
+
+
+# ============================================================================
+# Readiness probe
+#
+# Surfaces in the status strip as a green/yellow/red pill. Checks the four
+# things that must be true for the demo to actually work: runtime ARN is
+# configured, runtime is in READY status, sink is reachable, and FastAPI's
+# in-process state (rules.json, scenarios.json) loaded successfully.
+# ============================================================================
+
+def _check_runtime_arn() -> dict:
+    arn = os.environ.get("AGENTCORE_RUNTIME_ARN", "")
+    if not arn or arn.startswith("UNSET"):
+        return {"status": "critical", "detail": "AGENTCORE_RUNTIME_ARN not configured"}
+    return {"status": "ok", "detail": arn.rsplit("/", 1)[-1]}
+
+
+def _check_sink_reachable() -> dict:
+    url = f"{ATTACKER_SINK_BASE}/api/health"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "agentcore-vca-ui/1.0"})
+        with urllib.request.urlopen(req, timeout=3) as resp:  # noqa: S310
+            data = json.loads(resp.read())
+        return {"status": "ok", "detail": f"sink {data.get('status','?')} · backend={data.get('backend','?')}"}
+    except (urllib.error.URLError, json.JSONDecodeError, TimeoutError) as e:
+        return {"status": "degraded", "detail": f"sink unreachable: {type(e).__name__}"}
+
+
+def _check_catalog() -> dict:
+    try:
+        from ui.rules_catalog import load_catalog
+        from ui.scenario_loader import load_scenarios
+        rules = load_catalog()
+        scenarios = load_scenarios()
+        return {"status": "ok", "detail": f"{len(rules)} rules · {len(scenarios)} scenarios"}
+    except Exception as e:  # noqa: BLE001
+        return {"status": "critical", "detail": f"catalog load failed: {type(e).__name__}: {e}"}
+
+
+@app.get("/api/readiness", include_in_schema=False)
+def readiness() -> dict:
+    checks = {
+        "runtime":  _check_runtime_arn(),
+        "sink":     _check_sink_reachable(),
+        "catalog":  _check_catalog(),
+    }
+    statuses = [c["status"] for c in checks.values()]
+    if any(s == "critical" for s in statuses):
+        overall = "not_ready"
+    elif any(s == "degraded" for s in statuses):
+        overall = "degraded"
+    else:
+        overall = "ready"
+    return {
+        "overall": overall,
+        "checks": checks,
+        "deploy_id": ATTACKER_SINK_DEPLOY_ID,
+        "sink_base": ATTACKER_SINK_BASE,
+        "checked_at": time.time(),
+    }
+
+
+@app.get("/api/readiness/fragment", response_class=HTMLResponse, include_in_schema=False)
+def readiness_fragment():
+    """HTMX-target fragment: small pill rendering of readiness state for the status strip."""
+    r = readiness()
+    overall = r["overall"]
+    label = {"ready": "READY", "degraded": "DEGRADED", "not_ready": "NOT READY"}[overall]
+    cls = {"ready": "ready", "degraded": "degraded", "not_ready": "not-ready"}[overall]
+    detail_lines = "\n".join(
+        f"  {name}: {c['status']} — {c['detail']}" for name, c in r["checks"].items()
+    )
+    title = f"deploy_id={r['deploy_id']}\nsink={r['sink_base']}\n{detail_lines}"
+    return HTMLResponse(
+        f'<span class="ready-pill {cls}" title="{title}" '
+        f'hx-get="/api/readiness/fragment" hx-trigger="every 60s" hx-swap="outerHTML">'
+        f'<span class="dot"></span>{label}</span>'
+    )

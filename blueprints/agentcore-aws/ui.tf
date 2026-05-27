@@ -9,7 +9,7 @@
 # Bundle layout on EC2:
 #   /opt/agentcore-ui/                       <-- working dir (sys.path root)
 #     ui/                                    <-- python package
-#       app.py, runtime_client.py, simulation.py, scenario_loader.py,
+#       app.py, runtime_client.py, scenario_loader.py,
 #       rules_catalog.py, evidence_builder.py, drift_handler.py,
 #       __init__.py, scenarios.json, rules.json,
 #       templates/, static/
@@ -61,13 +61,6 @@ resource "aws_s3_object" "ui_runtime_client" {
   key    = "ui/ui/runtime_client.py"
   source = "${path.module}/ui/runtime_client.py"
   etag   = filemd5("${path.module}/ui/runtime_client.py")
-}
-
-resource "aws_s3_object" "ui_simulation" {
-  bucket = aws_s3_bucket.ui.id
-  key    = "ui/ui/simulation.py"
-  source = "${path.module}/ui/simulation.py"
-  etag   = filemd5("${path.module}/ui/simulation.py")
 }
 
 resource "aws_s3_object" "ui_scenario_loader" {

@@ -13,6 +13,10 @@ WORKDIR /app
 # when the spoke gateway performs transparent TLS decryption (9.0+), the
 # re-signed server certs validate without breaking boto3 / httpx / urllib.
 # The PEM is fetched from the controller via scripts/fetch-avx-ca.sh.
+#
+# The attacker.example sink runs on Vercel with a Let's Encrypt cert, so it
+# validates against the public CA chain already in this image — no custom
+# CA bake-in needed for the v2 loopback path.
 COPY avx-root-ca.pem /usr/local/share/ca-certificates/avx-dcf-mitm.crt
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates \

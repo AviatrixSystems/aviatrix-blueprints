@@ -24,7 +24,7 @@ def test_scenario_page_renders(client):
     r = client.get("/s/llm01_prompt_inject_exfil")
     assert r.status_code == 200
     assert "Prompt Injection" in r.text
-    assert "AI ATTACK SIMULATION" in r.text
+    assert "Validated Containment Architecture" in r.text
 
 
 def test_scenario_page_404_for_unknown(client):
@@ -44,7 +44,9 @@ def test_scenario_fragment_returns_card_only(client):
 
 
 def test_run_live_path_returns_html_fragment(client, monkeypatch):
-    """containment=on calls runtime_client.invoke and returns the rendered fragment."""
+    """POST /api/run/{id} always calls runtime_client.invoke and renders the
+    fragment from whatever the agent actually returned. There is no simulated
+    branch — the verdict tracks the agent's real outcome."""
     from ui import runtime_client
 
     def fake_invoke(payload):
@@ -60,7 +62,7 @@ def test_run_live_path_returns_html_fragment(client, monkeypatch):
 
     monkeypatch.setattr(runtime_client, "invoke", fake_invoke)
 
-    r = client.post("/api/run/llm01_prompt_inject_exfil", data={"containment": "on"})
+    r = client.post("/api/run/llm01_prompt_inject_exfil")
     assert r.status_code == 200
     assert "CONTAINED" in r.text
     assert "Aviatrix Gateway" in r.text  # inserted between last-ok and first-blocked
