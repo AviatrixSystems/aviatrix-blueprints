@@ -1,6 +1,6 @@
 # =============================================================================
 # Blueprint: obot-mcp-egress-azure
-# Deploys an AKS cluster with Aviatrix spoke gateway and Obot, enforcing
+# Deploys an AKS cluster with Aviatrix Gateway (Policy Enforcement Point) and Obot, enforcing
 # zero-trust egress on all MCP server pods via DCF + MCPNetworkPolicy.
 # =============================================================================
 
@@ -51,6 +51,7 @@ provider "helm" {
 locals {
   # Azure region slug used in AKS API server domain (e.g. "UK South" -> "uksouth")
   azure_region_slug = lower(replace(var.azure_location, " ", ""))
+
 }
 
 # -----------------------------------------------------------------------------

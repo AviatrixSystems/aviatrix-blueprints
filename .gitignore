@@ -36,6 +36,17 @@ Thumbs.db
 *.tmp
 *.temp
 
+# Local development (environment-specific, not for public repo)
+MEMORY.md
+
+# Diagram generation scripts and local icon refs (machine-specific, not for public repo)
+blueprints/**/architecture.py
+docs/diagrams/*.py
+docs/diagrams/icon-*.svg
+
+# Internal Claude Code planning artifacts
+docs/superpowers/
+
 # Environment variable files
 .env
 .env.*

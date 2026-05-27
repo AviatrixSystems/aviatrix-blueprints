@@ -2,14 +2,19 @@
 # Distributed Cloud Firewall (DCF) Configuration
 # =============================================================================
 #
-# KNOWN LIMITATION — EKS per-pod K8s label enforcement:
-# EKS clusters register as "Partial" (controller cannot list custom resources).
-# K8s label-based SmartGroups never resolve pod IPs, so FirewallPolicy CRDs
-# created by NPC are not enforced at the spoke gateway.
-# Workaround: V1 CIDR /32 SmartGroups (var.obot_system_pod_cidrs,
-# var.obot_mcp_pod_cidrs) provide enforcement until Aviatrix resolves the
-# EKS kubeconfig exec-plugin or assetd watcher re-subscription issue.
-# See docs/stp-eks-dcf-per-pod-enforcement.md for full root cause.
+# NOTE — EKS DCF K8s enforcement:
+# FirewallPolicy and WebgroupPolicy CRDs (networking.aviatrix.com/v1alpha1) are
+# installed by helm_release.aviatrix_crds (k8s-firewall chart, k8s.tf).
+# aviatrix_kubernetes_cluster is intentionally absent — the controller auto-discovers
+# EKS clusters via CSP account scan; explicit registration always conflicts (HTTP 409).
+# The NPC (aviatrix-network-policy-controller) installed by Obot reconciles
+# MCPNetworkPolicy objects into FirewallPolicy CRDs; it crashes if CRDs are absent.
+#
+# K8s enforcement confirmed working on fresh deploy (2026-05-13).
+# obot-system tier isolation: V1 SmartGroup uses K8s namespace selector (no CIDR tracking).
+# obot-mcp per-pod enforcement: K8S_POLICY_LIST via FirewallPolicy CRDs (NPC-managed).
+# Default Action deny-all catches all unmatched traffic.
+# obot_mcp_pod_cidrs provides an optional explicit V1 DENY SmartGroup if needed.
 # =============================================================================
 #
 # SINGLETON RESOURCES: aviatrix_distributed_firewalling_policy_list and
@@ -19,15 +24,15 @@
 # will overwrite the first's policy rules. Merge rules into a shared module or
 # use separate controllers per blueprint deployment.
 
-resource "aviatrix_kubernetes_cluster" "obot" {
-  cluster_id          = module.eks.cluster_arn
-  use_csp_credentials = true
-}
-
 resource "time_sleep" "cai_sync" {
+  # Wait for spoke gateway and CRDs before writing DCF policies.
+  # CRDs (FirewallPolicy, WebgroupPolicy) are installed by helm_release.aviatrix_crds
+  # in k8s.tf. The aviatrix_kubernetes_cluster resource is absent: the controller
+  # auto-discovers EKS clusters via CSP account scan; explicit registration always
+  # conflicts with the auto-discovered entry (HTTP 409).
   depends_on = [
     module.spoke,
-    aviatrix_kubernetes_cluster.obot,
+    helm_release.aviatrix_crds,
   ]
   create_duration = "30s"
 }
@@ -36,7 +41,7 @@ resource "aviatrix_distributed_firewalling_config" "enabled" {
   enable_distributed_firewalling = true
 }
 
-# Re-enable 5 DCF feature flags (reset on controller reboot).
+# Enable the five feature flags required for Kubernetes CRD enforcement.
 resource "null_resource" "k8s_dcf_features" {
   triggers = { controller_ip = var.controller_ip }
 
@@ -91,17 +96,13 @@ resource "aviatrix_smart_group" "eks_vpc" {
   depends_on = [time_sleep.cai_sync]
 }
 
-# SmartGroup: obot-system pod /32 CIDRs (V1 CIDR workaround).
-# Empty match_expressions on first apply produces a valid SmartGroup that
-# matches nothing until re-applied with pod IPs after Obot is running.
+
 resource "aviatrix_smart_group" "obot_system_pods" {
   name = "${local.name}-obot-system"
   selector {
-    dynamic "match_expressions" {
-      for_each = var.obot_system_pod_cidrs
-      content {
-        cidr = match_expressions.value
-      }
+    match_expressions {
+      type          = "k8s"
+      k8s_namespace = var.obot_namespace
     }
   }
   depends_on = [time_sleep.cai_sync]
@@ -129,6 +130,8 @@ resource "aviatrix_web_group" "eks_infra_egress" {
     match_expressions { snifilter = "*.eks.amazonaws.com" }
     match_expressions { snifilter = "*.ecr.aws" }
     match_expressions { snifilter = "*.dkr.ecr.*.amazonaws.com" }
+    match_expressions { snifilter = "ecr.*.amazonaws.com" }     # ecr-credential-provider GetAuthorizationToken (old endpoint)
+    match_expressions { snifilter = "api.ecr.*.amazonaws.com" } # ecr-credential-provider GetAuthorizationToken (new SDK endpoint)
     match_expressions { snifilter = "*.s3.*.amazonaws.com" }
     match_expressions { snifilter = "*.s3.amazonaws.com" }
     match_expressions { snifilter = "ec2.*.amazonaws.com" }
@@ -171,9 +174,7 @@ resource "aviatrix_distributed_firewalling_policy_list" "infra" {
     web_groups       = [aviatrix_web_group.eks_infra_egress.uuid]
   }
 
-  # P2: Obot pod egress — scoped to obot-system /32 CIDRs.
-  # When obot_system_pod_cidrs is empty (first apply), this rule has an
-  # empty-selector SmartGroup as source and will not match any traffic.
+  # P2: Obot pod egress — scoped to obot-system namespace via K8s SmartGroup.
   policies {
     name     = "obot-pod-egress"
     action   = "PERMIT"
@@ -210,6 +211,72 @@ resource "aviatrix_distributed_firewalling_default_action_rule" "deny_all" {
   action     = "DENY"
   logging    = true
   depends_on = [aviatrix_distributed_firewalling_policy_list.infra]
+}
+
+# Onboard the EKS cluster into CoPilot for K8S_POLICY_LIST enforcement.
+# aviatrix_kubernetes_cluster TF resource is absent (EKS auto-discovered by controller
+# on CSP scan; explicit registration via the TF resource returns HTTP 409).
+# This null_resource calls the CoPilot onboard API directly, matching what the
+# CoPilot UI does: POST /api/kubernetes/onboard with the cluster ARN.
+# Idempotent: checks fetcher_status via GET /api/kubernetes/clusters before calling
+# onboard; no-ops if the cluster already shows RUNNING.
+resource "null_resource" "copilot_k8s_onboard" {
+  triggers = {
+    cluster_arn = module.eks.cluster_arn
+  }
+
+  provisioner "local-exec" {
+    command     = <<-EOT
+      set -euo pipefail
+      # Login to CoPilot (session cookie in /tmp)
+      COOKIE_JAR=$(mktemp)
+      trap 'rm -f "$COOKIE_JAR"' EXIT
+      HTTP=$(curl -sk -c "$COOKIE_JAR" -o /dev/null -w "%%{http_code}" \
+        -X POST "https://$${COPILOT}/api/login" \
+        -H "Content-Type: application/json" \
+        -d "{\"username\":\"$${USERNAME}\",\"password\":\"$${PASSWORD}\"}")
+      if [ "$HTTP" != "200" ]; then echo "ERROR: CoPilot login failed (HTTP $HTTP)" >&2; exit 1; fi
+      # Skip if already onboarded
+      STATUS=$(curl -sk -b "$COOKIE_JAR" "https://$${COPILOT}/api/kubernetes/clusters" \
+        | python3 -c "
+import sys, json
+clusters = json.load(sys.stdin)
+arn = '$${CLUSTER_ARN}'
+for c in clusters:
+    if c.get('cluster_id') == arn and c.get('fetcher_status','UNSPECIFIED') != 'UNSPECIFIED':
+        print('ALREADY_ONBOARDED')
+        sys.exit(0)
+print('NOT_ONBOARDED')
+" 2>/dev/null || echo "NOT_ONBOARDED")
+      if [ "$STATUS" = "ALREADY_ONBOARDED" ]; then
+        echo "Cluster already onboarded, skipping."
+        exit 0
+      fi
+      # Onboard
+      HTTP=$(curl -sk -b "$COOKIE_JAR" -o /tmp/onboard_resp.json -w "%%{http_code}" \
+        -X POST "https://$${COPILOT}/api/kubernetes/onboard" \
+        -H "Content-Type: application/json" \
+        -d "{\"clusterId\":\"$${CLUSTER_ARN}\"}")
+      if [ "$HTTP" != "200" ]; then
+        echo "ERROR: onboard failed (HTTP $HTTP): $(cat /tmp/onboard_resp.json)" >&2
+        exit 1
+      fi
+      echo "Cluster onboarded successfully."
+    EOT
+    interpreter = ["/bin/bash", "-c"]
+    environment = {
+      COPILOT     = var.copilot_public_ip
+      USERNAME    = var.controller_username
+      PASSWORD    = var.controller_password
+      CLUSTER_ARN = module.eks.cluster_arn
+    }
+  }
+
+  depends_on = [
+    aws_eks_access_policy_association.aviatrix_controller,
+    null_resource.k8s_dcf_features,
+    time_sleep.cai_sync,
+  ]
 }
 
 # CoPilot association via direct API call (provider resource lacks public_ip field).

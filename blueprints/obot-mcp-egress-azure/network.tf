@@ -1,8 +1,8 @@
 # =============================================================================
-# Network: Aviatrix spoke gateway subnet + route tables
+# Network: Aviatrix Gateway (Policy Enforcement Point) subnet + route tables
 # =============================================================================
 
-# Dedicated subnet for the Aviatrix spoke gateway.
+# Dedicated subnet for the Aviatrix Gateway (Policy Enforcement Point).
 # Must not overlap with var.aks_subnet_cidr.
 resource "azurerm_subnet" "avx_gateway" {
   name                 = "${var.name_prefix}-sn-avx-gw"
@@ -41,7 +41,7 @@ resource "azurerm_subnet_route_table_association" "avx_gateway" {
 # default route with its spoke gateway, so all pod egress flows through DCF.
 #
 # WARNING: Applying this association redirects all pod outbound traffic through
-# the Aviatrix spoke gateway. Verify the DCF infrastructure permits in dcf.tf
+# the Aviatrix Gateway (Policy Enforcement Point). Verify the DCF infrastructure permits in dcf.tf
 # match your cluster's essential egress domains before applying to production.
 resource "azurerm_route_table" "aks" {
   name                = "${var.name_prefix}-rt-aks"
