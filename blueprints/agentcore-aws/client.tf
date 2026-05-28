@@ -1,14 +1,14 @@
 # =============================================================================
-# Client invoker EC2 - Amazon Linux 2023 ARM64 in the client spoke. Runs the
-# probe script via SSM so no public key / SSH access is needed. The test
-# harness (tests/probe.sh) exec's `aws bedrock-agentcore invoke-agent-runtime`
-# from this instance - which routes through the transit, through the
-# AgentCore spoke GW, out the PrivateLink endpoint, and back.
+# Client invoker EC2 - Amazon Linux 2023 ARM64 in the client spoke. Hosts the
+# AgentCore VCA UI (FastAPI/Streamlit) behind the public ALB. The UI service
+# drives the AgentCore runtime via `aws bedrock-agentcore invoke-agent-runtime`,
+# which routes through the transit, through the AgentCore spoke GW, out the
+# PrivateLink endpoint, and back.
 # =============================================================================
 
 resource "aws_security_group" "client_invoker" {
   name        = "${local.name_prefix}-client-invoker"
-  description = "Outbound-only. SSM-reachable. No inbound."
+  description = "Outbound-only. ALB ingress on 8501 only. No SSH."
   vpc_id      = aws_vpc.client.id
 
   egress {
@@ -35,45 +35,14 @@ resource "aws_instance" "client_invoker" {
     http_tokens = "required"
   }
 
-  # Outer heredoc is NOT indented (no <<-). The inner PROBE_EOF / PROFILE_ENV /
-  # ENVEOF bodies must be at column 0 so bash matches their terminators, which
-  # means the minimum indent across the user_data is 0. <<-BASH would therefore
-  # dedent by 0 anyway, but it also wouldn't strip space-indented wrapper lines
-  # — so cloud-init would reject the shebang. Keep everything flat at column 0.
+  # Outer heredoc is NOT indented (no <<-). The inner ENVEOF body must be at
+  # column 0 so bash matches its terminator, which means the minimum indent
+  # across the user_data is 0. Keep everything flat at column 0 so cloud-init
+  # accepts the shebang.
   user_data = <<BASH
 #!/bin/bash
 set -euo pipefail
-dnf -y install awscli python3-pip python3-devel jq gcc
-# ---- containment-probe CLI (SSM-invocable) ---------------------------------
-cat > /usr/local/bin/probe-agentcore.sh <<'PROBE_EOF'
-#!/bin/bash
-# Invoke the sample AgentCore runtime and pretty-print the probe results.
-set -euo pipefail
-RUNTIME_ARN="$${1:-$${AGENTCORE_RUNTIME_ARN:-}}"
-REGION="$${AWS_REGION:-us-east-2}"
-DATA_HOST="$${AGENTCORE_DATA_HOST:-bedrock-agentcore.$${REGION}.amazonaws.com}"
-if [[ -z "$${RUNTIME_ARN}" ]]; then
-  echo "usage: probe-agentcore.sh <runtime-arn>" >&2
-  exit 1
-fi
-echo "[probe] resolving $${DATA_HOST}"
-getent ahosts "$${DATA_HOST}" | head -1
-OUT=$(mktemp)
-PAYLOAD_B64=$(printf '%s' '{"task":"run-probes"}' | base64 -w0)
-SESSION="probe-$$(date +%s)-$$RANDOM-$$(head /dev/urandom | tr -dc a-f0-9 | head -c 16)"
-aws bedrock-agentcore invoke-agent-runtime \
-  --region "$${REGION}" \
-  --agent-runtime-arn "$${RUNTIME_ARN}" \
-  --runtime-session-id "$${SESSION}" \
-  --payload "$${PAYLOAD_B64}" \
-  "$${OUT}" >/dev/null
-echo "[probe] runtime response:"
-cat "$${OUT}" | jq .
-PROBE_EOF
-chmod +x /usr/local/bin/probe-agentcore.sh
-cat > /etc/profile.d/agentcore.sh <<'PROFILE_ENV'
-export AWS_REGION=${var.aws_region}
-PROFILE_ENV
+dnf -y install awscli python3-pip python3-devel jq
 
 # ---- AgentCore VCA AI Attack Simulation UI (FastAPI) ----------------------
 # Bucket prefix "ui/" maps to /opt/agentcore-ui/ via recursive cp — pulls the
