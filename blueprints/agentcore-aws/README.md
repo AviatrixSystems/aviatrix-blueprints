@@ -125,6 +125,22 @@ The AgentCore Runtime terminates any active sessions; ECR force-delete handles t
 
 > **Known transient — security_group / subnet dependency on first destroy.** If the first `terraform destroy` fails with a `DependencyViolation` on the runtime-subnet security group or one of the PrivateLink endpoint subnets, re-run `terraform destroy`. The AgentCore Runtime ENIs and PrivateLink endpoint ENIs are torn down asynchronously after the Runtime stops accepting sessions; the second destroy sees them gone and succeeds.
 
+## Troubleshooting
+
+**Provider produced inconsistent final plan on `aviatrix_web_group.allowed_mcp_servers` during the first `terraform apply`.** The controller resolves the MCP host SNI through CNAMEs at apply time, so the planned value (`mcp.deepwiki.com`) and the realized value (a `*.lambda-url.<region>.on.aws` host) diverge. Re-run `terraform apply` — the next plan picks up the resolved value and the resource creates cleanly. Reported upstream as a provider bug.
+
+**`terraform apply` fails with AZ-level "not supported for AgentCore" partway through, in regions other than `us-east-2`.** AgentCore data-plane PrivateLink is not yet available in every AZ of every supported region. Destroy and redeploy in `us-east-2` (the variable's default and the only end-to-end-tested region for this blueprint).
+
+**`probe_command` fails with `SessionManagerPlugin is not found`.** The AWS CLI delegates SSM interactive sessions to a separate plugin. Install [`session-manager-plugin`](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) and re-run.
+
+**`probe_command` reports the agent failing on AWS API calls (Bedrock, STS) or the AgentCore Runtime image pull is blocked.** Check that `terraform.tfvars` includes the full `aws_control_domains` list from `terraform.tfvars.example`. The ECR auth API (`api.ecr.<region>.amazonaws.com`), the S3 ECR layer bucket (`prod-<region>-starport-layer-bucket.s3.<region>.amazonaws.com`), and Secrets Manager are required for AgentCore VPC-mode image pull and agent runtime; missing any of them causes DCF to deny the flow. The per-account ECR registry hostname is appended automatically from the current AWS caller identity.
+
+**`terraform destroy` fails with `DependencyViolation` on the runtime-subnet security group or a PrivateLink endpoint subnet.** The AgentCore Runtime ENIs and PrivateLink endpoint ENIs are torn down asynchronously after the Runtime stops accepting sessions. Re-run `terraform destroy` — the second pass sees them gone and succeeds.
+
+**DCF Monitor entries show rule `UNKNOWN` for some flows.** These are flows that matched the default action rather than a specific rule (no rule ID is attached to default-action hits). The IPs involved tell you which traffic it is — usually background management chatter or flows that the blueprint deliberately doesn't enumerate.
+
+**First `terraform apply` fails with IAM `AccessDenied` errors mentioning `secretsmanager`, `cloudformation`, or `bedrock-agentcore`.** The deploying principal needs those services in addition to the canonical ECR / VPC / IAM / Route 53 / EC2 / SSM set. See the AWS permissions row of the Prerequisites table for the full list.
+
 ## Known limitations (v1)
 
 - **No TLS decryption.** WebGroups match on SNI only. URL paths, methods, and bodies are invisible. This is a deliberate v1 choice (see PRD § TLS decryption feasibility).
