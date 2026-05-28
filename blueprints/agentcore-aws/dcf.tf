@@ -162,7 +162,7 @@ resource "aviatrix_web_group" "aws_control" {
     for_each = [1]
     content {
       dynamic "match_expressions" {
-        for_each = var.aws_control_domains
+        for_each = local.aws_control_domains
         content {
           snifilter = match_expressions.value
         }

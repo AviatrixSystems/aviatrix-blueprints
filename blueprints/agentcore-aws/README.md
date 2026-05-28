@@ -22,12 +22,13 @@ No HA on transit or spokes in v1. `single_ip_snat = false` on spokes because dec
 |---|---|---|
 | Terraform | >= 1.5 | Deploy the blueprint |
 | AWS CLI | configured | ECR login, SSM, validation |
-| Podman (or Docker) | machine running | Build the ARM64 agent container image |
+| [AWS Session Manager Plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) | latest | Required by `probe_command` (SSM session into the client invoker) |
+| Podman | machine running | Build the ARM64 agent container image (the build path uses `podman` explicitly; Docker is not a drop-in) |
 | `jq` | any | Reads controller responses during validation |
 | Aviatrix Controller | 8.1+ (FQDN SmartGroups GA) | DCF + SmartGroup support |
-| AWS permissions | ECR, VPC, IAM, Route 53, EC2, SSM, `bedrock-agentcore-control:Create*` | Create all resources |
+| AWS permissions | ECR, VPC, IAM, Route 53, EC2, SSM, `secretsmanager:*`, `cloudformation:*`, `bedrock-agentcore-control:Create*`, `bedrock-agentcore:*` (data plane Create/Invoke) | Create all resources |
 
-Region must be one of the AgentCore-supported set; defaults to `us-east-2` which has full PrivateLink coverage (data plane, control plane, gateway).
+**Region:** `us-east-2` is recommended and is the only region this blueprint has been deployed end-to-end. The variable accepts the broader AgentCore-supported set, but individual AZs within those regions can be excluded for AgentCore data-plane PrivateLink — `us-east-1` in particular has hit AZ-level "not supported" failures mid-apply.
 
 ## Deploy
 
@@ -60,6 +61,8 @@ terraform apply
 
 Expected deploy time: ~25-30 minutes (transit + 2 spokes attach each take ~3-4 min; AgentCore Runtime create + container build+push ~4-5 min).
 
+> **Known transient — provider "inconsistent final plan" on `aviatrix_web_group.allowed_mcp_servers`.** The first apply occasionally fails with `was cty.StringVal("mcp.deepwiki.com"), but now cty.StringVal("<lambda-url>.on.aws")` because the controller resolves the SNI through CNAMEs at apply time. Re-run `terraform apply` — the next plan sees the resolved value and the resource creates cleanly. Reported upstream as a provider bug.
+
 ## Test
 
 ```bash
@@ -79,10 +82,17 @@ Expected probe results:
 Verify in CoPilot:
 
 1. **Topology** — transit + 2 spokes + DCF badge
-2. **Security → Distributed Cloud Firewall → SmartGroups** — `runtime-subnet`, `agentcore-data-host`, `agentcore-control-host`, `client-spoke`, `any`
-3. **Security → Distributed Cloud Firewall → WebGroups** — allowed-models, allowed-tools, aws-control-domains populated with their SNI filters
-4. **FlowIQ → filter by src SmartGroup = `agentcore-vca-runtime-subnet`** — allowed Bedrock flows and denied internet flows both visible with human-readable rule names
-5. **FlowIQ → filter action = denied** — entries for the three denied probes
+2. **Security → DCF → SmartGroups** — `runtime-subnet`, `agentcore-data-host`, `agentcore-control-host`, `client-spoke`, `any`
+3. **Security → DCF → Web Groups** — `allowed-models`, `allowed-tools`, `aws-control-domains`, `allowed-mcp-servers`, `supply-chain-ioc-github` populated with their SNI / URL filters
+4. **Security → DCF → Monitor → filter `src_smart_group = agentcore-vca-runtime-subnet`** — allowed Bedrock flows and denied internet flows both visible with human-readable rule names
+5. **Security → DCF → Monitor → filter `action = DENY`** — entries for the three denied probes
+
+> **Note:** Filtering by SmartGroup is supported by DCF Monitor, not FlowIQ. FlowIQ is the flow-visualization view and filters on source/destination IPs and gateways. If you see Monitor entries with rule `UNKNOWN`, those are usually flows that hit the default action (no rule ID attached) — visible by the IPs involved.
+
+### Next: tests/
+
+- [`tests/probe.sh`](tests/probe.sh) — the underlying probe script that `probe_command` invokes via SSM. Run it directly on the client-invoker EC2 if you want to script the four containment checks.
+- [`tests/smoke-ui.md`](tests/smoke-ui.md) — ~10-minute UI smoke checklist for the ALB-fronted scenario UI; run after every fresh deploy.
 
 ## Resources created
 
@@ -112,6 +122,24 @@ terraform destroy
 ```
 
 The AgentCore Runtime terminates any active sessions; ECR force-delete handles the image; Aviatrix spoke/transit detach cleanly.
+
+> **Known transient — security_group / subnet dependency on first destroy.** If the first `terraform destroy` fails with a `DependencyViolation` on the runtime-subnet security group or one of the PrivateLink endpoint subnets, re-run `terraform destroy`. The AgentCore Runtime ENIs and PrivateLink endpoint ENIs are torn down asynchronously after the Runtime stops accepting sessions; the second destroy sees them gone and succeeds.
+
+## Troubleshooting
+
+**Provider produced inconsistent final plan on `aviatrix_web_group.allowed_mcp_servers` during the first `terraform apply`.** The controller resolves the MCP host SNI through CNAMEs at apply time, so the planned value (`mcp.deepwiki.com`) and the realized value (a `*.lambda-url.<region>.on.aws` host) diverge. Re-run `terraform apply` — the next plan picks up the resolved value and the resource creates cleanly. Reported upstream as a provider bug.
+
+**`terraform apply` fails with AZ-level "not supported for AgentCore" partway through, in regions other than `us-east-2`.** AgentCore data-plane PrivateLink is not yet available in every AZ of every supported region. Destroy and redeploy in `us-east-2` (the variable's default and the only end-to-end-tested region for this blueprint).
+
+**`probe_command` fails with `SessionManagerPlugin is not found`.** The AWS CLI delegates SSM interactive sessions to a separate plugin. Install [`session-manager-plugin`](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) and re-run.
+
+**`probe_command` reports the agent failing on AWS API calls (Bedrock, STS) or the AgentCore Runtime image pull is blocked.** Check that `terraform.tfvars` includes the full `aws_control_domains` list from `terraform.tfvars.example`. The ECR auth API (`api.ecr.<region>.amazonaws.com`), the S3 ECR layer bucket (`prod-<region>-starport-layer-bucket.s3.<region>.amazonaws.com`), and Secrets Manager are required for AgentCore VPC-mode image pull and agent runtime; missing any of them causes DCF to deny the flow. The per-account ECR registry hostname is appended automatically from the current AWS caller identity.
+
+**`terraform destroy` fails with `DependencyViolation` on the runtime-subnet security group or a PrivateLink endpoint subnet.** The AgentCore Runtime ENIs and PrivateLink endpoint ENIs are torn down asynchronously after the Runtime stops accepting sessions. Re-run `terraform destroy` — the second pass sees them gone and succeeds.
+
+**DCF Monitor entries show rule `UNKNOWN` for some flows.** These are flows that matched the default action rather than a specific rule (no rule ID is attached to default-action hits). The IPs involved tell you which traffic it is — usually background management chatter or flows that the blueprint deliberately doesn't enumerate.
+
+**First `terraform apply` fails with IAM `AccessDenied` errors mentioning `secretsmanager`, `cloudformation`, or `bedrock-agentcore`.** The deploying principal needs those services in addition to the canonical ECR / VPC / IAM / Route 53 / EC2 / SSM set. See the AWS permissions row of the Prerequisites table for the full list.
 
 ## Known limitations (v1)
 
