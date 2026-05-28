@@ -83,6 +83,12 @@ locals {
   copilot_host    = coalesce(var.copilot_ip, var.controller_ip)
   copilot_dcf_url = "https://${local.copilot_host}/security/distributed-cloud-firewall/policy"
 
+  # ECR registry hostname is account- and region-specific. Append it to the
+  # operator-supplied control-domain list so customers never have to hardcode
+  # their own account ID in the variable default.
+  ecr_registry_host   = "${local.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com"
+  aws_control_domains = concat(var.aws_control_domains, [local.ecr_registry_host])
+
   common_tags = {
     Blueprint = var.name_prefix
   }

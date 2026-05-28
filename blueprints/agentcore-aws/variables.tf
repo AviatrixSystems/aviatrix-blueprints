@@ -133,7 +133,14 @@ variable "allowed_mcp_server_domains" {
 }
 
 variable "aws_control_domains" {
-  description = "AWS service control-plane FQDNs the agent runtime may call (STS, SSM, Secrets Manager, CloudWatch Logs, X-Ray) plus ECR hostnames required by AgentCore Runtime in VPC mode to pull the container image from the per-session microVM ENI."
+  description = <<-EOT
+    AWS service control-plane FQDNs the agent runtime may call (STS, SSM, Secrets Manager,
+    CloudWatch Logs, X-Ray) plus the ECR auth API and the S3 layer bucket required by
+    AgentCore Runtime in VPC mode to pull the container image from the per-session microVM
+    ENI. The per-account ECR registry hostname (`<account-id>.dkr.ecr.<region>.amazonaws.com`)
+    is appended automatically in `main.tf` from the current caller identity, so customers
+    do not need to encode their own account ID here.
+  EOT
   type        = list(string)
   default = [
     # Observability + identity
@@ -142,9 +149,8 @@ variable "aws_control_domains" {
     "monitoring.us-east-2.amazonaws.com",
     "xray.us-east-2.amazonaws.com",
     "secretsmanager.us-east-2.amazonaws.com",
-    # ECR (auth API + registry) - required for AgentCore VPC-mode image pull
+    # ECR auth API (registry hostname is appended dynamically; see main.tf locals)
     "api.ecr.us-east-2.amazonaws.com",
-    "538591868388.dkr.ecr.us-east-2.amazonaws.com",
     # S3 layer bucket backing ECR image layers in us-east-2
     "prod-us-east-2-starport-layer-bucket.s3.us-east-2.amazonaws.com",
   ]
@@ -171,9 +177,13 @@ variable "agent_image_tag" {
 # -----------------------------------------------------------------------------
 
 variable "ui_ingress_cidrs" {
-  description = "List of CIDR blocks allowed to reach the Streamlit UI via the ALB. Default is the operator who bootstrapped the lab. Keep this tight - the ALB publishes a public DNS name, and the SG rule is the only ingress control."
+  description = "List of CIDR blocks allowed to reach the Streamlit UI via the ALB. Required: set to your public IP as /32 (or a short list of operator CIDRs). Keep this tight - the ALB publishes a public DNS name, and the SG rule is the only ingress control."
   type        = list(string)
-  default     = ["45.26.1.144/32"]
+
+  validation {
+    condition     = length(var.ui_ingress_cidrs) > 0
+    error_message = "ui_ingress_cidrs must contain at least one CIDR (your public IP as /32). The ALB is internet-facing; an empty list would either fail SG creation or expose the UI to the world depending on subsequent edits."
+  }
 
   validation {
     condition = alltrue([

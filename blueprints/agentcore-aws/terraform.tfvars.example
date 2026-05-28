@@ -47,12 +47,20 @@ allowed_mcp_server_domains = [
   "mcp.deepwiki.com",
 ]
 
+# NOTE: the per-account ECR registry hostname
+# (<your-account-id>.dkr.ecr.<region>.amazonaws.com) is appended automatically
+# by Terraform from the current AWS caller identity. Do not add it here.
 aws_control_domains = [
+  # Observability + identity
   "sts.us-east-2.amazonaws.com",
   "logs.us-east-2.amazonaws.com",
   "monitoring.us-east-2.amazonaws.com",
   "xray.us-east-2.amazonaws.com",
   "secretsmanager.us-east-2.amazonaws.com",
+  # ECR auth API (required for AgentCore VPC-mode image pull)
+  "api.ecr.us-east-2.amazonaws.com",
+  # S3 layer bucket backing ECR image layers in us-east-2
+  "prod-us-east-2-starport-layer-bucket.s3.us-east-2.amazonaws.com",
 ]
 
 # -----------------------------------------------------------------------------
@@ -62,3 +70,10 @@ aws_control_domains = [
 # out-of-band and just want Terraform to wire the runtime up.
 build_agent_image = true
 agent_image_tag   = "v3"
+
+# -----------------------------------------------------------------------------
+# UI ingress
+# -----------------------------------------------------------------------------
+# Public CIDR(s) allowed to reach the ALB-fronted UI. Set this to your public
+# IP as /32. The ALB SG is the only ingress control; do not leave this open.
+ui_ingress_cidrs = ["203.0.113.10/32"] # replace with your public IP
