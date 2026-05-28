@@ -12,9 +12,9 @@ See the sibling VCA spec at `Validated Containment Architectures/AWS Bedrock Age
 - **URL-path enforcement** via rule `-29-` on the `github_hosts` FQDN SmartGroup — selective TLS decryption (the spoke GW trusts the Aviatrix MITM CA) blocks supply-chain IoC paths like Shai-Hulud while letting legitimate GitHub paths through.
 - **Ingress from client** (10.60.10.0/24) routes transit → AgentCore spoke GW → interface VPC endpoint. DCF evaluates with `src = client spoke` and `dst = PrivateLink endpoint FQDN SmartGroup` resolved via a shared Route 53 Private Hosted Zone.
 - **IAM guardrail** (`vpc_mode_guardrail_policy_arn` output) denies `CreateAgentRuntime` / `CreateAgentRuntimeEndpoint` with `Null`-and-`ForAnyValue` conditions so operators cannot silently create runtimes in PUBLIC mode or with foreign subnets.
-- **ALB-fronted UI** (IP-allowlisted) for browser access to the scenario cards; EC2 Instance Connect Endpoint + SSH tunnel as a backup path.
+- **ALB-fronted UI** (IP-allowlisted) for browser access to the scenario cards. Ingress is controlled by the ALB security group, allowlisted to `var.ui_ingress_cidrs`.
 
-No HA on transit or spokes in v1. `single_ip_snat = false` on spokes because decryption on the spoke gateway is mutually exclusive with SNAT in Controller 9.0.10+; internet egress works via the transit's egress path.
+No HA on transit or spokes in v1. Both spokes run with `single_ip_snat = true` so internet egress works directly from the spoke gateway. Selective TLS decryption is configured per-policy (rule `-29-`) and coexists with SNAT in Controller 9.0.10+; there is no fabric-wide SNAT-off requirement.
 
 ## Prerequisites
 
@@ -22,7 +22,6 @@ No HA on transit or spokes in v1. `single_ip_snat = false` on spokes because dec
 |---|---|---|
 | Terraform | >= 1.5 | Deploy the blueprint |
 | AWS CLI | configured | ECR login, SSM, validation |
-| [AWS Session Manager Plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) | latest | Required by `probe_command` (SSM session into the client invoker) |
 | Podman | machine running | Build the ARM64 agent container image (the build path uses `podman` explicitly; Docker is not a drop-in) |
 | `jq` | any | Reads controller responses during validation |
 | Aviatrix Controller | 8.1+ (FQDN SmartGroups GA) | DCF + SmartGroup support |
@@ -51,8 +50,10 @@ export TF_VAR_controller_username="${AVIATRIX_USERNAME}"
 export TF_VAR_controller_password="${AVIATRIX_PASSWORD}"
 export TF_VAR_aviatrix_aws_account_name=AWS      # Aviatrix-onboarded account name
 
-cp terraform.tfvars.example terraform.tfvars    # edit non-secret values as needed
-# (or rely on defaults — everything else has a sensible default)
+cp terraform.tfvars.example terraform.tfvars
+# REQUIRED: set ui_ingress_cidrs to your public IP, e.g.
+#   echo "ui_ingress_cidrs = [\"$(curl -s https://checkip.amazonaws.com)/32\"]" >> terraform.tfvars
+# Other variables have sensible defaults; edit non-secret values as needed.
 
 terraform init
 terraform plan        # ~50 resources
@@ -66,18 +67,18 @@ Expected deploy time: ~25-30 minutes (transit + 2 spokes attach each take ~3-4 m
 ## Test
 
 ```bash
-# Get the SSM one-liner from terraform output
-terraform output -raw probe_command | bash
+# Open the ALB-fronted UI in your browser (allowlisted to ui_ingress_cidrs)
+terraform output -raw ui_alb_url
 ```
 
-Expected probe results:
+Walk the scenario cards in the UI. Each card exercises one DCF outcome:
 
-| Probe | ok= | DCF rule matched |
+| Scenario | Expected verdict | DCF rule matched |
 |---|---|---|
-| 1. Bedrock InvokeModel (Claude 3 Haiku) | `true` | `-30-runtime-to-allowed-models` PERMIT |
-| 2. HTTPS GET api.openai.com | `false` | `-100-runtime-default-deny` DENY |
-| 3. HTTPS GET example-attacker.com | `false` | `-100-runtime-default-deny` DENY |
-| 4. DNS TXT to 8.8.8.8 | `false` | `-50-runtime-dns-exfil-deny` DENY |
+| Bedrock InvokeModel (Claude 3 Haiku) | `PERMIT` | `-30-runtime-to-allowed-models` |
+| HTTPS GET `api.openai.com` | `DENY` | `-100-runtime-default-deny` |
+| HTTPS GET `example-attacker.com` | `DENY` | `-100-runtime-default-deny` |
+| DNS TXT to `8.8.8.8` | `DENY` | `-50-runtime-dns-exfil-deny` |
 
 Verify in CoPilot:
 
@@ -91,7 +92,6 @@ Verify in CoPilot:
 
 ### Next: tests/
 
-- [`tests/probe.sh`](tests/probe.sh) — the underlying probe script that `probe_command` invokes via SSM. Run it directly on the client-invoker EC2 if you want to script the four containment checks.
 - [`tests/smoke-ui.md`](tests/smoke-ui.md) — ~10-minute UI smoke checklist for the ALB-fronted scenario UI; run after every fresh deploy.
 
 ## Resources created
@@ -131,9 +131,7 @@ The AgentCore Runtime terminates any active sessions; ECR force-delete handles t
 
 **`terraform apply` fails with AZ-level "not supported for AgentCore" partway through, in regions other than `us-east-2`.** AgentCore data-plane PrivateLink is not yet available in every AZ of every supported region. Destroy and redeploy in `us-east-2` (the variable's default and the only end-to-end-tested region for this blueprint).
 
-**`probe_command` fails with `SessionManagerPlugin is not found`.** The AWS CLI delegates SSM interactive sessions to a separate plugin. Install [`session-manager-plugin`](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) and re-run.
-
-**`probe_command` reports the agent failing on AWS API calls (Bedrock, STS) or the AgentCore Runtime image pull is blocked.** Check that `terraform.tfvars` includes the full `aws_control_domains` list from `terraform.tfvars.example`. The ECR auth API (`api.ecr.<region>.amazonaws.com`), the S3 ECR layer bucket (`prod-<region>-starport-layer-bucket.s3.<region>.amazonaws.com`), and Secrets Manager are required for AgentCore VPC-mode image pull and agent runtime; missing any of them causes DCF to deny the flow. The per-account ECR registry hostname is appended automatically from the current AWS caller identity.
+**UI scenarios report the agent failing on AWS API calls (Bedrock, STS) or the AgentCore Runtime image pull is blocked.** Check that `terraform.tfvars` includes the full `aws_control_domains` list from `terraform.tfvars.example`. The ECR auth API (`api.ecr.<region>.amazonaws.com`), the S3 ECR layer bucket (`prod-<region>-starport-layer-bucket.s3.<region>.amazonaws.com`), and Secrets Manager are required for AgentCore VPC-mode image pull and agent runtime; missing any of them causes DCF to deny the flow. The per-account ECR registry hostname is appended automatically from the current AWS caller identity.
 
 **`terraform destroy` fails with `DependencyViolation` on the runtime-subnet security group or a PrivateLink endpoint subnet.** The AgentCore Runtime ENIs and PrivateLink endpoint ENIs are torn down asynchronously after the Runtime stops accepting sessions. Re-run `terraform destroy` — the second pass sees them gone and succeeds.
 

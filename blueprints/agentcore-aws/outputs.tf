@@ -115,27 +115,6 @@ output "ui_ingress_cidrs" {
   description = "CIDR blocks currently allowlisted to reach the UI ALB. Update via -var or terraform.tfvars and re-apply."
 }
 
-output "ui_tunnel_command" {
-  value = format(
-    "aws ec2-instance-connect ssh --region %s --instance-id %s --connection-type eice --os-user ec2-user --local-forwarding 8501:localhost:8501",
-    var.aws_region,
-    aws_instance.client_invoker.id,
-  )
-  description = "Open an SSH-over-EICE session that port-forwards the Streamlit probe UI to http://localhost:8501. Accept the host key on first run; then browse localhost:8501. Or run ./scripts/ui-tunnel.sh which wraps this."
-}
-
-output "probe_command" {
-  value = format(
-    "aws ssm start-session --region %s --target %s --document-name AWS-StartInteractiveCommand --parameters 'command=[\"export AGENTCORE_RUNTIME_ARN=%s AGENTCORE_DATA_HOST=%s AWS_REGION=%s; /usr/local/bin/probe-agentcore.sh\"]'",
-    var.aws_region,
-    aws_instance.client_invoker.id,
-    awscc_bedrockagentcore_runtime.hello.agent_runtime_arn,
-    local.agentcore_data_host,
-    var.aws_region,
-  )
-  description = "One-liner to run the probe against the sample runtime from the client invoker"
-}
-
 # -----------------------------------------------------------------------------
 # Guardrails
 # -----------------------------------------------------------------------------
