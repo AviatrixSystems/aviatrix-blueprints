@@ -14,7 +14,7 @@ See the sibling VCA spec at `Validated Containment Architectures/AWS Bedrock Age
 - **IAM guardrail** (`vpc_mode_guardrail_policy_arn` output) denies `CreateAgentRuntime` / `CreateAgentRuntimeEndpoint` with `Null`-and-`ForAnyValue` conditions so operators cannot silently create runtimes in PUBLIC mode or with foreign subnets.
 - **ALB-fronted UI** (IP-allowlisted) for browser access to the scenario cards. Ingress is controlled by the ALB security group, allowlisted to `var.ui_ingress_cidrs`.
 
-No HA on transit or spokes in v1. Spoke SNAT mode is configured via `aviatrix.tf` — see the inline comments there for the SNAT vs. selective-TLS-decryption tradeoff.
+No HA on transit or spokes in v1. Both spokes run with `single_ip_snat = true` so internet egress works directly from the spoke gateway. Selective TLS decryption is configured per-policy (rule `-29-`) and coexists with SNAT in Controller 9.0.10+; there is no fabric-wide SNAT-off requirement.
 
 ## Prerequisites
 
