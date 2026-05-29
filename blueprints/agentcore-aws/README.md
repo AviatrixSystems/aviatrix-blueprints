@@ -56,7 +56,7 @@ cp terraform.tfvars.example terraform.tfvars
 # Other variables have sensible defaults; edit non-secret values as needed.
 
 terraform init
-terraform plan        # ~50 resources
+terraform plan        # ~75 resources
 terraform apply
 ```
 
@@ -71,14 +71,18 @@ Expected deploy time: ~25-30 minutes (transit + 2 spokes attach each take ~3-4 m
 terraform output -raw ui_alb_url
 ```
 
-Walk the scenario cards in the UI. Each card exercises one DCF outcome:
+Walk the scenario chips in the UI. The UI ships six cards; each maps to one DCF outcome with the containment toggle ON:
 
-| Scenario | Expected verdict | DCF rule matched |
+| Scenario chip (UI route) | Expected verdict | DCF / IAM rule matched |
 |---|---|---|
-| Bedrock InvokeModel (Claude 3 Haiku) | `PERMIT` | `-30-runtime-to-allowed-models` |
-| HTTPS GET `api.openai.com` | `DENY` | `-100-runtime-default-deny` |
-| HTTPS GET `example-attacker.com` | `DENY` | `-100-runtime-default-deny` |
-| DNS TXT to `8.8.8.8` | `DENY` | `-50-runtime-dns-exfil-deny` |
+| `llm01_prompt_inject_exfil` | `CONTAINED` | `-100-runtime-default-deny` |
+| `llm02_dns_exfil` | `CONTAINED` | `-50-runtime-dns-exfil-deny` |
+| `llm05_compromised_mcp` | `CONTAINED` | `-33-runtime-to-allowed-mcp-servers` (allow-list, untrusted MCP host hits default-deny) |
+| `llm05b_supply_chain_url_path` | `CONTAINED` | `-29-runtime-deny-supply-chain-ioc-github` |
+| `llm08_shadow_model` | `CONTAINED` | `-100-runtime-default-deny` |
+| `drift_public_mode` | `CONTAINED` | `vpc-mode-guardrail` (IAM, not DCF) |
+
+The Bedrock InvokeModel happy-path call (`-30-runtime-to-allowed-models` PERMIT) fires inside every card; flip the containment toggle OFF on any card to compare PERMIT vs DENY side-by-side. See [`tests/smoke-ui.md`](tests/smoke-ui.md) for the full UI walkthrough.
 
 Verify in CoPilot:
 
@@ -111,7 +115,7 @@ Verify in CoPilot:
 | IAM policy (VPC-mode guardrail) | 1 | — | Attach to admin roles out-of-band |
 | DCF SmartGroups | 5 | — | 1 subnet, 2 fqdn, 1 vpc, 1 cidr |
 | DCF WebGroups | 3 | — | models, tools, aws-control |
-| DCF policies | 7 | — | 3 permit + 2 ingress permit + 2 deny |
+| DCF policies | 9 | — | 2 ingress permit + 4 runtime-egress permit + 3 deny |
 
 **Idle cost estimate: ~$1.10/hr ≈ $27/day**. AgentCore session invocations add per-CPU-second billing.
 
@@ -123,7 +127,15 @@ terraform destroy
 
 The AgentCore Runtime terminates any active sessions; ECR force-delete handles the image; Aviatrix spoke/transit detach cleanly.
 
-> **Known transient — security_group / subnet dependency on first destroy.** If the first `terraform destroy` fails with a `DependencyViolation` on the runtime-subnet security group or one of the PrivateLink endpoint subnets, re-run `terraform destroy`. The AgentCore Runtime ENIs and PrivateLink endpoint ENIs are torn down asynchronously after the Runtime stops accepting sessions; the second destroy sees them gone and succeeds.
+> **Known transient — runtime-subnet stuck on `Still destroying...` then DependencyViolation.** The AgentCore Runtime ENIs (`InterfaceType=agentic_ai`, `Attachment.InstanceOwnerId=amazon-aws`, an `ela-attach-*` attachment) are AWS-managed and clean up asynchronously after the Runtime resource is destroyed. The cleanup is **slow** (observed: 20+ minutes from runtime destroy to ENI release, sometimes more). Terraform polls AWS on `DependencyViolation` and eventually errors out on `aws_subnet.agentcore_runtime` and `aws_security_group.runtime`. The `ela-attach-*` attachment cannot be detached manually (AWS returns `OperationNotPermitted: You are not allowed to manage 'ela-attach' attachments`); only AWS' async cleanup can release it.
+>
+> Wait for the ENI to disappear, then re-run `terraform destroy`. Check progress with:
+> ```bash
+> aws ec2 describe-network-interfaces --region <region> \
+>   --filters Name=subnet-id,Values=<runtime-subnet-id> \
+>   --query "NetworkInterfaces[].{Id:NetworkInterfaceId,Type:InterfaceType,Status:Status}"
+> ```
+> Empty result = ENI gone = next `terraform destroy` will succeed.
 
 ## Troubleshooting
 
@@ -133,7 +145,7 @@ The AgentCore Runtime terminates any active sessions; ECR force-delete handles t
 
 **UI scenarios report the agent failing on AWS API calls (Bedrock, STS) or the AgentCore Runtime image pull is blocked.** Check that `terraform.tfvars` includes the full `aws_control_domains` list from `terraform.tfvars.example`. The ECR auth API (`api.ecr.<region>.amazonaws.com`), the S3 ECR layer bucket (`prod-<region>-starport-layer-bucket.s3.<region>.amazonaws.com`), and Secrets Manager are required for AgentCore VPC-mode image pull and agent runtime; missing any of them causes DCF to deny the flow. The per-account ECR registry hostname is appended automatically from the current AWS caller identity.
 
-**`terraform destroy` fails with `DependencyViolation` on the runtime-subnet security group or a PrivateLink endpoint subnet.** The AgentCore Runtime ENIs and PrivateLink endpoint ENIs are torn down asynchronously after the Runtime stops accepting sessions. Re-run `terraform destroy` — the second pass sees them gone and succeeds.
+**`terraform destroy` hangs on `aws_subnet.agentcore_runtime: Still destroying...`, then errors with `DependencyViolation`.** The AgentCore Runtime keeps an `agentic_ai`-type ENI (`ela-attach-*` attachment) in the runtime subnet for many minutes after the Runtime resource itself is destroyed (observed: 20+ minutes). The attachment is AWS-managed and cannot be detached manually (`OperationNotPermitted: You are not allowed to manage 'ela-attach' attachments`); only AWS' async cleanup can release it. The same applies to `aws_security_group.runtime` because the ENI references it. Wait for the ENI to disappear (`aws ec2 describe-network-interfaces --filters Name=subnet-id,Values=<runtime-subnet-id>` returns empty), then re-run `terraform destroy` to clean up the remaining VPC/subnet/SG.
 
 **DCF Monitor entries show rule `UNKNOWN` for some flows.** These are flows that matched the default action rather than a specific rule (no rule ID is attached to default-action hits). The IPs involved tell you which traffic it is — usually background management chatter or flows that the blueprint deliberately doesn't enumerate.
 
