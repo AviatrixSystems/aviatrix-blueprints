@@ -1,0 +1,29 @@
+# Pattern A: Cluster-as-a-Service — GCP Cluster Layer (team-a)
+#
+# Copy to terraform.tfvars before deploying:
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# Prerequisites: gcp/network/ must be fully applied first.
+#
+# Credentials are read from environment variables:
+#   export AVIATRIX_CONTROLLER_IP="98.82.148.86"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
+#   gcloud auth application-default login
+
+#####################
+# Optional — all variables have safe defaults
+#####################
+
+# GKE release channel: RAPID, REGULAR, or STABLE.
+# REGULAR is recommended for most use cases — Google manages minor version upgrades.
+release_channel = "REGULAR"
+
+# CIDR blocks allowed to reach the GKE master API endpoint.
+# The default allows public access; restrict to your office/VPN IPs in production.
+master_authorized_networks = [
+  {
+    cidr_block   = "0.0.0.0/0"
+    display_name = "All (restrict in production)"
+  }
+]

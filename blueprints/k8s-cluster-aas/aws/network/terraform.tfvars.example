@@ -1,0 +1,59 @@
+# Pattern A: Cluster-as-a-Service — AWS Network Layer
+#
+# Copy to terraform.tfvars and fill in values before running:
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# Credentials are read from environment variables (do not put them here):
+#   export AVIATRIX_CONTROLLER_IP="98.82.148.86"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
+#   export AWS_PROFILE="your-profile"          # or AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
+
+#####################
+# Required
+#####################
+
+# AWS account name exactly as registered in the Aviatrix Controller
+aviatrix_aws_account_name = "your-aviatrix-aws-account"
+
+#####################
+# Optional — override defaults if needed
+#####################
+
+# Prefix applied to every resource name; change when deploying multiple instances
+# in the same AWS account to avoid name collisions.
+name_prefix = "caas"
+
+# AWS region to deploy all resources into
+aws_region = "us-west-2"
+
+# CIDR for the Aviatrix transit VPC
+transit_cidr = "10.2.0.0/20"
+
+# Dedicated /20 per team — each gets its own VPC and EKS cluster
+team_a_vpc_cidr = "10.10.0.0/20"
+team_b_vpc_cidr = "10.11.0.0/20"
+team_c_vpc_cidr = "10.12.0.0/20"
+
+# Shared database spoke VPC CIDR
+db_vpc_cidr = "10.5.0.0/22"
+
+# RFC 6598 overlay CIDR for pod networking — SNAT'd to spoke gateway IPs
+# All clusters share this range; DCF sees post-SNAT spoke gateway IPs
+pod_cidr = "100.64.0.0/16"
+
+# Route53 private hosted zone domain name
+private_dns_zone_name = "aws.aviatrixdemo.local"
+
+# Private IP of the database server (used for DNS A record)
+db_private_ip = "10.5.0.10"
+
+# Append a random hex suffix to all resource names for uniqueness on shared controllers.
+# Set to false only for fully deterministic re-deployments in isolated accounts.
+random_suffix = true
+
+# Whether this deployment manages the global DCF enable/disable toggle.
+# Set to true only if no other blueprint or the Aviatrix UI has already enabled DCF.
+# WARNING: setting false and then running terraform destroy will disable k8s DCF globally
+# on the shared controller — use with care.
+manage_dcf = false

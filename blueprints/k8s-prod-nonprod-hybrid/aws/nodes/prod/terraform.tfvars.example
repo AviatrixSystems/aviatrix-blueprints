@@ -1,0 +1,12 @@
+# -----------------------------------------------------------------------------
+# Pattern C: Prod/Non-Prod Hybrid — AWS Production Nodes Layer
+# All infrastructure values are sourced automatically from remote state.
+# This layer has no required input variables.
+#
+# Controller credentials are read from environment variables by default:
+#   export AVIATRIX_CONTROLLER_IP="your-controller.example.com"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
+# -----------------------------------------------------------------------------
+
+# No required variables — all values flow from aws/network/ and aws/clusters/prod/ state.

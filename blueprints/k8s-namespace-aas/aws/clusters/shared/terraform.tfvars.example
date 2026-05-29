@@ -1,0 +1,36 @@
+# Pattern B: Namespace-as-a-Service — AWS Clusters Layer (shared EKS)
+# Prerequisites: aws/network/ must be applied first.
+# Copy to terraform.tfvars and fill in required values before running:
+#   terraform init
+#   terraform apply -var-file=terraform.tfvars
+
+# ─── Required ────────────────────────────────────────────────────────────────
+
+aviatrix_aws_account_name = "your-aviatrix-account-name"
+
+# ─── Kubernetes ──────────────────────────────────────────────────────────────
+
+kubernetes_version = "1.35"
+
+# ─── API Server Access ───────────────────────────────────────────────────────
+
+cluster_endpoint_public_access = true
+
+# Set true for private-only API access (requires bastion/VPN)
+enable_private_endpoint = false
+
+# ─── Logging ─────────────────────────────────────────────────────────────────
+
+# Enable for production environments; adds CloudWatch costs
+enable_control_plane_logging = false
+
+# ─── Aviatrix Controller (env vars preferred) ────────────────────────────────
+# Set these via environment variables instead of tfvars to avoid storing
+# credentials in version control:
+#   export AVIATRIX_CONTROLLER_IP="your-controller-ip"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
+#
+# controller_ip       = "your-controller-ip"
+# controller_username = "admin"
+# controller_password = "your-password"

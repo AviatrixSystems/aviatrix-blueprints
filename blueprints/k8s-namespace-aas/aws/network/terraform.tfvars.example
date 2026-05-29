@@ -1,0 +1,66 @@
+# Pattern B: Namespace-as-a-Service — AWS Network Layer
+# Copy to terraform.tfvars and fill in required values before running:
+#   terraform init
+#   terraform apply -var-file=terraform.tfvars
+
+# ─── Required ────────────────────────────────────────────────────────────────
+
+aviatrix_aws_account_name = "your-aviatrix-account-name"
+
+# ─── Naming ──────────────────────────────────────────────────────────────────
+
+name_prefix    = "naas"
+random_suffix  = true
+env            = "prod"
+
+# ─── Region ──────────────────────────────────────────────────────────────────
+
+aws_region = "us-east-1"
+
+# ─── CIDRs ───────────────────────────────────────────────────────────────────
+
+transit_cidr    = "10.2.0.0/20"
+shared_vpc_cidr = "10.10.0.0/16"
+pod_cidr        = "100.64.0.0/16"
+
+# ─── DNS ─────────────────────────────────────────────────────────────────────
+
+private_dns_zone_name = "aws-naas.aviatrixdemo.local"
+
+# ─── DCF / Kubernetes ────────────────────────────────────────────────────────
+
+k8s_cluster_suffix = "shared-eks"
+
+# Apply clusters/shared/ first, then set this to the cluster_arn output.
+# Leave empty for the initial apply — re-apply after clusters/shared/ completes.
+k8s_cluster_id = ""
+
+# Set manage_dcf = true only if this blueprint owns the DCF enable/disable
+# lifecycle on the controller. Leave false if DCF is pre-enabled or managed
+# by another blueprint.
+manage_dcf = false
+
+team_namespaces = ["team-a", "team-b", "team-c"]
+
+geo_block_countries = ["CN", "RU", "KP", "IR"]
+
+approved_web_domains = [
+  "*.amazonaws.com",
+  "registry.npmjs.org",
+  "pypi.org",
+  "ghcr.io",
+  "docker.io",
+  "*.docker.io",
+  "quay.io",
+]
+
+# ─── Aviatrix Controller (env vars preferred) ────────────────────────────────
+# Set these via environment variables instead of tfvars to avoid storing
+# credentials in version control:
+#   export AVIATRIX_CONTROLLER_IP="your-controller-ip"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
+#
+# controller_ip       = "your-controller-ip"
+# controller_username = "admin"
+# controller_password = "your-password"

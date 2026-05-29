@@ -1,0 +1,62 @@
+# -----------------------------------------------------------------------------
+# Pattern C: Prod/Non-Prod Hybrid — AWS Network Layer
+# Copy this file to terraform.tfvars and fill in values marked as REQUIRED.
+#
+# Controller credentials are read from environment variables by default:
+#   export AVIATRIX_CONTROLLER_IP="your-controller.example.com"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
+# -----------------------------------------------------------------------------
+
+# REQUIRED: Aviatrix AWS account name (as registered in Controller)
+aws_account_name = "your-aws-account-name"
+
+# AWS region
+aws_region = "us-east-2"
+
+# Resource name prefix
+environment_prefix = "pc2"
+
+# Random suffix avoids name collisions on a shared controller (recommended: true)
+random_suffix = true
+
+# HA (recommended for production deployments)
+enable_ha = true
+
+# CIDRs — defaults shown, uncomment and change only if they conflict with existing networks
+# transit_cidr     = "10.2.0.0/20"
+# prod_vpc_cidr    = "10.10.0.0/20"
+# nonprod_vpc_cidr = "10.20.0.0/20"
+# db_spoke_cidr    = "10.5.0.0/22"
+# pod_cidr         = "100.64.0.0/16"
+
+# Gateway sizes
+# transit_gw_size  = "c5.xlarge"
+# spoke_gw_size    = "c5.xlarge"
+# db_spoke_gw_size = "t3.medium"
+
+# DNS
+dns_domain = "internal.example.com"
+# route53_zone_id = ""  # Leave empty to create a new private hosted zone
+
+# Teams — customize namespace names for your organization
+teams = {
+  team-a = {
+    prod_namespace    = "team-a-prod"
+    nonprod_namespace = "team-a-dev"
+    contact           = "team-a@example.com"
+  }
+  team-b = {
+    prod_namespace    = "team-b-prod"
+    nonprod_namespace = "team-b-staging"
+    contact           = "team-b@example.com"
+  }
+}
+
+# Cluster IDs — leave empty on first apply; set after clusters/prod and clusters/nonprod deploy
+# prod_cluster_id   = ""
+# nonprod_cluster_id = ""
+
+# manage_dcf: set true only if DCF is NOT already enabled on this controller
+# If another blueprint or the UI has already enabled DCF, leave this false.
+# manage_dcf = false

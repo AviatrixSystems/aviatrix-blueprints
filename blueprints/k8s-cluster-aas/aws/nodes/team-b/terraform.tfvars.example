@@ -1,0 +1,36 @@
+# Pattern A: Cluster-as-a-Service — AWS Nodes Layer (team-a)
+#
+# Copy to terraform.tfvars before deploying:
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# Prerequisites: aws/network/ and aws/clusters/team-a/ must be fully applied first.
+#
+# Credentials are read from environment variables:
+#   export AVIATRIX_CONTROLLER_IP="98.82.148.86"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
+#   export AWS_PROFILE="your-profile"
+
+#####################
+# Optional — all variables have safe defaults
+#####################
+
+# EKS managed node group configuration.
+# instance_type: EC2 instance type for worker nodes
+# capacity_type: SPOT (cheaper, interruptible) or ON_DEMAND (stable, for production)
+# desired_size / min_size / max_size: node count for autoscaling
+node_group_config = {
+  min_size      = 1
+  max_size      = 3
+  desired_size  = 2
+  instance_type = "t3.large"
+  capacity_type = "SPOT"
+}
+
+# Helm chart version for the AWS Load Balancer Controller.
+# Check https://github.com/aws/eks-charts/tree/master/stable/aws-load-balancer-controller for latest.
+alb_controller_chart_version = "1.8.0"
+
+# Helm chart version for ExternalDNS.
+# Check https://github.com/kubernetes-sigs/external-dns/tree/master/charts/external-dns for latest.
+external_dns_chart_version = "1.15.0"
