@@ -1,0 +1,38 @@
+# -----------------------------------------------------------------------------
+# Pattern C: Prod/Non-Prod Hybrid — GCP Production Nodes Layer
+# Copy this file to terraform.tfvars and fill in values marked as REQUIRED.
+#
+# This layer requires values from the gcp/clusters/prod/ outputs. If you
+# deploy with the standard sequence these values come from remote state;
+# this file documents what they represent if you need to override them.
+# -----------------------------------------------------------------------------
+
+# REQUIRED: GCP project ID — must match gcp/network/
+gcp_project_id = "your-gcp-project-id"
+
+# GCP region — must match gcp/network/
+gcp_region = "us-central1"
+
+# Must match the environment_prefix used in gcp/network/
+environment_prefix = "pc-gcp"
+
+# REQUIRED: Aviatrix Controller credentials (for k8s-firewall Helm chart)
+aviatrix_controller_ip = "your-controller.example.com"
+aviatrix_username      = "admin"
+aviatrix_password      = "your-controller-password"
+
+# REQUIRED: Sourced from gcp/clusters/prod/ outputs
+# cluster_name           = "pc-gcp-prod-cluster"
+# cluster_endpoint       = "34.0.0.1"
+# cluster_ca_certificate = "<base64-ca-cert>"
+# cluster_id             = "your-aviatrix-cluster-id"
+
+# DNS — sourced from gcp/network/ outputs
+# dns_zone_name = "internal-example-com"
+# dns_domain    = "internal.example.com"
+
+# Node pool sizing
+# node_machine_type  = "e2-standard-4"
+# node_min_count     = 1
+# node_max_count     = 10
+# initial_node_count = 3

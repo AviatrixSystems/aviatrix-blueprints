@@ -33,6 +33,18 @@ output "cluster_certificate_authority_data" {
   sensitive   = true
 }
 
+output "client_certificate" {
+  description = "Base64 encoded client certificate for AKS local admin auth"
+  value       = azurerm_kubernetes_cluster.this.kube_config[0].client_certificate
+  sensitive   = true
+}
+
+output "client_key" {
+  description = "Base64 encoded client key for AKS local admin auth"
+  value       = azurerm_kubernetes_cluster.this.kube_config[0].client_key
+  sensitive   = true
+}
+
 output "kube_config_raw" {
   description = "Raw kubeconfig for the cluster"
   value       = azurerm_kubernetes_cluster.this.kube_config_raw

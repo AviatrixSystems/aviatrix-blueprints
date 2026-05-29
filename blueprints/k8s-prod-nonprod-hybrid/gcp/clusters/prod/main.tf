@@ -86,8 +86,8 @@ resource "google_container_cluster" "prod" {
   min_master_version = var.kubernetes_version
 
   ip_allocation_policy {
-    cluster_secondary_range_name  = "pods"
-    services_secondary_range_name = "services"
+    cluster_ipv4_cidr_block  = var.pod_cidr
+    services_ipv4_cidr_block = "/22"
   }
 
   private_cluster_config {

@@ -40,7 +40,7 @@ locals {
 #####################
 
 resource "google_service_account" "node" {
-  account_id   = "${local.cluster_name}-node-sa"
+  account_id   = "${local.cluster_name}-nsa"
   display_name = "GKE node SA for ${local.cluster_name}"
   project      = local.gcp_project
 }

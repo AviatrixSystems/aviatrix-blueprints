@@ -1,0 +1,67 @@
+# Pattern B: Namespace-as-a-Service — GCP Network Layer
+# Copy to terraform.tfvars and fill in required values before running:
+#   terraform init
+#   terraform apply -var-file=terraform.tfvars
+
+# ─── Required ────────────────────────────────────────────────────────────────
+
+aviatrix_gcp_account_name = "your-aviatrix-account-name"
+gcp_project               = "your-gcp-project-id"
+
+# ─── Naming ──────────────────────────────────────────────────────────────────
+
+name_prefix   = "naas"
+random_suffix = true
+env           = "prod"
+
+# ─── Region ──────────────────────────────────────────────────────────────────
+
+gcp_region = "us-central1"
+
+# ─── CIDRs ───────────────────────────────────────────────────────────────────
+
+transit_cidr           = "10.38.0.0/20"
+shared_vpc_cidr        = "10.40.0.0/16"
+pod_cidr               = "100.64.0.0/16"
+services_cidr          = "172.40.0.0/20"
+master_ipv4_cidr_block = "172.16.0.0/28"
+
+# ─── DNS ─────────────────────────────────────────────────────────────────────
+
+dns_private_zone_name = "gcp-naas.aviatrixdemo.local"
+
+# ─── DCF / Kubernetes ────────────────────────────────────────────────────────
+
+k8s_cluster_suffix = "shared-gke"
+
+# Apply clusters/shared/ first, then set this to the cluster_id output.
+# Leave empty for the initial apply — re-apply after clusters/shared/ completes.
+# Format: https://container.googleapis.com/v1/projects/{project}/locations/{location}/clusters/{name}
+k8s_cluster_id = ""
+
+# Set manage_dcf = true only if this blueprint owns the DCF enable/disable
+# lifecycle on the controller. Leave false if DCF is pre-enabled or managed
+# by another blueprint.
+manage_dcf = false
+
+team_namespaces = ["team-a", "team-b", "team-c"]
+
+geo_block_countries = ["CN", "RU", "KP", "IR"]
+
+approved_web_domains = [
+  "*.googleapis.com",
+  "registry.npmjs.org",
+  "pypi.org",
+  "ghcr.io",
+]
+
+# ─── Aviatrix Controller (env vars preferred) ────────────────────────────────
+# Set these via environment variables instead of tfvars to avoid storing
+# credentials in version control:
+#   export AVIATRIX_CONTROLLER_IP="your-controller-ip"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
+#
+# controller_ip       = "your-controller-ip"
+# controller_username = "admin"
+# controller_password = "your-password"

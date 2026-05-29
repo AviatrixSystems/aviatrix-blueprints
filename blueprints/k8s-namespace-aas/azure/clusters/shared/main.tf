@@ -22,22 +22,6 @@ provider "azurerm" {
 
 provider "azuread" {}
 
-provider "kubernetes" {
-  host                   = azurerm_kubernetes_cluster.this.kube_config[0].host
-  cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.this.kube_config[0].cluster_ca_certificate)
-
-  exec {
-    api_version = "client.authentication.k8s.io/v1beta1"
-    command     = "az"
-    args = [
-      "aks", "get-credentials",
-      "--resource-group", data.terraform_remote_state.network.outputs.shared_resource_group_name,
-      "--name", data.terraform_remote_state.network.outputs.shared_cluster_name,
-      "--format", "exec-credential"
-    ]
-  }
-}
-
 locals {
   cluster_name        = data.terraform_remote_state.network.outputs.shared_cluster_name
   resource_group_name = data.terraform_remote_state.network.outputs.shared_resource_group_name

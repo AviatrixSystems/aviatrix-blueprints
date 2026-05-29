@@ -26,34 +26,16 @@ provider "aviatrix" {
 provider "kubernetes" {
   host                   = data.terraform_remote_state.cluster.outputs.cluster_endpoint
   cluster_ca_certificate = base64decode(data.terraform_remote_state.cluster.outputs.cluster_certificate_authority_data)
-
-  exec {
-    api_version = "client.authentication.k8s.io/v1beta1"
-    command     = "az"
-    args = [
-      "aks", "get-credentials",
-      "--resource-group", data.terraform_remote_state.network.outputs.team_a_resource_group_name,
-      "--name", data.terraform_remote_state.cluster.outputs.cluster_name,
-      "--format", "exec-credential"
-    ]
-  }
+  client_certificate     = base64decode(data.terraform_remote_state.cluster.outputs.client_certificate)
+  client_key             = base64decode(data.terraform_remote_state.cluster.outputs.client_key)
 }
 
 provider "helm" {
   kubernetes {
     host                   = data.terraform_remote_state.cluster.outputs.cluster_endpoint
     cluster_ca_certificate = base64decode(data.terraform_remote_state.cluster.outputs.cluster_certificate_authority_data)
-
-    exec {
-      api_version = "client.authentication.k8s.io/v1beta1"
-      command     = "az"
-      args = [
-        "aks", "get-credentials",
-        "--resource-group", data.terraform_remote_state.network.outputs.team_a_resource_group_name,
-        "--name", data.terraform_remote_state.cluster.outputs.cluster_name,
-        "--format", "exec-credential"
-      ]
-    }
+    client_certificate     = base64decode(data.terraform_remote_state.cluster.outputs.client_certificate)
+    client_key             = base64decode(data.terraform_remote_state.cluster.outputs.client_key)
   }
 }
 

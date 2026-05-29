@@ -78,6 +78,9 @@ resource "google_container_node_pool" "nonprod_default" {
       enable_integrity_monitoring = true
     }
 
+    # Required: routes GKE node egress through Aviatrix spoke gateway
+    tags = ["avx-snat-noip"]
+
     labels = {
       "environment" = "non-production"
       "cluster"     = "nonprod"
@@ -104,43 +107,12 @@ resource "aviatrix_kubernetes_cluster" "this" {
 # Aviatrix Kubernetes Firewall (DCF Layer 2 enforcement)
 # ---------------------------------------------------------------------------
 
-resource "helm_release" "aviatrix_k8s_firewall" {
-  name             = "aviatrix-k8s-firewall"
-  namespace        = "aviatrix-system"
-  create_namespace = true
-  repository       = "https://aviatrix-download.s3.us-west-2.amazonaws.com/helm-charts"
-  chart            = "aviatrix-k8s-firewall"
-  version          = "1.0.0"
-
-  set {
-    name  = "controllerIP"
-    value = var.aviatrix_controller_ip
-  }
-
-  set {
-    name  = "controllerUsername"
-    value = var.aviatrix_username
-  }
-
-  set_sensitive {
-    name  = "controllerPassword"
-    value = var.aviatrix_password
-  }
-
-  set {
-    name  = "clusterName"
-    value = var.cluster_name
-  }
-
-  set {
-    name  = "cloud"
-    value = "GCP"
-  }
-
-  set {
-    name  = "enableCRD"
-    value = "true"
-  }
+resource "helm_release" "k8s_firewall" {
+  name       = "k8s-firewall"
+  repository = "https://aviatrixsystems.github.io/k8s-firewall-charts"
+  chart      = "k8s-firewall"
+  namespace  = "default"
+  wait       = false
 
   depends_on = [google_container_node_pool.nonprod_default]
 }

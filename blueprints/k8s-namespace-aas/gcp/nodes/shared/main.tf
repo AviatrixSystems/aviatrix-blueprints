@@ -25,7 +25,7 @@ locals {
 
   cluster_name         = data.terraform_remote_state.cluster.outputs.cluster_name
   cluster_location     = data.terraform_remote_state.cluster.outputs.cluster_location
-  node_service_account = "${local.cluster_name}-node-sa@${local.gcp_project}.iam.gserviceaccount.com"
+  node_service_account = "${local.cluster_name}-nsa@${local.gcp_project}.iam.gserviceaccount.com"
 }
 
 provider "kubernetes" {
@@ -124,6 +124,9 @@ resource "google_container_node_pool" "shared" {
       enable_secure_boot          = true
       enable_integrity_monitoring = true
     }
+
+    # Required: routes GKE node egress through Aviatrix spoke gateway instead of default-internet-gateway
+    tags = ["avx-snat-noip"]
 
     labels = {
       environment     = "prod"

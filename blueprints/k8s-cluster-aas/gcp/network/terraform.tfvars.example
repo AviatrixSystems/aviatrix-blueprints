@@ -1,0 +1,64 @@
+# Pattern A: Cluster-as-a-Service — GCP Network Layer
+#
+# Copy to terraform.tfvars and fill in values before running:
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# Credentials are read from environment variables (do not put them here):
+#   export AVIATRIX_CONTROLLER_IP="98.82.148.86"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
+#   gcloud auth application-default login   # or set GOOGLE_APPLICATION_CREDENTIALS
+
+#####################
+# Required
+#####################
+
+# GCP account name exactly as registered in the Aviatrix Controller
+aviatrix_gcp_account_name = "your-aviatrix-gcp-account"
+
+# GCP project ID where all resources will be deployed
+gcp_project = "your-gcp-project-id"
+
+#####################
+# Optional — override defaults if needed
+#####################
+
+# Prefix applied to every resource name; change when deploying multiple instances
+# in the same project to avoid name collisions.
+name_prefix = "caas"
+
+# GCP region to deploy all resources into
+gcp_region = "us-central1"
+
+# CIDR for the Aviatrix transit VPC
+transit_cidr = "10.38.0.0/20"
+
+# Dedicated /20 per team — each gets its own VPC and GKE cluster
+team_a_vpc_cidr = "10.40.0.0/20"
+team_b_vpc_cidr = "10.41.0.0/20"
+team_c_vpc_cidr = "10.42.0.0/20"
+
+# Shared database spoke VPC CIDR
+db_vpc_cidr = "10.45.0.0/22"
+
+# RFC 6598 secondary range for pod networking — SNAT'd to spoke gateway IPs
+pod_cidr = "100.64.0.0/16"
+
+# Secondary range for Kubernetes services
+services_cidr = "172.40.0.0/20"
+
+# GKE master CIDR blocks — must be unique /28 per cluster.
+# These are the private IP ranges for the managed control plane.
+team_a_master_cidr = "172.16.0.0/28"
+team_b_master_cidr = "172.16.0.16/28"
+team_c_master_cidr = "172.16.0.32/28"
+
+# Cloud DNS private zone name for internal service discovery
+dns_private_zone_name = "gcp.aviatrixdemo.local"
+
+# Append a random hex suffix to all resource names for uniqueness on shared controllers.
+random_suffix = true
+
+# Whether this deployment manages the global DCF enable/disable toggle.
+# Set to true only if DCF has not already been enabled by another blueprint or the UI.
+manage_dcf = false

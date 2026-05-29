@@ -1,0 +1,32 @@
+# -----------------------------------------------------------------------------
+# Pattern C: Prod/Non-Prod Hybrid — Azure Non-Production Nodes Layer
+# Copy this file to terraform.tfvars and fill in values marked as REQUIRED.
+#
+# This layer requires values from the azure/clusters/nonprod/ outputs. If you
+# deploy with the standard sequence these values come from remote state;
+# this file documents what they represent if you need to override them.
+# -----------------------------------------------------------------------------
+
+# REQUIRED: Must match the Resource Group used in azure/network/
+resource_group_name = "rg-patternc"
+
+# Azure region — must match azure/network/
+azure_region = "East US"
+
+# Must match the environment_prefix used in azure/network/
+environment_prefix = "pc-azure"
+
+# REQUIRED: Aviatrix Controller credentials (for k8s-firewall Helm chart)
+aviatrix_controller_ip = "your-controller.example.com"
+aviatrix_username      = "admin"
+aviatrix_password      = "your-controller-password"
+
+# REQUIRED: Sourced from azure/clusters/nonprod/ outputs
+# cluster_name    = "pc-azure-nonprod-cluster"
+# cluster_id      = "your-aviatrix-cluster-id"
+# kube_config     = "<raw-kubeconfig-string>"
+# oidc_issuer_url = "https://eastus.oic.prod-aks.azure.com/00000000-0000-0000-0000-000000000000/00000000-0000-0000-0000-000000000000/"
+
+# DNS — sourced from azure/network/ outputs
+# dns_zone_name             = "internal.example.com"
+# dns_zone_resource_group   = "rg-patternc"

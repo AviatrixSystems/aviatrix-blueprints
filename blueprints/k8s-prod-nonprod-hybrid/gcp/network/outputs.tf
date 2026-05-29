@@ -77,3 +77,23 @@ output "name_prefix" {
   description = "Name prefix with random suffix"
   value       = local.name_prefix
 }
+
+output "prod_subnet_name" {
+  description = "Production GKE node subnet name"
+  value       = "${local.name_prefix}-prod-subnet"
+}
+
+output "nonprod_subnet_name" {
+  description = "Non-production GKE node subnet name"
+  value       = "${local.name_prefix}-nonprod-subnet"
+}
+
+output "gcp_project" {
+  description = "GCP project ID"
+  value       = var.gcp_project_id
+}
+
+output "gcp_region" {
+  description = "GCP region"
+  value       = var.gcp_region
+}

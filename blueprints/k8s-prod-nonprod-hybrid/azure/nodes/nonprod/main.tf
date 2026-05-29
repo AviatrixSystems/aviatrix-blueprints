@@ -47,9 +47,10 @@ resource "helm_release" "aviatrix_k8s_firewall" {
   name             = "aviatrix-k8s-firewall"
   namespace        = "aviatrix-system"
   create_namespace = true
-  repository       = "https://aviatrix-download.s3.us-west-2.amazonaws.com/helm-charts"
-  chart            = "aviatrix-k8s-firewall"
-  version          = "1.0.0"
+  repository       = "https://aviatrixsystems.github.io/k8s-firewall-charts"
+  chart            = "k8s-firewall"
+  version          = "9.0.0"
+  wait             = false
 
   set {
     name  = "controllerIP"

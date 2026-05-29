@@ -14,32 +14,32 @@ output "transit_gateway_name" {
 
 output "team_a_network_name" {
   description = "Team-A VPC network name"
-  value       = module.team_a_vpc.network_name
+  value       = module.team_a_vpc.vpc_name
 }
 
 output "team_a_network_id" {
   description = "Team-A VPC network resource ID"
-  value       = module.team_a_vpc.network_id
+  value       = module.team_a_vpc.vpc_id
 }
 
 output "team_a_network_self_link" {
   description = "Team-A VPC network self-link URL"
-  value       = module.team_a_vpc.network_self_link
+  value       = module.team_a_vpc.vpc_self_link
 }
 
 output "team_a_gke_nodes_subnet_name" {
   description = "Team-A GKE node pool subnet name"
-  value       = module.team_a_vpc.gke_nodes_subnet_name
+  value       = module.team_a_vpc.nodes_subnet_name
 }
 
 output "team_a_gke_nodes_subnet_cidr" {
   description = "Team-A GKE node pool subnet CIDR"
-  value       = module.team_a_vpc.gke_nodes_subnet_cidr
+  value       = local.teams["team-a"].nodes_cidr
 }
 
 output "team_a_pod_range_name" {
   description = "Team-A secondary range name for pod IPs"
-  value       = module.team_a_vpc.pod_range_name
+  value       = module.team_a_vpc.pods_range_name
 }
 
 output "team_a_services_range_name" {
@@ -59,27 +59,27 @@ output "team_a_spoke_gateway_name" {
 
 output "team_b_network_name" {
   description = "Team-B VPC network name"
-  value       = module.team_b_vpc.network_name
+  value       = module.team_b_vpc.vpc_name
 }
 
 output "team_b_network_id" {
   description = "Team-B VPC network resource ID"
-  value       = module.team_b_vpc.network_id
+  value       = module.team_b_vpc.vpc_id
 }
 
 output "team_b_gke_nodes_subnet_name" {
   description = "Team-B GKE node pool subnet name"
-  value       = module.team_b_vpc.gke_nodes_subnet_name
+  value       = module.team_b_vpc.nodes_subnet_name
 }
 
 output "team_b_gke_nodes_subnet_cidr" {
   description = "Team-B GKE node pool subnet CIDR"
-  value       = module.team_b_vpc.gke_nodes_subnet_cidr
+  value       = local.teams["team-b"].nodes_cidr
 }
 
 output "team_b_pod_range_name" {
   description = "Team-B secondary range name for pod IPs"
-  value       = module.team_b_vpc.pod_range_name
+  value       = module.team_b_vpc.pods_range_name
 }
 
 output "team_b_services_range_name" {
@@ -99,27 +99,27 @@ output "team_b_spoke_gateway_name" {
 
 output "team_c_network_name" {
   description = "Team-C VPC network name"
-  value       = module.team_c_vpc.network_name
+  value       = module.team_c_vpc.vpc_name
 }
 
 output "team_c_network_id" {
   description = "Team-C VPC network resource ID"
-  value       = module.team_c_vpc.network_id
+  value       = module.team_c_vpc.vpc_id
 }
 
 output "team_c_gke_nodes_subnet_name" {
   description = "Team-C GKE node pool subnet name"
-  value       = module.team_c_vpc.gke_nodes_subnet_name
+  value       = module.team_c_vpc.nodes_subnet_name
 }
 
 output "team_c_gke_nodes_subnet_cidr" {
   description = "Team-C GKE node pool subnet CIDR"
-  value       = module.team_c_vpc.gke_nodes_subnet_cidr
+  value       = local.teams["team-c"].nodes_cidr
 }
 
 output "team_c_pod_range_name" {
   description = "Team-C secondary range name for pod IPs"
-  value       = module.team_c_vpc.pod_range_name
+  value       = module.team_c_vpc.pods_range_name
 }
 
 output "team_c_services_range_name" {

@@ -100,6 +100,7 @@ resource "google_container_node_pool" "default" {
 
     service_account = local.node_service_account
     oauth_scopes    = ["https://www.googleapis.com/auth/cloud-platform"]
+    tags            = ["avx-snat-noip"]
 
     workload_metadata_config {
       mode = "GKE_METADATA"

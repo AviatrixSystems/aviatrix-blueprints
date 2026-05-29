@@ -1,0 +1,29 @@
+# Pattern B: Namespace-as-a-Service — GCP Clusters Layer (shared GKE)
+# Prerequisites: gcp/network/ must be applied first.
+# Copy to terraform.tfvars and fill in required values before running:
+#   terraform init
+#   terraform apply -var-file=terraform.tfvars
+
+# ─── Kubernetes ──────────────────────────────────────────────────────────────
+
+release_channel = "REGULAR"   # RAPID, REGULAR, or STABLE
+
+# ─── API Server Access ───────────────────────────────────────────────────────
+
+master_authorized_networks = [
+  {
+    cidr_block   = "0.0.0.0/0"
+    display_name = "All (restrict in production)"
+  }
+]
+
+# ─── Aviatrix Controller (env vars preferred) ────────────────────────────────
+# Set these via environment variables instead of tfvars to avoid storing
+# credentials in version control:
+#   export AVIATRIX_CONTROLLER_IP="your-controller-ip"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
+#
+# controller_ip       = "your-controller-ip"
+# controller_username = "admin"
+# controller_password = "your-password"

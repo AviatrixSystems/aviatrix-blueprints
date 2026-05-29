@@ -15,6 +15,18 @@ output "cluster_certificate_authority_data" {
   sensitive   = true
 }
 
+output "client_certificate" {
+  description = "Base64 encoded client certificate for AKS local admin auth"
+  value       = azurerm_kubernetes_cluster.this.kube_config[0].client_certificate
+  sensitive   = true
+}
+
+output "client_key" {
+  description = "Base64 encoded client key for AKS local admin auth"
+  value       = azurerm_kubernetes_cluster.this.kube_config[0].client_key
+  sensitive   = true
+}
+
 output "oidc_issuer_url" {
   description = "OIDC issuer URL for workload identity federation"
   value       = azurerm_kubernetes_cluster.this.oidc_issuer_url
