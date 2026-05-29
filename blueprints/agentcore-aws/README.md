@@ -121,15 +121,27 @@ Verify in CoPilot:
 
 ## Destroy
 
+The fastest, hands-off path is the helper script - it polls the runtime subnet, waits for the AgentCore-managed ENI to disappear, then runs `terraform destroy` for you:
+
+```bash
+./scripts/destroy-when-eni-clears.sh
+# Tune with POLL_INTERVAL (default 60s) and MAX_WAIT (default 3600s):
+#   POLL_INTERVAL=30 MAX_WAIT=7200 ./scripts/destroy-when-eni-clears.sh
+```
+
+Or run destroy by hand and re-run it after the ENI is gone:
+
 ```bash
 terraform destroy
+# If it errors on aws_subnet.agentcore_runtime / aws_security_group.runtime,
+# wait for the AgentCore ENI to release, then re-run `terraform destroy`.
 ```
 
 The AgentCore Runtime terminates any active sessions; ECR force-delete handles the image; Aviatrix spoke/transit detach cleanly.
 
-> **Known transient — runtime-subnet stuck on `Still destroying...` then DependencyViolation.** The AgentCore Runtime ENIs (`InterfaceType=agentic_ai`, `Attachment.InstanceOwnerId=amazon-aws`, an `ela-attach-*` attachment) are AWS-managed and clean up asynchronously after the Runtime resource is destroyed. The cleanup is **slow** (observed: 20+ minutes from runtime destroy to ENI release, sometimes more). Terraform polls AWS on `DependencyViolation` and eventually errors out on `aws_subnet.agentcore_runtime` and `aws_security_group.runtime`. The `ela-attach-*` attachment cannot be detached manually (AWS returns `OperationNotPermitted: You are not allowed to manage 'ela-attach' attachments`); only AWS' async cleanup can release it.
+> **Known transient — runtime-subnet stuck on `Still destroying...` then DependencyViolation.** The AgentCore Runtime ENIs (`InterfaceType=agentic_ai`, `Attachment.InstanceOwnerId=amazon-aws`, an `ela-attach-*` attachment) are AWS-managed and clean up asynchronously after the Runtime resource is destroyed. The cleanup is **slow** (observed: 30+ minutes from runtime destroy to ENI release, sometimes more). Terraform polls AWS on `DependencyViolation` and eventually errors out on `aws_subnet.agentcore_runtime` and `aws_security_group.runtime`. The `ela-attach-*` attachment cannot be detached manually (AWS returns `OperationNotPermitted: You are not allowed to manage 'ela-attach' attachments`); only AWS' async cleanup can release it.
 >
-> Wait for the ENI to disappear, then re-run `terraform destroy`. Check progress with:
+> `./scripts/destroy-when-eni-clears.sh` automates the wait. To check ENI state by hand:
 > ```bash
 > aws ec2 describe-network-interfaces --region <region> \
 >   --filters Name=subnet-id,Values=<runtime-subnet-id> \
@@ -145,7 +157,7 @@ The AgentCore Runtime terminates any active sessions; ECR force-delete handles t
 
 **UI scenarios report the agent failing on AWS API calls (Bedrock, STS) or the AgentCore Runtime image pull is blocked.** Check that `terraform.tfvars` includes the full `aws_control_domains` list from `terraform.tfvars.example`. The ECR auth API (`api.ecr.<region>.amazonaws.com`), the S3 ECR layer bucket (`prod-<region>-starport-layer-bucket.s3.<region>.amazonaws.com`), and Secrets Manager are required for AgentCore VPC-mode image pull and agent runtime; missing any of them causes DCF to deny the flow. The per-account ECR registry hostname is appended automatically from the current AWS caller identity.
 
-**`terraform destroy` hangs on `aws_subnet.agentcore_runtime: Still destroying...`, then errors with `DependencyViolation`.** The AgentCore Runtime keeps an `agentic_ai`-type ENI (`ela-attach-*` attachment) in the runtime subnet for many minutes after the Runtime resource itself is destroyed (observed: 20+ minutes). The attachment is AWS-managed and cannot be detached manually (`OperationNotPermitted: You are not allowed to manage 'ela-attach' attachments`); only AWS' async cleanup can release it. The same applies to `aws_security_group.runtime` because the ENI references it. Wait for the ENI to disappear (`aws ec2 describe-network-interfaces --filters Name=subnet-id,Values=<runtime-subnet-id>` returns empty), then re-run `terraform destroy` to clean up the remaining VPC/subnet/SG.
+**`terraform destroy` hangs on `aws_subnet.agentcore_runtime: Still destroying...`, then errors with `DependencyViolation`.** The AgentCore Runtime keeps an `agentic_ai`-type ENI (`ela-attach-*` attachment) in the runtime subnet for many minutes after the Runtime resource itself is destroyed (observed: 30+ minutes). The attachment is AWS-managed and cannot be detached manually (`OperationNotPermitted: You are not allowed to manage 'ela-attach' attachments`); only AWS' async cleanup can release it. The same applies to `aws_security_group.runtime` because the ENI references it. Run `./scripts/destroy-when-eni-clears.sh` to poll for the ENI release and finish the destroy automatically. To do it by hand: wait for `aws ec2 describe-network-interfaces --filters Name=subnet-id,Values=<runtime-subnet-id>` to return empty, then re-run `terraform destroy`.
 
 **DCF Monitor entries show rule `UNKNOWN` for some flows.** These are flows that matched the default action rather than a specific rule (no rule ID is attached to default-action hits). The IPs involved tell you which traffic it is — usually background management chatter or flows that the blueprint deliberately doesn't enumerate.
 
