@@ -22,6 +22,7 @@ resource "aviatrix_distributed_firewalling_config" "main" {
 
 # Enable DCF Enforcement on Kubernetes
 resource "aviatrix_k8s_config" "main" {
+  count               = var.manage_dcf ? 1 : 0
   depends_on          = [aviatrix_distributed_firewalling_config.main]
   enable_k8s          = true
   enable_dcf_policies = true
