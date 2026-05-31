@@ -121,33 +121,74 @@ Verify in CoPilot:
 
 ## Destroy
 
-The fastest, hands-off path is the helper script - it polls the runtime subnet, waits for the AgentCore-managed ENI to disappear, then runs `terraform destroy` for you:
+The AgentCore Runtime keeps an AWS-managed `agentic_ai` ENI attached to the runtime subnet for **hours** after the Runtime resource is destroyed (observed range: ~30 min on a fast day, 8+ hours on a slow one). The `ela-attach-*` attachment is owned by `amazon-aws` and cannot be detached by the customer (`OperationNotPermitted: You are not allowed to manage 'ela-attach' attachments`). While that ENI is attached, terraform cannot delete `aws_subnet.agentcore_runtime`, `aws_security_group.runtime`, or the parent VPC.
+
+The fastest hands-off path is the helper script. It polls the subnet on an interval, waits for the AgentCore ENI to disappear, then runs `terraform destroy -auto-approve`. Start it in a tmux/screen pane (or with `nohup`) and walk away:
 
 ```bash
-./scripts/destroy-when-eni-clears.sh
-# Tune with POLL_INTERVAL (default 60s) and MAX_WAIT (default 3600s):
-#   POLL_INTERVAL=30 MAX_WAIT=7200 ./scripts/destroy-when-eni-clears.sh
+nohup ./scripts/destroy-when-eni-clears.sh > destroy.log 2>&1 &
+tail -f destroy.log
 ```
 
-Or run destroy by hand and re-run it after the ENI is gone:
+Tunables (env vars):
+
+| Variable | Default | When to change |
+|---|---|---|
+| `POLL_INTERVAL` | `60` (sec) | Lower for faster pickup once AWS releases; higher to ease API calls on long waits. `120` is sane for multi-hour runs. |
+| `MAX_WAIT` | `3600` (sec, 1h) | Bump to `21600` (6h) or `43200` (12h) given the observed worst case. |
+
+Example for a long wait:
+
+```bash
+POLL_INTERVAL=120 MAX_WAIT=43200 ./scripts/destroy-when-eni-clears.sh
+```
+
+If you'd rather drive it by hand:
 
 ```bash
 terraform destroy
-# If it errors on aws_subnet.agentcore_runtime / aws_security_group.runtime,
-# wait for the AgentCore ENI to release, then re-run `terraform destroy`.
+# Errors out on aws_subnet.agentcore_runtime / aws_security_group.runtime.
+# Wait for the AgentCore ENI to release, then re-run `terraform destroy`.
+# Check ENI state:
+aws ec2 describe-network-interfaces --region <region> \
+  --filters Name=subnet-id,Values=<runtime-subnet-id> \
+  --query "NetworkInterfaces[].{Id:NetworkInterfaceId,Type:InterfaceType,Status:Status}"
+# Empty result = ENI gone = next `terraform destroy` will succeed.
 ```
 
-The AgentCore Runtime terminates any active sessions; ECR force-delete handles the image; Aviatrix spoke/transit detach cleanly.
+### Rolling your own watcher
 
-> **Known transient — runtime-subnet stuck on `Still destroying...` then DependencyViolation.** The AgentCore Runtime ENIs (`InterfaceType=agentic_ai`, `Attachment.InstanceOwnerId=amazon-aws`, an `ela-attach-*` attachment) are AWS-managed and clean up asynchronously after the Runtime resource is destroyed. The cleanup is **slow** (observed: 30+ minutes from runtime destroy to ENI release, sometimes more). Terraform polls AWS on `DependencyViolation` and eventually errors out on `aws_subnet.agentcore_runtime` and `aws_security_group.runtime`. The `ela-attach-*` attachment cannot be detached manually (AWS returns `OperationNotPermitted: You are not allowed to manage 'ela-attach' attachments`); only AWS' async cleanup can release it.
->
-> `./scripts/destroy-when-eni-clears.sh` automates the wait. To check ENI state by hand:
-> ```bash
-> aws ec2 describe-network-interfaces --region <region> \
->   --filters Name=subnet-id,Values=<runtime-subnet-id> \
->   --query "NetworkInterfaces[].{Id:NetworkInterfaceId,Type:InterfaceType,Status:Status}"
-> ```
-> Empty result = ENI gone = next `terraform destroy` will succeed.
+The shipped script is a thin shell loop; the same pattern works for any AWS-managed ENI / DependencyViolation cleanup wait. The core is:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+SUBNET="${1:?subnet-id required}"
+REGION="${AWS_REGION:?set AWS_REGION}"
+INTERVAL="${POLL_INTERVAL:-60}"
+MAX="${MAX_WAIT:-3600}"
+START=$(date +%s)
+while true; do
+  ELAPSED=$(( $(date +%s) - START ))
+  (( ELAPSED >= MAX )) && { echo "gave up after ${MAX}s"; exit 1; }
+  N=$(aws ec2 describe-network-interfaces --region "$REGION" \
+        --filters "Name=subnet-id,Values=$SUBNET" \
+        --query 'NetworkInterfaces | length(@)' --output text)
+  [[ "$N" == "0" ]] && { echo "ENI gone after ${ELAPSED}s"; break; }
+  echo "[$(date +%H:%M:%S)] elapsed=${ELAPSED}s ENI_count=$N"
+  sleep "$INTERVAL"
+done
+terraform destroy -auto-approve
+```
+
+Things worth tuning when you adapt this:
+
+- **Auto-detect the subnet** (the shipped script reads `terraform output -raw agentcore_runtime_subnet_id` so you don't have to paste it).
+- **Region resolution** - fall back through `AWS_REGION`, `AWS_DEFAULT_REGION`, `aws configure get region`.
+- **Long-running invocation** - run under `nohup`, `tmux`, or `screen` so it survives shell closure. The shipped script is intentionally foreground-only so its output stays visible; wrap it yourself when you need to detach.
+- **Multiple watchers** - if a blueprint has more than one stuck subnet, run one watcher per subnet (each with its own log) and only run `terraform destroy` after all of them clear. The shipped script destroys immediately on the single subnet it watches.
+
+The AgentCore Runtime terminates any active sessions on destroy; ECR force-delete handles the image; Aviatrix spoke/transit detach cleanly. The ENI wait is the only step that needs babysitting.
 
 ## Troubleshooting
 
@@ -157,7 +198,7 @@ The AgentCore Runtime terminates any active sessions; ECR force-delete handles t
 
 **UI scenarios report the agent failing on AWS API calls (Bedrock, STS) or the AgentCore Runtime image pull is blocked.** Check that `terraform.tfvars` includes the full `aws_control_domains` list from `terraform.tfvars.example`. The ECR auth API (`api.ecr.<region>.amazonaws.com`), the S3 ECR layer bucket (`prod-<region>-starport-layer-bucket.s3.<region>.amazonaws.com`), and Secrets Manager are required for AgentCore VPC-mode image pull and agent runtime; missing any of them causes DCF to deny the flow. The per-account ECR registry hostname is appended automatically from the current AWS caller identity.
 
-**`terraform destroy` hangs on `aws_subnet.agentcore_runtime: Still destroying...`, then errors with `DependencyViolation`.** The AgentCore Runtime keeps an `agentic_ai`-type ENI (`ela-attach-*` attachment) in the runtime subnet for many minutes after the Runtime resource itself is destroyed (observed: 30+ minutes). The attachment is AWS-managed and cannot be detached manually (`OperationNotPermitted: You are not allowed to manage 'ela-attach' attachments`); only AWS' async cleanup can release it. The same applies to `aws_security_group.runtime` because the ENI references it. Run `./scripts/destroy-when-eni-clears.sh` to poll for the ENI release and finish the destroy automatically. To do it by hand: wait for `aws ec2 describe-network-interfaces --filters Name=subnet-id,Values=<runtime-subnet-id>` to return empty, then re-run `terraform destroy`.
+**`terraform destroy` hangs on `aws_subnet.agentcore_runtime: Still destroying...`, then errors with `DependencyViolation`.** The AgentCore Runtime keeps an `agentic_ai`-type ENI (`ela-attach-*` attachment) in the runtime subnet for **hours** after the Runtime resource itself is destroyed (observed range: ~30 min to 8+ hours, AWS-side and not user-controllable). The attachment is AWS-managed and cannot be detached manually (`OperationNotPermitted: You are not allowed to manage 'ela-attach' attachments`); only AWS' async cleanup can release it. The same applies to `aws_security_group.runtime` and the parent VPC because the ENI references the SG and lives in the subnet. Run `./scripts/destroy-when-eni-clears.sh` (under `nohup` / `tmux` if you want to walk away) to poll for the ENI and finish destroy automatically — see the "Rolling your own watcher" sub-section in [Destroy](#destroy) for the pattern and tunables. To check ENI state by hand: `aws ec2 describe-network-interfaces --filters Name=subnet-id,Values=<runtime-subnet-id>` — empty result means safe to re-run `terraform destroy`.
 
 **DCF Monitor entries show rule `UNKNOWN` for some flows.** These are flows that matched the default action rather than a specific rule (no rule ID is attached to default-action hits). The IPs involved tell you which traffic it is — usually background management chatter or flows that the blueprint deliberately doesn't enumerate.
 
