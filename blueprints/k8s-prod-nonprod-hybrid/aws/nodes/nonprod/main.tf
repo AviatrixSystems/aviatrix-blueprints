@@ -4,7 +4,7 @@ locals {
   cluster_name     = data.terraform_remote_state.cluster.outputs.cluster_name
   cluster_endpoint = data.terraform_remote_state.cluster.outputs.cluster_endpoint
   cluster_ca       = data.terraform_remote_state.cluster.outputs.cluster_certificate_authority_data
-  region           = "us-east-2"
+  region           = var.aws_region
 }
 
 provider "aws" { region = local.region }

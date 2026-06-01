@@ -3,10 +3,10 @@
 # Copy this file to terraform.tfvars and fill in values marked as REQUIRED.
 # -----------------------------------------------------------------------------
 
-# REQUIRED: Aviatrix Controller credentials
-aviatrix_controller_ip = "your-controller.example.com"
-aviatrix_username      = "admin"
-aviatrix_password      = "your-controller-password"
+# REQUIRED: Aviatrix Controller credentials — set as environment variables:
+#   export AVIATRIX_CONTROLLER_IP="your-controller.example.com"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
 
 # REQUIRED: Aviatrix Azure account name (as registered in Controller)
 azure_account_name = "your-azure-account-name"

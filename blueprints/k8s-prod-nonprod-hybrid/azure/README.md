@@ -356,6 +356,52 @@ Verify DCF is `Enabled` in CoPilot → Security → DCF. If `manage_dcf = false`
 
 ---
 
+## Outputs Reference
+
+### Network (`azure/network/`)
+
+| Output | Description |
+|--------|-------------|
+| `transit_gw_name` | Aviatrix Transit Gateway name |
+| `prod_vnet_id` | Production VNet ID (Aviatrix format) |
+| `prod_vnet_name` | Production VNet name |
+| `prod_arm_vnet_id` | Production VNet ARM resource ID |
+| `nonprod_vnet_id` | Non-production VNet ID (Aviatrix format) |
+| `nonprod_vnet_name` | Non-production VNet name |
+| `nonprod_arm_vnet_id` | Non-production VNet ARM resource ID |
+| `db_vnet_id` | Database spoke VNet ID (Aviatrix format) |
+| `prod_spoke_gw_name` | Production spoke gateway name |
+| `nonprod_spoke_gw_name` | Non-production spoke gateway name |
+| `db_spoke_gw_name` | Database spoke gateway name |
+| `private_dns_zone_name` | Azure Private DNS zone name |
+| `private_dns_zone_id` | Azure Private DNS zone resource ID |
+| `sg_prod_vpc_uuid` | UUID of the production VPC SmartGroup |
+| `sg_nonprod_vpc_uuid` | UUID of the non-production VPC SmartGroup |
+| `sg_prod_db_uuid` | UUID of the production database SmartGroup |
+| `name_prefix` | Name prefix with random suffix |
+| `prod_aks_subnet_id` | Production AKS node pool subnet ID |
+| `nonprod_aks_subnet_id` | Non-production AKS node pool subnet ID |
+| `azure_subscription_id` | Azure subscription ID |
+| `azure_region` | Azure region |
+| `resource_group_name` | Azure Resource Group name |
+| `private_dns_zone_resource_group` | Resource group containing the Private DNS zone |
+
+### Clusters (`azure/clusters/prod/` and `azure/clusters/nonprod/`)
+
+| Output | Description |
+|--------|-------------|
+| `cluster_name` | AKS cluster name |
+| `cluster_id` | AKS cluster resource ID |
+| `cluster_fqdn` | AKS cluster FQDN |
+| `kube_config` | AKS cluster kubeconfig *(sensitive)* |
+| `oidc_issuer_url` | OIDC issuer URL for Workload Identity |
+| `kubelet_identity_object_id` | Kubelet managed identity object ID |
+| `node_resource_group` | Auto-generated node resource group name |
+
+Nodes layers expose no outputs.
+
+---
+
 ## Tested With
 
 | Component | Version |

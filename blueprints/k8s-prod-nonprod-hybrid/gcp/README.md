@@ -370,6 +370,49 @@ Verify DCF is `Enabled` in CoPilot → Security → DCF. If `manage_dcf = false`
 
 ---
 
+## Outputs Reference
+
+### Network (`gcp/network/`)
+
+| Output | Description |
+|--------|-------------|
+| `transit_gw_name` | Aviatrix Transit Gateway name |
+| `prod_vpc_id` | Production VPC ID (Aviatrix format / GCP self-link) |
+| `prod_vpc_name` | Production VPC name |
+| `nonprod_vpc_id` | Non-production VPC ID (Aviatrix format / GCP self-link) |
+| `nonprod_vpc_name` | Non-production VPC name |
+| `db_vpc_id` | Database spoke VPC ID |
+| `prod_spoke_gw_name` | Production spoke gateway name |
+| `nonprod_spoke_gw_name` | Non-production spoke gateway name |
+| `db_spoke_gw_name` | Database spoke gateway name |
+| `transit_vpc_self_link` | Transit VPC self-link for Cloud DNS network_url |
+| `dns_zone_name` | Cloud DNS private zone name |
+| `sg_prod_vpc_uuid` | UUID of the production VPC SmartGroup |
+| `sg_nonprod_vpc_uuid` | UUID of the non-production VPC SmartGroup |
+| `sg_prod_db_uuid` | UUID of the production database SmartGroup |
+| `name_prefix` | Name prefix with random suffix |
+| `prod_subnet_name` | Production GKE node subnet name |
+| `nonprod_subnet_name` | Non-production GKE node subnet name |
+| `gcp_project` | GCP project ID |
+| `gcp_region` | GCP region |
+
+### Clusters (`gcp/clusters/prod/` and `gcp/clusters/nonprod/`)
+
+| Output | Description |
+|--------|-------------|
+| `cluster_name` | GKE cluster name |
+| `cluster_endpoint` | GKE cluster API endpoint |
+| `cluster_ca_certificate` | GKE cluster CA certificate, base64 *(sensitive)* |
+| `cluster_id` | Cluster self-link for Aviatrix SmartGroup `k8s_cluster_id` |
+| `cluster_self_link` | GKE cluster self-link |
+| `cluster_location` | GKE cluster location |
+| `node_service_account_email` | Service account email used by the GKE node pool |
+| `workload_identity_pool` | Workload Identity pool for the cluster |
+
+Nodes layers expose no outputs.
+
+---
+
 ## Tested With
 
 | Component | Version |

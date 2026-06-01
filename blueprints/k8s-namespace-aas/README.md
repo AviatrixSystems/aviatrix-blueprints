@@ -4,6 +4,8 @@ All teams share a **single EKS cluster** with namespace-level workload isolation
 
 ## Architecture
 
+![Architecture](architecture.svg)
+
 ```
 Transit GW (10.2.0.0/20)
 └── Shared Spoke (10.10.0.0/16) ──── EKS shared-cluster
@@ -144,6 +146,8 @@ terraform -chdir=aws/clusters/shared destroy -var="aviatrix_aws_account_name=<ac
 terraform -chdir=aws/network destroy -var="aviatrix_aws_account_name=<account>" -auto-approve
 ```
 
+For **Azure** and **GCP** destroy sequences, see [azure/README.md](azure/README.md) and [gcp/README.md](gcp/README.md).
+
 ## Key Design Notes
 
 - **RBAC is not a network boundary** — it prevents accidental access, DCF + NetworkPolicy enforce isolation
@@ -154,6 +158,32 @@ terraform -chdir=aws/network destroy -var="aviatrix_aws_account_name=<account>" 
 ## When to Use
 
 Choose this pattern when **cost and operational simplicity** matter more than blast-radius isolation. Best for trusted teams with controlled workloads. For stricter isolation, see [k8s-cluster-aas](../k8s-cluster-aas/). For the recommended balanced approach, see [k8s-prod-nonprod-hybrid](../k8s-prod-nonprod-hybrid/).
+
+## Multi-Cloud Variants
+
+This blueprint is available for **AWS**, **Azure**, and **GCP**. The namespace isolation model, DCF policies, and Calico NetworkPolicy patterns are identical across clouds.
+
+| Cloud | README | Deploy |
+|-------|--------|--------|
+| AWS (EKS) | [aws/README.md](aws/README.md) | `cd aws/network && terraform apply` |
+| Azure (AKS) | [azure/README.md](azure/README.md) | `cd azure/network && terraform apply` |
+| GCP (GKE) | [gcp/README.md](gcp/README.md) | `cd gcp/network && terraform apply` |
+
+The deployment instructions above cover **AWS**. See the per-cloud READMEs for full Azure and GCP prerequisites, destroy instructions, and tested-with tables.
+
+## Tested With
+
+| Component | Version |
+|-----------|---------|
+| Terraform | ≥ 1.5 |
+| Aviatrix provider | ~> 3.1 |
+| AWS provider | ~> 5.0 |
+| Azure provider | ~> 3.0 |
+| Google provider | ~> 5.0 |
+| terraform-aws-modules/eks | ~> 20.0 |
+| Kubernetes | 1.32 |
+
+For full per-cloud tested versions, see [aws/README.md](aws/README.md), [azure/README.md](azure/README.md), and [gcp/README.md](gcp/README.md).
 
 ## Resources Created
 

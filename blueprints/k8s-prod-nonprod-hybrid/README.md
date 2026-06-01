@@ -4,6 +4,8 @@ Separate production and non-production EKS clusters secured by the **Aviatrix Cl
 
 ## Architecture
 
+![Architecture](architecture.svg)
+
 ```
 Transit GW (10.2.0.0/20, HA)
 ├── Prod Spoke    (10.10.0.0/20) ──── EKS prod-cluster
@@ -43,6 +45,18 @@ Transit GW (10.2.0.0/20, HA)
 | 32 | PERMIT | monitoring-prod → prod namespaces (TCP/9090) |
 | 50–51 | PERMIT | prod/nonprod egress → EKS required services |
 | 70–99 | — | Team self-service via FirewallPolicy CRDs |
+
+## Multi-Cloud Variants
+
+This blueprint is available for **AWS**, **Azure**, and **GCP**. The architecture, DCF policies, and test scenarios are identical across clouds; only the provider-specific resources differ.
+
+| Cloud | README | Deploy |
+|-------|--------|--------|
+| AWS (EKS) | [aws/README.md](aws/README.md) | `cd aws/network && terraform apply` |
+| Azure (AKS) | [azure/README.md](azure/README.md) | `cd azure/network && terraform apply` |
+| GCP (GKE) | [gcp/README.md](gcp/README.md) | `cd gcp/network && terraform apply` |
+
+The deployment instructions below cover **AWS**. See the per-cloud READMEs for Azure and GCP — they include full prerequisites, variables references, destroy instructions, and tested-with tables for each cloud.
 
 ## Deployment
 
@@ -310,3 +324,15 @@ For the strongest isolation, see [k8s-cluster-aas](../k8s-cluster-aas/). For the
 6. **HA gateways not deploying** — HA is controlled by `var.enable_ha` (default: `true`). If you hit EIP quota, set `enable_ha = false` in `terraform.tfvars` to reduce EIP consumption by half.
 
 7. **Autoscaling schedule not taking effect** — The nonprod autoscaling schedules scale down workers during off-hours. Verify schedules are in UTC and match your team's timezone. Check: `aws autoscaling describe-scheduled-actions --auto-scaling-group-name <name>`.
+
+## Tested With
+
+| Component | Version |
+|-----------|---------|
+| Terraform | ≥ 1.5 |
+| Aviatrix provider | ~> 3.1 |
+| AWS provider | ~> 5.0 |
+| terraform-aws-modules/eks | ~> 20.0 |
+| Kubernetes | 1.32 |
+
+For Azure (AKS) and GCP (GKE) tested versions, see [azure/README.md](azure/README.md) and [gcp/README.md](gcp/README.md).

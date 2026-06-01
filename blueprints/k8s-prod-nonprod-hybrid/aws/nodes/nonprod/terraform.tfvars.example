@@ -9,4 +9,6 @@
 #   export AVIATRIX_PASSWORD="your-password"
 # -----------------------------------------------------------------------------
 
+# aws_region = "us-east-1"  # default: us-east-2
+
 # No required variables — all values flow from aws/network/ and aws/clusters/nonprod/ state.

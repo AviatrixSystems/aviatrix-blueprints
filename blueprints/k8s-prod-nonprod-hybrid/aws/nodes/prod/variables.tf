@@ -1,5 +1,11 @@
 # No input variables — all values from remote state
 
+variable "aws_region" {
+  description = "AWS region for the EKS cluster"
+  type        = string
+  default     = "us-east-2"
+}
+
 variable "controller_ip" {
   description = "IP address or hostname of the Aviatrix Controller"
   type        = string

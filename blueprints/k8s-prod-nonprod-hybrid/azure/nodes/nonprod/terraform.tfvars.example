@@ -16,10 +16,10 @@ azure_region = "East US"
 # Must match the environment_prefix used in azure/network/
 environment_prefix = "pc-azure"
 
-# REQUIRED: Aviatrix Controller credentials (for k8s-firewall Helm chart)
-aviatrix_controller_ip = "your-controller.example.com"
-aviatrix_username      = "admin"
-aviatrix_password      = "your-controller-password"
+# REQUIRED: Aviatrix Controller credentials — set as environment variables:
+#   export AVIATRIX_CONTROLLER_IP="your-controller.example.com"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
 
 # REQUIRED: Sourced from azure/clusters/nonprod/ outputs
 # cluster_name    = "pc-azure-nonprod-cluster"

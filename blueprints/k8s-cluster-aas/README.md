@@ -4,6 +4,8 @@ Each team gets a **dedicated EKS cluster in its own VPC**. Workload isolation is
 
 ## Architecture
 
+![Architecture](architecture.svg)
+
 ```
 Transit GW (10.2.0.0/20)
 ├── Team-A Spoke (10.10.0.0/20) ──── EKS cluster-a  [pods: 100.64.0.0/18]
@@ -263,6 +265,8 @@ for team in team-a team-b team-c; do terraform -chdir=aws/clusters/$team destroy
 terraform -chdir=aws/network destroy -var="aviatrix_aws_account_name=<account>" -auto-approve
 ```
 
+For **Azure** and **GCP** destroy sequences, see [azure/README.md](azure/README.md) and [gcp/README.md](gcp/README.md).
+
 ## Key Design Notes
 
 - **excluded_advertised_spoke_routes goes on the TRANSIT**, not spokes — software-defined routing, not BGP
@@ -273,3 +277,29 @@ terraform -chdir=aws/network destroy -var="aviatrix_aws_account_name=<account>" 
 ## When to Use
 
 Choose this pattern when teams need **full cluster autonomy**, different Kubernetes versions, or strict compliance isolation. For a cost-effective shared alternative, see [k8s-namespace-aas](../k8s-namespace-aas/). For the recommended balanced approach, see [k8s-prod-nonprod-hybrid](../k8s-prod-nonprod-hybrid/).
+
+## Multi-Cloud Variants
+
+This blueprint is available for **AWS**, **Azure**, and **GCP**. The DCF policies and team isolation model are identical across clouds.
+
+| Cloud | README | Deploy |
+|-------|--------|--------|
+| AWS (EKS) | [aws/README.md](aws/README.md) | `cd aws/network && terraform apply` |
+| Azure (AKS) | [azure/README.md](azure/README.md) | `cd azure/network && terraform apply` |
+| GCP (GKE) | [gcp/README.md](gcp/README.md) | `cd gcp/network && terraform apply` |
+
+The deployment instructions above cover **AWS**. See the per-cloud READMEs for full Azure and GCP prerequisites, destroy instructions, and tested-with tables.
+
+## Tested With
+
+| Component | Version |
+|-----------|---------|
+| Terraform | ≥ 1.5 |
+| Aviatrix provider | ~> 3.1 |
+| AWS provider | ~> 5.0 |
+| Azure provider | ~> 3.0 |
+| Google provider | ~> 5.0 |
+| terraform-aws-modules/eks | ~> 20.0 |
+| Kubernetes | 1.32 |
+
+For full per-cloud tested versions, see [aws/README.md](aws/README.md), [azure/README.md](azure/README.md), and [gcp/README.md](gcp/README.md).
