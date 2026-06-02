@@ -1,0 +1,41 @@
+# Copy to terraform.tfvars and fill in values before running terraform apply.
+#
+# Aviatrix controller credentials are NOT set here — export them as environment
+# variables before invoking terraform:
+#   export TF_VAR_aviatrix_controller_ip=your-controller.example.com
+#   export TF_VAR_aviatrix_username=admin
+#   export TF_VAR_aviatrix_password=your-password
+
+# Azure subscription and matching Aviatrix-side account name
+azure_subscription_id = "00000000-0000-0000-0000-000000000000"
+aviatrix_account_name = "azure-myaccount"
+
+# Azure region — singleword form (e.g. westeurope, eastus, eastus2)
+location = "westeurope"
+
+# GitHub runner registration
+github_repo_url = "https://github.com/your-org/your-repo"
+github_pat      = "ghp_..."
+
+# VM admin password — set via env var, do NOT commit to tfvars:
+#   export TF_VAR_admin_password=your-password
+
+# SSH public key for runner VM (required — no default)
+admin_ssh_public_key = "ssh-rsa AAAA..."    # replace with your actual public key
+
+# Optional overrides (defaults shown)
+# name_prefix         = "gh-runner"            # 6-digit suffix auto-appended per deployment
+# spoke_gateway_name  = null                   # null → derived from name_prefix; set to a fixed string only when you need a stable name
+
+# runner_vm_size      = "Standard_B2s_v2"
+# admin_username      = "azureuser"
+# vnet_cidr           = "10.10.10.0/24"
+# gw_subnet_cidr      = "10.10.10.0/26"
+# runner_subnet_cidr  = "10.10.10.64/26"
+# runner_version      = "2.334.0"
+
+# FQDNs the runner may reach for tool/agent calls (HTTP 80 + HTTPS 443).
+# www.example.com — MOTD target used by test-pii-exfil workflow.
+tool_call_fqdns = [
+  "www.example.com",
+]
