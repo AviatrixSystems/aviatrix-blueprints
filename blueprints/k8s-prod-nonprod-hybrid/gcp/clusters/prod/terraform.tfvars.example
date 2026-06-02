@@ -2,9 +2,9 @@
 # Pattern C: Prod/Non-Prod Hybrid — GCP Production Cluster Layer
 # Copy this file to terraform.tfvars and fill in values marked as REQUIRED.
 #
-# Most values (vpc_self_link, subnet_self_link) are sourced automatically
-# from the gcp/network/ remote state. Only override these if you need to
-# break the remote-state chain or deploy into a manually-created VPC.
+# vpc_self_link and subnet_self_link are read from the gcp/network/ remote state
+# via data.terraform_remote_state.network when the standard deployment sequence is used.
+# They only need to be set here if deploying this layer standalone.
 # -----------------------------------------------------------------------------
 
 # REQUIRED: GCP project ID — must match gcp/network/

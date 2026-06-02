@@ -59,6 +59,7 @@ See [`../architecture.svg`](../architecture.svg) for the full topology diagram.
 | **Aviatrix Controller** | v8.x, provider ~> 8.2 | Must be deployed and reachable |
 | **Aviatrix CoPilot** | Recommended | Required for DCF visualization and SmartGroups UI |
 | **GCP Account Onboarded** | Account registered in Controller | Use exact account name as `gcp_account_name` variable |
+| **DCF + K8s enforcement enabled** | Required before deploying nodes layer | Set `manage_dcf = true` in `gcp/network/terraform.tfvars` (recommended) **or** enable manually: CoPilot → Security → DCF → Enable, then enable K8s enforcement. The nodes layer's `aviatrix_kubernetes_cluster` registration fails with `feature is disabled` if K8s enforcement is not active. |
 
 ### Local Tools
 
@@ -178,15 +179,19 @@ PROD_CLUSTER=$(cd gcp/clusters/prod && terraform output -raw cluster_name)
 NONPROD_CLUSTER=$(cd gcp/clusters/nonprod && terraform output -raw cluster_name)
 
 # Configure kubectl contexts
+# Delete any existing pc2-prod/pc2-nonprod contexts first (e.g. from a prior AWS run)
+kubectl config delete-context pc2-prod 2>/dev/null || true
+kubectl config delete-context pc2-nonprod 2>/dev/null || true
+
 gcloud container clusters get-credentials "$PROD_CLUSTER" \
   --region "$GCP_REGION" --project "$GCP_PROJECT"
 kubectl config rename-context \
-  "gke_${GCP_PROJECT}_${GCP_REGION}_${PROD_CLUSTER}" pc2-prod 2>/dev/null || true
+  "gke_${GCP_PROJECT}_${GCP_REGION}_${PROD_CLUSTER}" pc2-prod
 
 gcloud container clusters get-credentials "$NONPROD_CLUSTER" \
   --region "$GCP_REGION" --project "$GCP_PROJECT"
 kubectl config rename-context \
-  "gke_${GCP_PROJECT}_${GCP_REGION}_${NONPROD_CLUSTER}" pc2-nonprod 2>/dev/null || true
+  "gke_${GCP_PROJECT}_${GCP_REGION}_${NONPROD_CLUSTER}" pc2-nonprod
 
 # Apply namespace manifests
 kubectl --context pc2-prod apply -f gcp/k8s-apps/dcf-crd/prod-namespaces.yaml
@@ -311,7 +316,9 @@ kubectl run --context=pc2-nonprod sandbox-test -n sandbox --rm -it \
 
 ## Cleanup / Destroy
 
-**Destroy in reverse layer order.**
+**Destroy order: network first, then nodes, then clusters.**
+
+> **Important:** The network layer must be destroyed **before** the nodes layer. The nodes layer registers clusters with the Aviatrix Controller via `aviatrix_kubernetes_cluster`. If K8s SmartGroups in the network layer's DCF ruleset still reference those clusters, the Controller will refuse to deregister them. Destroying the network layer first removes the SmartGroups and DCF ruleset.
 
 ### Step 1 — Clean up Kubernetes resources
 
@@ -322,7 +329,13 @@ for ctx in pc2-prod pc2-nonprod; do
 done
 ```
 
-### Step 2 — Destroy Layer 3: Nodes (parallel)
+### Step 2 — Destroy Layer 1: Network (removes DCF + SmartGroups first)
+
+```bash
+terraform -chdir=gcp/network destroy -auto-approve
+```
+
+### Step 3 — Destroy Layer 3: Nodes (parallel)
 
 ```bash
 terraform -chdir=gcp/nodes/prod destroy -auto-approve &
@@ -330,18 +343,12 @@ terraform -chdir=gcp/nodes/nonprod destroy -auto-approve &
 wait
 ```
 
-### Step 3 — Destroy Layer 2: Clusters (parallel)
+### Step 4 — Destroy Layer 2: Clusters (parallel)
 
 ```bash
 terraform -chdir=gcp/clusters/prod destroy -auto-approve &
 terraform -chdir=gcp/clusters/nonprod destroy -auto-approve &
 wait
-```
-
-### Step 4 — Destroy Layer 1: Network
-
-```bash
-terraform -chdir=gcp/network destroy -auto-approve
 ```
 
 ---
@@ -367,6 +374,22 @@ Wait 2–5 minutes after GKE node pools join for the Aviatrix Controller to comp
 **DCF rules not enforcing**
 
 Verify DCF is `Enabled` in CoPilot → Security → DCF. If `manage_dcf = false`, DCF must have been enabled externally before deploying this blueprint.
+
+**`aviatrix_kubernetes_cluster` fails: `feature is disabled`**
+
+The Aviatrix K8s enforcement feature must be enabled before the nodes layer runs. Set `manage_dcf = true` in `gcp/network/terraform.tfvars` and re-apply the network layer. This enables both DCF and K8s enforcement (`aviatrix_k8s_config`). Alternatively, enable it manually in CoPilot → Security → DCF → Settings → Enable Kubernetes Enforcement.
+
+**Nodes stuck `NotReady` / `anetd` pods in `Init:0/3` state**
+
+GKE nodes use `ADVANCED_DATAPATH` (Dataplane V2 / Cilium via `anetd`). The `anetd` DaemonSet needs to pull the `pause` image from `us-central1-artifactregistry.gcr.io` to initialize. If the Aviatrix DCF egress WebGroup does not include this domain, the image pull times out and nodes never become Ready.
+
+The `gcp/network/dcf.tf` `public_internet` WebGroup already includes `us-central1-artifactregistry.gcr.io` and `*.artifactregistry.googleapis.com`. If you have customized the WebGroup and removed these entries, add them back and re-apply the network layer.
+
+Verify with:
+```bash
+kubectl --context pc2-prod describe pod -n kube-system -l k8s-app=cilium | grep -A5 Events:
+```
+If you see `dial tcp <ip>:443: i/o timeout` on `us-central1-artifactregistry.gcr.io`, the WebGroup fix is needed.
 
 ---
 

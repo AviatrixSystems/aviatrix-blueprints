@@ -61,5 +61,7 @@ resource "helm_release" "external_dns" {
     value = "sync"
   }
 
+  timeout = 600 # 10 min — allows for image pull on cold node pools
+
   depends_on = [google_service_account_iam_member.external_dns_workload_identity]
 }

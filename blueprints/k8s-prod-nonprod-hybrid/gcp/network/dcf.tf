@@ -262,6 +262,15 @@ resource "aviatrix_web_group" "public_internet" {
     match_expressions {
       snifilter = "*.gcr.io"
     }
+    match_expressions {
+      snifilter = "*.artifactregistry.googleapis.com"
+    }
+    match_expressions {
+      snifilter = "us-central1-artifactregistry.gcr.io"
+    }
+    match_expressions {
+      snifilter = "*.pkg.dev"
+    }
   }
 }
 

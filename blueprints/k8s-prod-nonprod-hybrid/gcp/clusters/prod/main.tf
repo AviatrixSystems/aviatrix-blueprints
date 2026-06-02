@@ -16,7 +16,10 @@ provider "google" {
 }
 
 locals {
-  cluster_name = "${data.terraform_remote_state.network.outputs.name_prefix}-prod"
+  # Use the name_prefix from remote state when available, fall back to environment_prefix.
+  # This ensures destroy works even when the network layer has already been removed.
+  name_prefix  = try(data.terraform_remote_state.network.outputs.name_prefix, var.environment_prefix)
+  cluster_name = "${local.name_prefix}-prod"
 
   labels = {
     environment = "production"
