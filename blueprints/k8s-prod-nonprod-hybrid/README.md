@@ -158,7 +158,13 @@ Expected results:
 
 ## Destroy (reverse order)
 
+> **Before destroying nodes:** ExternalDNS creates DNS records (Route53 / Azure Private DNS / Cloud DNS) outside Terraform's view. Delete all Ingress and Service resources that ExternalDNS manages **before** running `terraform destroy` on the nodes layer, otherwise those records become orphaned and must be removed manually.
+
 ```bash
+# Pre-destroy: remove ExternalDNS-managed records
+kubectl --context <prod-context>   delete ingress,service --all -n <each-namespace>
+kubectl --context <nonprod-context> delete ingress,service --all -n <each-namespace>
+
 # Layer 4
 kubectl --context pc2-prod delete -f aws/k8s-apps/dcf-crd/
 kubectl --context pc2-nonprod delete -f aws/k8s-apps/dcf-crd/
