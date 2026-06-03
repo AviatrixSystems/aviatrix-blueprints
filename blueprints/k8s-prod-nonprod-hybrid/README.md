@@ -58,6 +58,20 @@ This blueprint is available for **AWS**, **Azure**, and **GCP**. The architectur
 
 The deployment instructions below cover **AWS**. See the per-cloud READMEs for Azure and GCP — they include full prerequisites, variables references, destroy instructions, and tested-with tables for each cloud.
 
+## Prerequisites
+
+- Aviatrix Controller with AWS account onboarded
+- AWS credentials with sufficient permissions (`AdministratorAccess` or scoped EKS + VPC + IAM)
+- Terraform ≥ 1.5 · kubectl · helm · AWS CLI
+
+```bash
+# Verify tools
+terraform version
+aws sts get-caller-identity
+kubectl version --client
+helm version
+```
+
 ## Deployment
 
 ```
@@ -66,11 +80,6 @@ Layer 2: aws/clusters/prod|nonprod  ← EKS control planes (parallel)         (~
 Layer 3: aws/nodes/prod|nonprod     ← Node groups, Helm charts (parallel)    (~8 min)
 Layer 4: aws/k8s-apps/             ← Namespaces, RBAC, FirewallPolicy CRDs  (<1 min)
 ```
-
-### Prerequisites
-- Aviatrix Controller with AWS account onboarded
-- AWS credentials with sufficient permissions
-- Terraform ≥ 1.5 · kubectl · helm
 
 ### Layer 1 — Network
 
@@ -209,29 +218,29 @@ For the strongest isolation, see [k8s-cluster-aas](../k8s-cluster-aas/). For the
 
 ## Resources Created
 
-| Resource | Count | Description |
+| Resource | Count | Estimated $/hr |
 |---|---|---|
-| `aviatrix_transit_gateway` | 1 | Transit hub (c5.xlarge) |
-| `aviatrix_vpc` | 3 | prod, nonprod, and database VPCs |
-| `aviatrix_spoke_gateway` | 3–6 | One per VPC (doubles with HA enabled) |
-| `aviatrix_spoke_transit_attachment` | 3 | Connects each spoke to transit |
-| `aviatrix_gateway_snat` | 3 | Masquerades pod CIDR (100.64.0.0/16) per spoke |
-| `aviatrix_distributed_firewalling_config` | 1 | Enables DCF |
-| `aviatrix_k8s_config` | 1 | Enables K8s namespace enforcement in DCF |
-| `aviatrix_kubernetes_cluster` | 2 | Registers prod and nonprod clusters with Controller |
-| `aviatrix_smart_group` | 11 | prod_vpc, nonprod_vpc, prod_db + 4 namespace groups per cluster + monitoring × 2 + sandbox + ThreatIQ |
-| `aviatrix_web_group` | 3 | prod_approved_apis, sandbox_relaxed_egress, public_internet |
-| `aviatrix_dcf_ruleset` | 1 | Dual-layer policy: VPC boundary + namespace boundary |
-| `aws_nat_gateway` | ~9 | 3 per VPC (one per AZ) — verify EIP quota |
-| `aws_eks_cluster` | 2 | Dedicated prod and nonprod clusters |
-| `aws_eks_node_group` | 2 | prod_workers and nonprod_workers |
-| `aws_autoscaling_schedule` | 2+ | Scale nonprod down off-hours to reduce cost |
-| `aws_iam_openid_connect_provider` | 2 | IRSA OIDC per cluster |
-| `aws_iam_role` (IRSA) | 4+ | ExternalDNS + K8s firewall roles per cluster |
-| `helm_release` | 4 | ExternalDNS + aviatrix_k8s_firewall per cluster |
-| `kubernetes_config_map` | ~6 | ENIConfig per AZ per cluster |
+| `aviatrix_transit_gateway` (c5.xlarge, HA) | 2 | ~$0.38 |
+| `aviatrix_spoke_gateway` (c5.xlarge, HA each) | 6 | ~$1.14 |
+| `aviatrix_vpc` | 3 | — |
+| `aviatrix_gateway_snat` | 3 | — |
+| `aviatrix_distributed_firewalling_config` | 1 | — |
+| `aviatrix_k8s_config` | 1 | — |
+| `aviatrix_kubernetes_cluster` | 2 | — |
+| `aviatrix_smart_group` | 11 | — |
+| `aviatrix_web_group` | 3 | — |
+| `aviatrix_dcf_ruleset` | 1 | — |
+| `aws_nat_gateway` | ~9 | ~$0.41 (3 per VPC × 3 AZs) |
+| `aws_eks_cluster` | 2 | ~$0.20 |
+| `aws_eks_node_group` (t3.large × 2) | 2 | ~$0.17/node/hr |
+| `aws_iam_openid_connect_provider` | 2 | — |
+| `aws_iam_role` (IRSA) | 4+ | — |
+| `helm_release` | 4 | — |
+| `kubernetes_config_map` | ~6 | — |
 
-> The database VPC is only reachable from the prod VPC — nonprod workloads have no network path to production data, enforced at the Aviatrix DCF layer.
+**Estimated total: ~$2.50/hr** (HA enabled, us-east-2 pricing)
+
+> Disable HA (`enable_ha = false`) to approximately halve the Aviatrix gateway cost. The database VPC is only reachable from the prod VPC — nonprod workloads have no network path to production data, enforced at the Aviatrix DCF layer.
 
 ## Variables Reference
 
@@ -335,10 +344,10 @@ For the strongest isolation, see [k8s-cluster-aas](../k8s-cluster-aas/). For the
 
 | Component | Version |
 |-----------|---------|
-| Terraform | ≥ 1.5 |
-| Aviatrix provider | ~> 3.1 |
-| AWS provider | ~> 5.0 |
-| terraform-aws-modules/eks | ~> 20.0 |
-| Kubernetes | 1.32 |
+| Terraform | 1.12.2 |
+| Aviatrix Controller | 8.x |
+| Aviatrix provider | 8.2.10 |
+| AWS provider | 5.100.0 |
+| Kubernetes | 1.35 (EKS) |
 
 For Azure (AKS) and GCP (GKE) tested versions, see [azure/README.md](azure/README.md) and [gcp/README.md](gcp/README.md).

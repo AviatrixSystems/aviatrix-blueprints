@@ -18,6 +18,14 @@ provider "aviatrix" {
 
 provider "aws" {
   region = var.aws_region
+
+  default_tags {
+    tags = {
+      Blueprint   = "k8s-prod-nonprod-hybrid"
+      Environment = "demo"
+      ManagedBy   = "terraform"
+    }
+  }
 }
 
 # ---------------------------------------------------------------------------

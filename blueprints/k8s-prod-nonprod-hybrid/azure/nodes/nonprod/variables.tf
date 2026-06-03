@@ -29,12 +29,6 @@ variable "cluster_id" {
   type        = string
 }
 
-variable "kube_config" {
-  description = "AKS non-production cluster kubeconfig (raw)"
-  type        = string
-  sensitive   = true
-}
-
 variable "dns_zone_name" {
   description = "Azure Private DNS zone name"
   type        = string
@@ -45,42 +39,19 @@ variable "dns_zone_resource_group" {
   type        = string
 }
 
-variable "oidc_issuer_url" {
-  description = "OIDC issuer URL for Workload Identity"
-  type        = string
-}
-
 variable "aviatrix_controller_ip" {
-  description = "Aviatrix Controller IP for k8s-firewall"
+  description = "Aviatrix Controller IP or hostname"
   type        = string
 }
 
 variable "aviatrix_username" {
   description = "Aviatrix Controller username"
   type        = string
+  default     = "admin"
 }
 
 variable "aviatrix_password" {
   description = "Aviatrix Controller password"
   type        = string
   sensitive   = true
-}
-
-variable "controller_ip" {
-  description = "IP address or hostname of the Aviatrix Controller"
-  type        = string
-  default     = null
-}
-
-variable "controller_username" {
-  description = "Admin username for the Aviatrix Controller"
-  type        = string
-  default     = "admin"
-}
-
-variable "controller_password" {
-  description = "Admin password for the Aviatrix Controller"
-  type        = string
-  sensitive   = true
-  default     = null
 }

@@ -22,10 +22,8 @@ environment_prefix = "pc-azure"
 #   export AVIATRIX_PASSWORD="your-password"
 
 # REQUIRED: Sourced from azure/clusters/prod/ outputs
-# cluster_name    = "pc-azure-prod-cluster"
-# cluster_id      = "your-aviatrix-cluster-id"
-# kube_config     = "<raw-kubeconfig-string>"
-# oidc_issuer_url = "https://eastus.oic.prod-aks.azure.com/00000000-0000-0000-0000-000000000000/00000000-0000-0000-0000-000000000000/"
+# cluster_name = "pc-azure-prod-cluster"
+# cluster_id   = "your-aviatrix-cluster-id"
 
 # DNS — sourced from azure/network/ outputs
 # dns_zone_name             = "internal.example.com"

@@ -157,10 +157,16 @@ wait
 
 ```bash
 cd azure/nodes/prod
+cp terraform.tfvars.example terraform.tfvars
+# Fill in: resource_group_name, cluster_name (from: terraform -chdir=../../clusters/prod output -raw cluster_name)
+#           cluster_id (from: terraform -chdir=../../clusters/prod output -raw cluster_id)
+#           dns_zone_name, dns_zone_resource_group (from: terraform -chdir=../../network output -raw private_dns_zone_name)
 terraform init
 terraform apply &
 
 cd ../nonprod
+cp terraform.tfvars.example terraform.tfvars
+# Fill in same values using clusters/nonprod and network outputs
 terraform init
 terraform apply &
 wait
@@ -232,10 +238,14 @@ terraform apply
 
 | Variable | Type | Default | Required | Description |
 |---|---|---|---|---|
-| `azure_subscription_id` | `string` | — | yes | Azure subscription ID |
-| `azure_account_name` | `string` | — | yes | Aviatrix Azure account name |
-| `kubernetes_version` | `string` | `1.31` | no | Kubernetes version for AKS |
-| `sku_tier` | `string` | `Standard` | no | AKS pricing tier (`Free`, `Standard`, `Premium`) |
+| `resource_group_name` | `string` | — | yes | Must match the Resource Group created in `azure/network/` |
+| `vnet_id` | `string` | — | yes | ARM VNet resource ID — sourced from `network` output `prod_arm_vnet_id` / `nonprod_arm_vnet_id` |
+| `subnet_id` | `string` | — | yes | AKS node pool subnet ID — sourced from `network` output `prod_aks_subnet_id` / `nonprod_aks_subnet_id` |
+| `kubernetes_version` | `string` | `1.35` | no | Kubernetes version for AKS |
+| `node_vm_size` | `string` | `Standard_D4s_v3` | no | VM size for the default node pool |
+| `node_min_count` | `number` | `2` | no | Minimum node count (autoscaler) |
+| `node_max_count` | `number` | `10` | no | Maximum node count (autoscaler) |
+| `pod_cidr` | `string` | `100.64.0.0/16` | no | Pod CIDR for Azure CNI Overlay — must match `azure/network/` |
 
 ### Nodes (`azure/nodes/prod/` and `azure/nodes/nonprod/`)
 
@@ -304,6 +314,8 @@ kubectl run --context=pc2-nonprod sandbox-test -n sandbox --rm -it \
 **Destroy in reverse layer order.**
 
 ### Step 1 — Clean up Kubernetes resources
+
+> **Before destroying nodes:** ExternalDNS creates Azure Private DNS records outside Terraform's view. Delete all Ingress and LoadBalancer Service resources **before** running `terraform destroy` on the nodes layer, otherwise those DNS records become orphaned and must be removed manually from the Private DNS zone.
 
 ```bash
 for ctx in pc2-prod pc2-nonprod; do
@@ -406,10 +418,10 @@ Nodes layers expose no outputs.
 
 | Component | Version |
 |---|---|
-| Aviatrix Controller | 7.2+ |
-| Aviatrix Terraform Provider | ~> 8.2.0 |
-| Terraform | >= 1.5 |
-| Azure Provider (`azurerm`) | ~> 4.0 |
-| Kubernetes Provider | ~> 2.20 |
-| Helm Provider | ~> 2.x |
-| Kubernetes | 1.31 (AKS) |
+| Aviatrix Controller | 8.x |
+| Aviatrix Terraform Provider | 8.2.10 |
+| Terraform | 1.12.2 |
+| Azure Provider (`azurerm`) | 4.75.0 |
+| Kubernetes Provider | 2.38.0 |
+| Helm Provider | 2.17.0 |
+| Kubernetes | 1.35 (AKS) |

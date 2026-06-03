@@ -1,3 +1,19 @@
 {
-  "$schema": "https://json.schemastore.org/claude-code-settings.json"
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(terraform validate *)",
+      "Bash(terraform -chdir=* init -backend=false *)",
+      "Bash(terraform output *)",
+      "Bash(terraform fmt -check *)",
+      "Bash(curl -s https://registry.terraform.io/*)",
+      "Bash(terraform plan *)",
+      "Bash(terraform -chdir=* plan *)",
+      "Bash(terraform providers *)",
+      "Bash(tflint *)",
+      "Bash(tfsec *)",
+      "Bash(trivy config *)",
+      "Bash(checkov *)"
+    ]
+  }
 }
