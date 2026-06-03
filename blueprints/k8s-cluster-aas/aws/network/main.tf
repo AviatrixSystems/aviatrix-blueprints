@@ -36,6 +36,14 @@ provider "aviatrix" {
 
 provider "aws" {
   region = var.aws_region
+
+  default_tags {
+    tags = {
+      Blueprint   = "k8s-cluster-aas"
+      Environment = "demo"
+      ManagedBy   = "terraform"
+    }
+  }
 }
 
 resource "random_id" "suffix" {

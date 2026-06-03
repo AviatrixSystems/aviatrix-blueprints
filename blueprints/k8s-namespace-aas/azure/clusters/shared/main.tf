@@ -100,7 +100,7 @@ resource "azurerm_kubernetes_cluster" "this" {
 
   default_node_pool {
     name                         = "system"
-    vm_size                      = "Standard_B2s"
+    vm_size                      = var.system_node_vm_size
     node_count                   = 1
     min_count                    = 1
     max_count                    = 3

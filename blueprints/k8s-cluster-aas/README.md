@@ -34,31 +34,43 @@ Pods use RFC 6598 overlay CIDR (`100.64.0.0/16`). Aviatrix SNAT translates pod I
 
 ### AWS (per 3-team deployment)
 
-| Resource | Count | Description |
+| Resource | Count | Estimated $/hr |
 |---|---|---|
-| `aviatrix_transit_gateway` | 1 | Transit hub (c5.xlarge) connecting all spokes |
-| `aviatrix_vpc` | 4 | One VPC per team + database VPC |
-| `aviatrix_spoke_gateway` | 3–6 | One per team VPC (doubles with HA enabled) |
-| `aviatrix_spoke_transit_attachment` | 4 | Connects each spoke to transit |
-| `aviatrix_gateway_snat` | 3 | Masquerades pod CIDR (100.64.0.0/16) to spoke gateway IP |
-| `aviatrix_distributed_firewalling_config` | 1 | Enables DCF on the transit |
-| `aviatrix_k8s_config` | 1 | Enables Kubernetes enforcement in DCF |
-| `aviatrix_kubernetes_cluster` | 3 | Registers each EKS cluster with the Controller |
-| `aviatrix_smart_group` | 6 | 3× team VPC + database + geo-block + ThreatIQ |
-| `aviatrix_web_group` | 1 | Approved cloud service egress domains |
-| `aviatrix_dcf_ruleset` | 1 | Priority-ordered DCF policy (inter-team + egress) |
-| `aws_vpc` (via module) | 4 | Transit + 3 team + database (subnets, IGW, route tables included) |
-| `aws_nat_gateway` | ~12 | ~3 per VPC (one per AZ) — verify EIP quota |
-| `aws_eks_cluster` | 3 | One dedicated EKS cluster per team |
-| `aws_eks_node_group` | 3 | Managed node group per cluster |
-| `aws_eks_addon` | 9 | vpc-cni, coredns, kube-proxy per cluster |
-| `aws_iam_openid_connect_provider` | 3 | IRSA OIDC provider per cluster |
-| `aws_iam_role` (IRSA) | 6+ | ALB Controller + ExternalDNS roles per cluster |
-| `aws_route53_zone` | 1 | Private hosted zone for internal DNS |
-| `helm_release` | 6 | ALB Controller + ExternalDNS per cluster |
-| `kubernetes_config_map` | 3+ | ENIConfig per AZ for VPC CNI custom networking |
+| `aviatrix_transit_gateway` (c5.xlarge, HA) | 2 | ~$0.38 |
+| `aviatrix_spoke_gateway` (c5.xlarge, HA each) | 6 | ~$1.14 |
+| `aviatrix_vpc` | 4 | — |
+| `aviatrix_gateway_snat` | 3 | — |
+| `aviatrix_distributed_firewalling_config` | 1 | — |
+| `aviatrix_k8s_config` | 1 | — |
+| `aviatrix_kubernetes_cluster` | 3 | — |
+| `aviatrix_smart_group` | 6 | — |
+| `aviatrix_web_group` | 1 | — |
+| `aviatrix_dcf_ruleset` | 1 | — |
+| `aws_nat_gateway` | ~12 | ~$0.54 (3 per VPC × 4 VPCs) |
+| `aws_eks_cluster` | 3 | ~$0.30 |
+| `aws_eks_node_group` (t3.large × 2 SPOT each) | 3 | ~$0.14/node/hr |
+| `aws_iam_openid_connect_provider` | 3 | — |
+| `aws_iam_role` (IRSA) | 6+ | — |
+| `aws_route53_zone` | 1 | ~$0.50/month |
+| `helm_release` | 6 | — |
+| `kubernetes_config_map` | 3+ | — |
 
-> Azure and GCP deployments create equivalent resources using AKS/GKE, Azure Private DNS / Cloud DNS, and NGINX Ingress / Gateway API respectively.
+**Estimated total: ~$3.20/hr** (HA enabled, us-west-2 SPOT pricing)
+
+> Disable HA (`enable_ha = false`) to reduce gateway cost by ~half. Azure and GCP deployments create equivalent resources using AKS/GKE, Azure Private DNS / Cloud DNS, and NGINX Ingress / Gateway API respectively.
+
+## Prerequisites
+
+- Aviatrix Controller with AWS account onboarded
+- AWS credentials with sufficient permissions (`AdministratorAccess` or scoped EKS + VPC + IAM)
+- Terraform ≥ 1.5 · kubectl · helm · AWS CLI
+
+```bash
+terraform version
+aws sts get-caller-identity
+kubectl version --client
+helm version
+```
 
 ## Deployment
 
@@ -67,11 +79,6 @@ Layer 1: aws/network/            ← Transit, VPCs, Spokes, DNS, DCF  (~8 min)
 Layer 2: aws/clusters/team-*/    ← EKS control planes (parallel)    (~15 min)
 Layer 3: aws/nodes/team-*/       ← Node groups, Helm charts (parallel) (~8 min)
 ```
-
-### Prerequisites
-- Aviatrix Controller with AWS account onboarded
-- AWS credentials with sufficient permissions
-- Terraform ≥ 1.5, Aviatrix provider ~> 8.2
 
 ### Layer 1 — Network
 
@@ -259,7 +266,15 @@ Each layer uses local state. If a layer was partially applied, run `terraform st
 
 ## Destroy (reverse order)
 
+> **Before destroying nodes:** ExternalDNS creates Route53 / Azure Private DNS records outside Terraform's view. Delete all Ingress and LoadBalancer Service resources **before** running `terraform destroy` on the nodes layer, otherwise those DNS records become orphaned and must be removed manually.
+
 ```bash
+# Pre-destroy: remove ExternalDNS-managed records
+for team in team-a team-b team-c; do
+  kubectl delete ingress --all -A --context=$team 2>/dev/null || true
+  kubectl delete svc -A --field-selector spec.type=LoadBalancer --context=$team 2>/dev/null || true
+done
+
 for team in team-a team-b team-c; do terraform -chdir=aws/nodes/$team destroy -auto-approve & done && wait
 for team in team-a team-b team-c; do terraform -chdir=aws/clusters/$team destroy -var="aviatrix_aws_account_name=<account>" -auto-approve & done && wait
 terraform -chdir=aws/network destroy -var="aviatrix_aws_account_name=<account>" -auto-approve
@@ -294,12 +309,12 @@ The deployment instructions above cover **AWS**. See the per-cloud READMEs for f
 
 | Component | Version |
 |-----------|---------|
-| Terraform | ≥ 1.5 |
-| Aviatrix provider | ~> 3.1 |
-| AWS provider | ~> 5.0 |
-| Azure provider | ~> 3.0 |
-| Google provider | ~> 5.0 |
-| terraform-aws-modules/eks | ~> 20.0 |
-| Kubernetes | 1.32 |
+| Terraform | 1.12.2 |
+| Aviatrix Controller | 8.x |
+| Aviatrix provider | 8.2.10 |
+| AWS provider | 5.100.0 |
+| Azure provider (`azurerm`) | 4.75.0 |
+| Google provider | 6.50.0 |
+| Kubernetes | 1.35 |
 
 For full per-cloud tested versions, see [aws/README.md](aws/README.md), [azure/README.md](azure/README.md), and [gcp/README.md](gcp/README.md).

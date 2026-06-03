@@ -42,6 +42,19 @@ Deployed via `aws/k8s-apps/dcf-crd/network-policies.yaml`:
 - **team-b**: allow same namespace + team-a ingress (mirrors DCF rule 10)
 - **team-c**: allow same namespace only (fully isolated)
 
+## Prerequisites
+
+- Aviatrix Controller with AWS account onboarded
+- AWS credentials with sufficient permissions (`AdministratorAccess` or scoped EKS + VPC + IAM)
+- Terraform ≥ 1.5 · kubectl · helm · AWS CLI
+
+```bash
+terraform version
+aws sts get-caller-identity
+kubectl version --client
+helm version
+```
+
 ## Deployment
 
 ```
@@ -50,11 +63,6 @@ Layer 2: aws/clusters/shared/  ← Shared EKS control plane        (~15 min)
 Layer 3: aws/nodes/shared/     ← Node group, ENIConfig, Helm      (~8 min)
 Layer 4: aws/k8s-apps/         ← Namespaces, RBAC, NetworkPolicy  (<1 min)
 ```
-
-### Prerequisites
-- Aviatrix Controller with AWS account onboarded
-- AWS credentials with sufficient permissions
-- Terraform ≥ 1.5 · kubectl · helm
 
 ### Layer 1 — Network
 
@@ -139,7 +147,13 @@ Expected results:
 
 ## Destroy (reverse order)
 
+> **Before destroying nodes:** ExternalDNS creates Route53 records outside Terraform's view. Delete all Ingress and LoadBalancer Service resources **before** running `terraform destroy` on the nodes layer, otherwise those DNS records become orphaned and must be removed manually.
+
 ```bash
+# Pre-destroy: remove ExternalDNS-managed records
+kubectl delete ingress --all -A 2>/dev/null || true
+kubectl delete svc -A --field-selector spec.type=LoadBalancer 2>/dev/null || true
+
 kubectl delete -f aws/k8s-apps/dcf-crd/
 terraform -chdir=aws/nodes/shared destroy -auto-approve
 terraform -chdir=aws/clusters/shared destroy -var="aviatrix_aws_account_name=<account>" -auto-approve
@@ -175,43 +189,42 @@ The deployment instructions above cover **AWS**. See the per-cloud READMEs for f
 
 | Component | Version |
 |-----------|---------|
-| Terraform | ≥ 1.5 |
-| Aviatrix provider | ~> 3.1 |
-| AWS provider | ~> 5.0 |
-| Azure provider | ~> 3.0 |
-| Google provider | ~> 5.0 |
-| terraform-aws-modules/eks | ~> 20.0 |
-| Kubernetes | 1.32 |
+| Terraform | 1.12.2 |
+| Aviatrix Controller | 8.x |
+| Aviatrix provider | 8.2.10 |
+| AWS provider | 5.100.0 |
+| Azure provider (`azurerm`) | 4.75.0 |
+| Google provider | 6.50.0 |
+| Kubernetes | 1.35 |
 
 For full per-cloud tested versions, see [aws/README.md](aws/README.md), [azure/README.md](azure/README.md), and [gcp/README.md](gcp/README.md).
 
 ## Resources Created
 
-| Resource | Count | Description |
+| Resource | Count | Estimated $/hr |
 |---|---|---|
-| `aviatrix_transit_gateway` | 1 | Transit hub connecting the shared VPC spoke |
-| `aviatrix_vpc` | 1 | Single shared VPC for all teams |
-| `aviatrix_spoke_gateway` | 1–2 | Shared spoke gateway (+ HA if enabled) |
-| `aviatrix_spoke_transit_attachment` | 1 | Connects shared VPC to transit |
-| `aviatrix_gateway_snat` | 1 | Masquerades pod CIDR (100.64.0.0/16) to spoke gateway IP |
-| `aviatrix_distributed_firewalling_config` | 1 | Enables DCF |
-| `aviatrix_k8s_config` | 1 | Enables Kubernetes namespace enforcement in DCF |
-| `aviatrix_kubernetes_cluster` | 1 | Registers the shared cluster with the Controller |
-| `aviatrix_smart_group` | 7 | team-a, team-b, team-c, monitoring namespaces + all_namespaces aggregate + geo-block + ThreatIQ |
-| `aviatrix_web_group` | 1 | Approved egress domains for all namespaces |
-| `aviatrix_dcf_ruleset` | 1 | Namespace-level isolation policy |
-| `aws_vpc` (via module) | 1 | Shared VPC (subnets, IGW, route tables included) |
-| `aws_nat_gateway` | ~3 | One per AZ — verify EIP quota |
-| `aws_eks_cluster` | 1 | Single shared EKS cluster |
-| `aws_eks_node_group` | 1 | Shared managed node group |
-| `aws_eks_addon` | 3 | vpc-cni, coredns, kube-proxy |
-| `aws_iam_openid_connect_provider` | 1 | IRSA OIDC provider |
-| `aws_iam_role` (IRSA) | 2 | ALB Controller + ExternalDNS (shared) |
-| `aws_route53_zone` | 1 | Private hosted zone |
-| `helm_release` | 2 | ALB Controller + ExternalDNS (one each, shared by all teams) |
-| `kubernetes_config_map` | ~3 | ENIConfig per AZ for VPC CNI custom networking |
+| `aviatrix_transit_gateway` (c5.xlarge, HA) | 2 | ~$0.38 |
+| `aviatrix_spoke_gateway` (c5.xlarge, HA) | 2 | ~$0.38 |
+| `aviatrix_vpc` | 1 | — |
+| `aviatrix_gateway_snat` | 1 | — |
+| `aviatrix_distributed_firewalling_config` | 1 | — |
+| `aviatrix_k8s_config` | 1 | — |
+| `aviatrix_kubernetes_cluster` | 1 | — |
+| `aviatrix_smart_group` | 7 | — |
+| `aviatrix_web_group` | 1 | — |
+| `aviatrix_dcf_ruleset` | 1 | — |
+| `aws_nat_gateway` | ~3 | ~$0.14 (1 per AZ) |
+| `aws_eks_cluster` | 1 | ~$0.10 |
+| `aws_eks_node_group` (m5.xlarge × 3 SPOT) | 1 | ~$0.15/node/hr |
+| `aws_iam_openid_connect_provider` | 1 | — |
+| `aws_iam_role` (IRSA) | 2 | — |
+| `aws_route53_zone` | 1 | ~$0.50/month |
+| `helm_release` | 2 | — |
+| `kubernetes_config_map` | ~3 | — |
 
-> This blueprint costs significantly less than `k8s-cluster-aas` for the same number of teams because all teams share one cluster, one VPC, and one set of controllers. The tradeoff is namespace-level (not VPC-level) isolation.
+**Estimated total: ~$1.20/hr** (HA enabled, us-east-1 SPOT pricing)
+
+> This blueprint costs significantly less than `k8s-cluster-aas` for the same number of teams because all teams share one cluster, one VPC, and one set of controllers. Disable HA (`enable_ha = false`) to reduce gateway cost by half.
 
 ## Variables Reference
 
