@@ -230,12 +230,14 @@ module "spoke" {
   name       = "${var.name}-spoke"
   account    = var.aviatrix_aws_account_name
   region     = var.region
-  transit_gw = var.transit_gw_name
+  transit_gw = local.is_aviatrix ? var.transit_gw_name : ""
 
   instance_size = var.spoke_instance_size
   ha_gw         = var.spoke_ha_gw
 
   enable_vpc_dns_server = var.enable_vpc_dns_server
+
+  single_ip_snat = local.is_native
 
   use_existing_vpc = true
   vpc_id           = aws_vpc.this.id
@@ -260,6 +262,7 @@ module "spoke" {
 #####################
 
 resource "aviatrix_gateway_snat" "this" {
+  count     = local.is_aviatrix ? 1 : 0
   gw_name   = module.spoke.spoke_gateway.gw_name
   snat_mode = "customized_snat"
 
