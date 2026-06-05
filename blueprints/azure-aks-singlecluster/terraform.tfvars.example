@@ -1,0 +1,77 @@
+# Consolidated example for azure-aks-singlecluster.
+#
+# This blueprint is a 4-layer deployment. Each layer reads its OWN
+# terraform.tfvars (network/, cluster/, nodes/). Copy the relevant block
+# into each layer's terraform.tfvars, or copy each layer's own
+# terraform.tfvars.example. This file is a single-page reference of every
+# value an operator must set.
+#
+# Deployment order: network -> cluster -> nodes -> (manual) k8s-apps.
+
+#############################################
+# network/terraform.tfvars
+#############################################
+
+# Azure region — BOTH forms are required (azurerm vs Aviatrix Controller).
+azure_region          = "eastus2"   # azurerm form
+aviatrix_azure_region = "East US 2"  # Aviatrix form
+
+# Aviatrix Azure access account as onboarded in the Controller.
+aviatrix_azure_account_name = "Azure"
+
+# Resource naming (also used as the AKS cluster name). 1-20 chars.
+name_prefix = "aks-single"
+
+# CIDRs. vnet_cidr is the routable /23 (gateway, ingress, node subnets);
+# pod_cidr is the dedicated pod subnet (Azure CNI pod-subnet mode).
+vnet_cidr = "10.30.0.0/23"
+pod_cidr  = "100.64.0.0/16"
+
+# Transit posture: "none" = standalone egress via Single IP SNAT (default),
+# "aviatrix" = attach to an existing Aviatrix transit (set transit_gw_name).
+transit_type    = "none"
+transit_gw_name = ""
+
+# Aviatrix Controller credentials (network + cluster layers).
+aviatrix_controller_ip = "x.x.x.x"
+aviatrix_username      = "admin"
+aviatrix_password      = "REPLACE_ME"
+
+#############################################
+# cluster/terraform.tfvars
+#############################################
+
+kubernetes_version = "1.33"
+
+node_pool_config = {
+  node_count = 2
+  min_count  = 1
+  max_count  = 3
+  vm_size    = "Standard_B2s"
+}
+
+# AKS API server allow-list. Defaults to 0.0.0.0/0 for lab convenience —
+# this exposes the API server publicly. Lock it down to your admin IP for
+# non-lab use. The spoke GW public IP (and controller IP when onboarding)
+# are appended automatically by the cluster module.
+authorized_ip_ranges = ["0.0.0.0/0"]
+
+# Onboard the cluster into the Aviatrix Controller for K8s SmartGroups.
+enable_aviatrix_onboarding    = true
+aviatrix_controller_public_ip = "x.x.x.x"
+
+# Controller credentials are also required in the cluster layer (shared).
+# aviatrix_controller_ip = "x.x.x.x"
+# aviatrix_username      = "admin"
+# aviatrix_password      = "REPLACE_ME"
+
+#############################################
+# nodes/terraform.tfvars
+#############################################
+
+nginx_ingress_chart_version = "4.11.3"
+k8s_firewall_chart_version  = "1.0.0"
+
+# Static internal LB IP — must be inside the ingress subnet (default
+# 10.30.0.128/25) and above the Azure-reserved first four addresses.
+nginx_lb_ip = "10.30.0.200"
