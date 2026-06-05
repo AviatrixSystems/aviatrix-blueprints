@@ -44,13 +44,13 @@ output "frontend_availability_zones" {
 
 output "frontend_spoke_gateway_name" {
   description = "Frontend spoke gateway name"
-  value       = module.frontend_spoke.spoke_gateway.gw_name
+  value       = module.frontend_vpc.spoke_gateway_name
   sensitive   = true
 }
 
 output "frontend_spoke_gateway_private_ip" {
   description = "Frontend spoke gateway private IP for SNAT"
-  value       = module.frontend_spoke.spoke_gateway.private_ip
+  value       = module.frontend_vpc.spoke_gateway_private_ip
   sensitive   = true
 }
 
@@ -85,13 +85,13 @@ output "backend_availability_zones" {
 
 output "backend_spoke_gateway_name" {
   description = "Backend spoke gateway name"
-  value       = module.backend_spoke.spoke_gateway.gw_name
+  value       = module.backend_vpc.spoke_gateway_name
   sensitive   = true
 }
 
 output "backend_spoke_gateway_private_ip" {
   description = "Backend spoke gateway private IP for SNAT"
-  value       = module.backend_spoke.spoke_gateway.private_ip
+  value       = module.backend_vpc.spoke_gateway_private_ip
   sensitive   = true
 }
 
