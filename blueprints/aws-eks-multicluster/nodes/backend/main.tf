@@ -100,7 +100,7 @@ resource "kubernetes_manifest" "eniconfig" {
 # All values from the cluster state are known at plan time
 
 module "default_node_group" {
-  source = "../../modules/eks-node-group"
+  source = "../../../../modules/aws-eks-node-group"
 
   # Cluster identity - from cluster state (exists at plan time)
   cluster_name    = data.terraform_remote_state.cluster.outputs.cluster_name
