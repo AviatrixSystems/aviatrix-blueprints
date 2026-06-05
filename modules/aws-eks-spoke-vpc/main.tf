@@ -226,10 +226,17 @@ module "spoke" {
   source  = "terraform-aviatrix-modules/mc-spoke/aviatrix"
   version = "~> 8.2.0"
 
-  cloud      = "AWS"
-  name       = "${var.name}-spoke"
-  account    = var.aviatrix_aws_account_name
-  region     = var.region
+  cloud   = "AWS"
+  name    = "${var.name}-spoke"
+  account = var.aviatrix_aws_account_name
+  region  = var.region
+
+  # Only attach to an Aviatrix transit in aviatrix mode. In native (aws_tgw /
+  # aws_cloudwan) modes the spoke is unattached; mc-spoke gates its
+  # aviatrix_spoke_transit_attachment on var.attached (default true), and that
+  # resource rejects an empty transit_gw_name at plan time -- so attached must
+  # be false here, not just transit_gw = "".
+  attached   = local.is_aviatrix
   transit_gw = local.is_aviatrix ? var.transit_gw_name : ""
 
   instance_size = var.spoke_instance_size
