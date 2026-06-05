@@ -9,7 +9,8 @@ output "vnet_id" {
 }
 
 output "vnet_name" {
-  value = azurerm_virtual_network.this.name
+  description = "Name of the spoke VNet."
+  value       = azurerm_virtual_network.this.name
 }
 
 output "aviatrix_vpc_id" {
@@ -18,31 +19,38 @@ output "aviatrix_vpc_id" {
 }
 
 output "gateway_subnet_id" {
-  value = azurerm_subnet.gateway.id
+  description = "Subnet ID of the Aviatrix gateway subnet."
+  value       = azurerm_subnet.gateway.id
 }
 
 output "ingress_subnet_id" {
-  value = azurerm_subnet.ingress.id
+  description = "Subnet ID of the ingress subnet (internal NGINX LB)."
+  value       = azurerm_subnet.ingress.id
 }
 
 output "ingress_subnet_name" {
-  value = azurerm_subnet.ingress.name
+  description = "Name of the ingress subnet (used by Helm ingress-nginx annotations)."
+  value       = azurerm_subnet.ingress.name
 }
 
 output "node_subnet_id" {
-  value = azurerm_subnet.node.id
+  description = "Subnet ID for AKS node VMs."
+  value       = azurerm_subnet.node.id
 }
 
 output "pod_subnet_id" {
-  value = azurerm_subnet.pod.id
+  description = "Subnet ID for AKS pods (pod-subnet mode)."
+  value       = azurerm_subnet.pod.id
 }
 
 output "node_route_table_id" {
-  value = azurerm_route_table.node.id
+  description = "Node route table ID (Aviatrix programs 0/0 -> spoke GW here)."
+  value       = azurerm_route_table.node.id
 }
 
 output "pod_route_table_id" {
-  value = azurerm_route_table.pod.id
+  description = "Pod route table ID (Aviatrix programs 0/0 -> spoke GW here)."
+  value       = azurerm_route_table.pod.id
 }
 
 output "spoke_gateway_name" {
