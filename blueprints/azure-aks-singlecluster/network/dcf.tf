@@ -98,6 +98,19 @@ resource "aviatrix_web_group" "github_aviatrix" {
 }
 
 #####################
+# Enable Distributed Cloud Firewall (controller-wide)
+#
+# REQUIRED: without this, the ruleset below is configured but NOT enforced —
+# gateways pass all traffic (the allow-list "works" only because nothing is
+# blocked, and the geo/threat DENY rules never fire). This is the global DCF
+# toggle; the ruleset depends_on it so enablement is sequenced first.
+#####################
+
+resource "aviatrix_distributed_firewalling_config" "enable" {
+  enable_distributed_firewalling = true
+}
+
+#####################
 # DCF Ruleset (threat prevention + egress allow-list, no default deny)
 #####################
 
@@ -106,6 +119,8 @@ resource "aviatrix_dcf_ruleset" "egress" {
   # Attachment point: TERRAFORM_BEFORE_UI_MANAGED. Hardcoded UUID because the
   # TERRAFORM_BEFORE_UI_MANAGED data source returns an incorrect ID on the controller.
   attach_to = "defa11a1-3000-4001-0000-000000000000"
+
+  depends_on = [aviatrix_distributed_firewalling_config.enable]
 
   rules {
     name             = "Block GeoBlocked Countries"

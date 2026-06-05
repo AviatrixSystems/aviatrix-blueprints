@@ -55,12 +55,16 @@ output "pod_route_table_id" {
 
 output "spoke_gateway_name" {
   description = "Name of the Aviatrix spoke gateway."
-  value       = module.spoke.spoke_gateway.gw_name
+  # mc-spoke marks the whole spoke_gateway object sensitive; the gateway name is
+  # not a secret and is needed as a plain value by downstream layers / the README.
+  value = nonsensitive(module.spoke.spoke_gateway.gw_name)
 }
 
 output "spoke_gateway_public_ip" {
   description = "Public IP of the spoke gateway (for AKS API authorized_ip_ranges)."
-  value       = module.spoke.spoke_gateway.public_ip
+  # Not a secret: consumed by the cluster layer as an AKS API authorized_ip_range
+  # (a plain CIDR list). Unwrap so sensitivity does not propagate downstream.
+  value = nonsensitive(module.spoke.spoke_gateway.public_ip)
 }
 
 output "spoke_gateway_private_ip" {

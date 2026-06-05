@@ -70,7 +70,7 @@ aviatrix_controller_public_ip = "x.x.x.x"
 #############################################
 
 nginx_ingress_chart_version = "4.11.3"
-k8s_firewall_chart_version  = "1.0.0"
+k8s_firewall_chart_version  = "9.0.0"
 
 # Static internal LB IP — must be inside the ingress subnet (default
 # 10.30.0.128/25) and above the Azure-reserved first four addresses.

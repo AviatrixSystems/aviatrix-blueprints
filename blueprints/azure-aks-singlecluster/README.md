@@ -4,8 +4,8 @@ This blueprint deploys a **single AKS cluster** inside a self-contained "spoke-i
 
 The blueprint deploys **standalone by default** (no transit attachment). Egress is delivered entirely through the Aviatrix **9.0 Single IP SNAT explicit-route-table-selection** feature: the Controller programs `0.0.0.0/0 → spoke gateway` on the node and pod route tables only, leaving the gateway and ingress route tables untouched. It is built on two reusable modules — [`modules/azure-aks-spoke-vnet`](../../modules/azure-aks-spoke-vnet/README.md) and [`modules/azure-aks-cluster`](../../modules/azure-aks-cluster/README.md) — so an operator can attach the spoke to an Aviatrix transit post-deploy by setting one variable and re-applying. It is the Azure analogue of [`aws-eks-singlecluster`](../aws-eks-singlecluster/README.md) and a slimmed single-cluster derivative of [`azure-aks-multicluster`](../azure-aks-multicluster/README.md).
 
-> [!IMPORTANT]
-> **Work in progress — not yet deploy-verified.** The Terraform validates offline (`terraform validate`), but a full apply against a live Controller / Azure subscription has not yet been run. Treat cost figures and the egress allow-list as starting points to verify during your first deploy.
+> [!NOTE]
+> **Live deploy-verified** (2026-06-05, Controller 9.0.10, provider 9.0.0, AKS 1.33). Full deploy → enforce → destroy cycle validated: the 9.0 Single-IP-SNAT route-table selection, AKS `userDefinedRouting` bring-up, Aviatrix onboarding, internal-LB ingress, and **DCF egress enforcement** (allow-list permits + datapath-confirmed deny) all work. Geo/ThreatIQ blocking additionally requires the Controller's GeoIP/ThreatGuard intelligence feed to be populated — a Controller-side prerequisite independent of this blueprint's (correct) DCF config.
 
 > [!TIP]
 > **🤖 Optimized for Claude Code** — Run `/deploy-blueprint azure-aks-singlecluster` for AI-guided deployment with prerequisite checks and automated orchestration, or `/analyze-blueprint azure-aks-singlecluster` for resource and cost details. [Get Claude Code](https://claude.ai/code)
@@ -209,7 +209,7 @@ kubectl -n gatus port-forward svc/gatus 8080:8080
 | Variable | Description | Type | Default | Required |
 |----------|-------------|------|---------|----------|
 | `nginx_ingress_chart_version` | ingress-nginx Helm chart version | string | `"4.11.3"` | no |
-| `k8s_firewall_chart_version` | Aviatrix k8s-firewall Helm chart version | string | `"1.0.0"` | no |
+| `k8s_firewall_chart_version` | Aviatrix k8s-firewall Helm chart version (8.2.0 or 9.0.0) | string | `"9.0.0"` | no |
 | `nginx_lb_ip` | Static internal LB IP (inside the ingress subnet, above the Azure-reserved first 4 hosts) | string | `"10.30.0.200"` | no |
 
 ---
@@ -325,6 +325,12 @@ The mc-spoke module addresses the Azure VNet as `vnet_name:resource_group:vnet_g
 - The AKS API server `authorized_ip_ranges` **must include the spoke GW public IP** — nodes egress through it. The cluster module appends it automatically, so do not strip it. The cluster layer defaults `authorized_ip_ranges` to `0.0.0.0/0` for lab convenience; **this exposes the API server publicly — lock it down to your admin IP for non-lab use** (the spoke GW IP is still appended).
 - If provisioning stalls reaching package mirrors, the DCF egress allow-list may be missing an SNI. `acs-mirror.azureedge.net` / `packages.aks.azure.com` and the other Azure / AKS-required SNIs are included in `network/dcf.tf`; add any others your image needs.
 
+### AKS create fails with `ErrCode_InsufficientVCPUQuota`
+
+**Symptom:** the cluster layer apply fails creating the AKS cluster: `Insufficient vcpu quota requested 4, remaining 0 for family standardBSFamily`.
+
+**Cause / fix:** the subscription/region has no remaining vCPU quota for the node VM family (the default `Standard_B2s` is `standardBSFamily`). Either request a quota increase, or override the node size via `node_pool_config.vm_size` to a family with quota (e.g., `Standard_D2s_v3`). Check with `az vm list-usage --location <region> -o table`.
+
 ### GitHub Aviatrix WebGroup matches nothing
 
 **Symptom:** repo fetches to `github.com/AviatrixSystems/...` fail closed even though the WebGroup exists.
@@ -396,16 +402,17 @@ az group show --name "<name_prefix>-rg"   # expect: ResourceGroupNotFound
 
 | Component | Version |
 |-----------|---------|
-| Aviatrix Controller / CoPilot | 9.0.x (**9.0+ required**) |
+| Aviatrix Controller / CoPilot | 9.0.10 (**9.0+ required**) |
 | Aviatrix Terraform Provider | 9.0.0 |
-| Terraform | >= 1.7 |
-| azurerm Provider | ~> 4.0 |
+| Terraform | 1.14.0 (>= 1.7) |
+| azurerm Provider | 4.76.0 (~> 4.0) |
 | kubernetes Provider | ~> 2.30 |
 | helm Provider | ~> 2.16 |
 | `terraform-aviatrix-modules/mc-spoke/aviatrix` | 9.0.0 |
+| `k8s-firewall` Helm chart | 9.0.0 |
 | Kubernetes (AKS) | 1.33 |
 
-> **Status: work-in-progress / not yet deploy-verified.** Versions above are the pins the configuration targets; a full live deploy/destroy cycle has not yet been validated. The blueprint may work with other versions.
+> **Status: live deploy-verified (2026-06-05).** Full deploy → DCF enforcement → destroy cycle validated on the versions above. Geo/ThreatIQ blocking depends on the Controller's GeoIP/ThreatGuard feed being populated (see the note at the top). The blueprint may work with other versions.
 
 ---
 
