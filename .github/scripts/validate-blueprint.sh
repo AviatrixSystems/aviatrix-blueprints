@@ -68,6 +68,16 @@ else
 fi
 
 # --------------------------------------------------------------------
+# terraform validate triggers provider config validation, and the Aviatrix
+# provider declares controller_ip/username/password as required. validate never
+# connects to the controller, so dummy values satisfy the schema offline. Real
+# creds exported by the caller (e.g. a deploy job) take precedence.
+# --------------------------------------------------------------------
+export AVIATRIX_CONTROLLER_IP="${AVIATRIX_CONTROLLER_IP:-127.0.0.1}"
+export AVIATRIX_USERNAME="${AVIATRIX_USERNAME:-validate}"
+export AVIATRIX_PASSWORD="${AVIATRIX_PASSWORD:-validate-only}"
+
+# --------------------------------------------------------------------
 # Tier 1.1 / 1.2 — terraform init -backend=false + validate per leaf
 # --------------------------------------------------------------------
 

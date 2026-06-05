@@ -1,0 +1,16 @@
+name_prefix               = "eks-singlecluster"
+aviatrix_aws_account_name = "your-aws-account-name"
+aws_region                = "us-east-2"
+
+# Module mode — defaults to standalone AWS TGW spoke, non-routable pods.
+# transit_type  = "aws_tgw"        # aviatrix | aws_tgw | aws_cloudwan
+# pod_cidr_mode = "non_routable"   # routable | non_routable
+
+# Attach to existing transit by setting ONE of these and re-applying:
+# transit_gw_name               = "my-aviatrix-transit"            # transit_type = aviatrix
+# aws_tgw_id                    = "tgw-0abc123..."                 # transit_type = aws_tgw
+# aws_cloudwan_core_network_arn = "arn:aws:networkmanager::..."    # transit_type = aws_cloudwan
+
+# CIDRs (chosen to not collide with multicluster's 10.10/10.20/10.5 defaults)
+# vpc_cidr = "10.30.0.0/23"
+# pod_cidr = "100.64.0.0/16"
