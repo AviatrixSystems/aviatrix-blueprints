@@ -5,6 +5,7 @@ variable "kubernetes_version" {
 }
 
 variable "node_pool_config" {
+  description = "AKS system node pool sizing."
   type = object({
     node_count = number
     min_count  = number
@@ -26,8 +27,9 @@ variable "authorized_ip_ranges" {
 }
 
 variable "enable_aviatrix_onboarding" {
-  type    = bool
-  default = true
+  description = "Register the AKS cluster with the Aviatrix Controller for K8s SmartGroups."
+  type        = bool
+  default     = true
 }
 
 variable "aviatrix_controller_public_ip" {
@@ -37,14 +39,17 @@ variable "aviatrix_controller_public_ip" {
 }
 
 variable "aviatrix_controller_ip" {
-  type = string
+  description = "Aviatrix Controller IP/hostname."
+  type        = string
 }
 
 variable "aviatrix_username" {
-  type = string
+  description = "Aviatrix Controller username."
+  type        = string
 }
 
 variable "aviatrix_password" {
-  type      = string
-  sensitive = true
+  description = "Aviatrix Controller password."
+  type        = string
+  sensitive   = true
 }
