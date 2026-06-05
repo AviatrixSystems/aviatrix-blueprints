@@ -69,18 +69,31 @@ module "aws_transit" {
   excluded_advertised_spoke_routes = local.secondary_cidr
 }
 
+# NOTE: Spoke gateways are named "${var.name}-spoke" by the shared module, so
+# they are "frontend-spoke" / "backend-spoke" here (var.name is kept bare so the
+# VPC Name tag keeps matching the DCF VPC SmartGroups in dcf.tf). This is a rename
+# relative to any pre-refactor deployment, which used "${name_prefix}-frontend-spoke".
+# The shared module also splits the old single private route table into two
+# (infra_private + pod_private), so route-table resource IDs change as well.
+# Upgrading an existing network state therefore requires `terraform state mv` or a
+# destroy + apply of this layer (this is a new deployment otherwise).
+
 #####################
-# Frontend VPC and Spoke
+# Frontend VPC and Spoke (aws-eks-spoke-vpc, aviatrix transit mode)
 #####################
 
 module "frontend_vpc" {
-  source = "./modules/eks-vpc"
+  source = "../../../modules/aws-eks-spoke-vpc"
 
-  name           = "frontend"
-  cluster_name   = local.clusters.frontend.name
-  primary_cidr   = local.clusters.frontend.primary_cidr
-  secondary_cidr = local.secondary_cidr
-  region         = var.aws_region
+  name                      = "frontend" # VPC Name tag -> DCF VPC SmartGroup match
+  cluster_name              = local.clusters.frontend.name
+  primary_cidr              = local.clusters.frontend.primary_cidr
+  pod_cidr                  = local.secondary_cidr
+  region                    = var.aws_region
+  aviatrix_aws_account_name = var.aviatrix_aws_account_name
+
+  transit_type    = "aviatrix"
+  transit_gw_name = module.aws_transit.transit_gateway.gw_name
 
   tags = {
     Environment = "demo"
@@ -89,158 +102,28 @@ module "frontend_vpc" {
   }
 }
 
-module "frontend_spoke" {
-  source  = "terraform-aviatrix-modules/mc-spoke/aviatrix"
-  version = "~> 8.2.0"
-
-  cloud      = "AWS"
-  name       = "${var.name_prefix}-frontend-spoke"
-  account    = var.aviatrix_aws_account_name
-  region     = var.aws_region
-  transit_gw = module.aws_transit.transit_gateway.gw_name
-
-  instance_size = "t3.medium"
-  ha_gw         = false
-
-  # Use VPC DNS server for gateway management - required for hostname SmartGroups
-  # and resolving private DNS records (e.g., Route53 private hosted zones)
-  enable_vpc_dns_server = true
-
-  # Use existing VPC created by eks-vpc module
-  use_existing_vpc = true
-  vpc_id           = module.frontend_vpc.vpc_id
-  gw_subnet        = module.frontend_vpc.avx_gateway_subnet_cidrs[0]
-  hagw_subnet      = module.frontend_vpc.avx_gateway_subnet_cidrs[1]
-
-  skip_public_route_table_update = false
-}
-
-# CRITICAL: Custom SNAT for pod traffic (100.64.0.0/16 → spoke gateway IP)
-resource "aviatrix_gateway_snat" "frontend_spoke_snat" {
-  gw_name   = module.frontend_spoke.spoke_gateway.gw_name
-  snat_mode = "customized_snat"
-
-  # SNAT for pod CIDR to all destinations via transit
-  snat_policy {
-    src_cidr   = local.secondary_cidr
-    dst_cidr   = "0.0.0.0/0"
-    protocol   = "all"
-    interface  = ""
-    connection = module.aws_transit.transit_gateway.gw_name
-    snat_ips   = module.frontend_spoke.spoke_gateway.private_ip
-  }
-
-  # SNAT for pod CIDR to internet via eth0
-  snat_policy {
-    src_cidr   = local.secondary_cidr
-    dst_cidr   = "0.0.0.0/0"
-    protocol   = "all"
-    interface  = "eth0"
-    connection = ""
-    snat_ips   = module.frontend_spoke.spoke_gateway.private_ip
-  }
-
-  # SNAT for private infrastructure subnets (EKS nodes) to internet
-  dynamic "snat_policy" {
-    for_each = module.frontend_vpc.infra_private_subnet_cidrs
-    content {
-      src_cidr   = snat_policy.value
-      dst_cidr   = "0.0.0.0/0"
-      protocol   = "all"
-      interface  = "eth0"
-      connection = ""
-      snat_ips   = module.frontend_spoke.spoke_gateway.private_ip
-    }
-  }
-
-  depends_on = [module.frontend_spoke]
-}
-
 #####################
-# Backend VPC and Spoke
+# Backend VPC and Spoke (aws-eks-spoke-vpc, aviatrix transit mode)
 #####################
 
 module "backend_vpc" {
-  source = "./modules/eks-vpc"
+  source = "../../../modules/aws-eks-spoke-vpc"
 
-  name           = "backend"
-  cluster_name   = local.clusters.backend.name
-  primary_cidr   = local.clusters.backend.primary_cidr
-  secondary_cidr = local.secondary_cidr
-  region         = var.aws_region
+  name                      = "backend" # VPC Name tag -> DCF VPC SmartGroup match
+  cluster_name              = local.clusters.backend.name
+  primary_cidr              = local.clusters.backend.primary_cidr
+  pod_cidr                  = local.secondary_cidr
+  region                    = var.aws_region
+  aviatrix_aws_account_name = var.aviatrix_aws_account_name
+
+  transit_type    = "aviatrix"
+  transit_gw_name = module.aws_transit.transit_gateway.gw_name
 
   tags = {
     Environment = "demo"
     Cluster     = "backend"
     Terraform   = "true"
   }
-}
-
-module "backend_spoke" {
-  source  = "terraform-aviatrix-modules/mc-spoke/aviatrix"
-  version = "~> 8.2.0"
-
-  cloud      = "AWS"
-  name       = "${var.name_prefix}-backend-spoke"
-  account    = var.aviatrix_aws_account_name
-  region     = var.aws_region
-  transit_gw = module.aws_transit.transit_gateway.gw_name
-
-  instance_size = "t3.medium"
-  ha_gw         = false
-
-  # Use VPC DNS server for gateway management - required for hostname SmartGroups
-  # and resolving private DNS records (e.g., Route53 private hosted zones)
-  enable_vpc_dns_server = true
-
-  # Use existing VPC created by eks-vpc module
-  use_existing_vpc = true
-  vpc_id           = module.backend_vpc.vpc_id
-  gw_subnet        = module.backend_vpc.avx_gateway_subnet_cidrs[0]
-  hagw_subnet      = module.backend_vpc.avx_gateway_subnet_cidrs[1]
-
-  skip_public_route_table_update = false
-}
-
-# CRITICAL: Custom SNAT for pod traffic (100.64.0.0/16 → spoke gateway IP)
-resource "aviatrix_gateway_snat" "backend_spoke_snat" {
-  gw_name   = module.backend_spoke.spoke_gateway.gw_name
-  snat_mode = "customized_snat"
-
-  # SNAT for pod CIDR to all destinations via transit
-  snat_policy {
-    src_cidr   = local.secondary_cidr
-    dst_cidr   = "0.0.0.0/0"
-    protocol   = "all"
-    interface  = ""
-    connection = module.aws_transit.transit_gateway.gw_name
-    snat_ips   = module.backend_spoke.spoke_gateway.private_ip
-  }
-
-  # SNAT for pod CIDR to internet via eth0
-  snat_policy {
-    src_cidr   = local.secondary_cidr
-    dst_cidr   = "0.0.0.0/0"
-    protocol   = "all"
-    interface  = "eth0"
-    connection = ""
-    snat_ips   = module.backend_spoke.spoke_gateway.private_ip
-  }
-
-  # SNAT for private infrastructure subnets (EKS nodes) to internet
-  dynamic "snat_policy" {
-    for_each = module.backend_vpc.infra_private_subnet_cidrs
-    content {
-      src_cidr   = snat_policy.value
-      dst_cidr   = "0.0.0.0/0"
-      protocol   = "all"
-      interface  = "eth0"
-      connection = ""
-      snat_ips   = module.backend_spoke.spoke_gateway.private_ip
-    }
-  }
-
-  depends_on = [module.backend_spoke]
 }
 
 #####################
