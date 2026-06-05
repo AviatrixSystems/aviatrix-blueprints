@@ -117,7 +117,7 @@ variable "_validate_transit_inputs" {
   default     = true
 
   validation {
-    condition = (
+    condition = var._validate_transit_inputs == (
       var.transit_type == "aviatrix" ? (var.transit_gw_name != "" && var.aws_tgw_id == "" && var.aws_cloudwan_core_network_arn == "") :
       var.transit_type == "aws_tgw" ? (var.transit_gw_name == "" && var.aws_cloudwan_core_network_arn == "") :
       /* aws_cloudwan */ (var.transit_gw_name == "" && var.aws_tgw_id == "")
