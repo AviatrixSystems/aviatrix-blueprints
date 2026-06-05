@@ -1,10 +1,3 @@
-> ⚠️ **DUPLICATED MODULE — time-boxed.** A functionally equivalent copy lives at
-> `blueprints/aws-eks-multicluster/modules/eks-node-group/`. This copy's provider
-> requirements were moved into a dedicated `versions.tf`. Until the multicluster
-> blueprint is retargeted to consume this repo-root module (separate follow-up
-> branch), **any change here must be made in both copies.** See
-> `docs/superpowers/specs/2026-06-04-aws-eks-singlecluster-design.md`.
-
 # EKS Node Group Module
 
 This module creates EKS managed node groups **separately** from the EKS cluster.

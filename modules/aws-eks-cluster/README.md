@@ -1,12 +1,3 @@
-> ⚠️ **DUPLICATED MODULE — time-boxed.** A functionally equivalent copy lives at
-> `blueprints/aws-eks-multicluster/modules/eks-cluster/`. This copy's `versions.tf`
-> was corrected to declare the `kubernetes` provider the module actually requires
-> (for the Aviatrix-onboarding `kubernetes_cluster_role`/`_role_binding` RBAC); it
-> was missing from the source's provider block. Until the multicluster blueprint is
-> retargeted to consume this repo-root module (separate follow-up branch), **any
-> change here must be made in both copies.** See
-> `docs/superpowers/specs/2026-06-04-aws-eks-singlecluster-design.md`.
-
 # EKS Cluster Module
 
 This module deploys an EKS cluster configured for CNI custom networking with Aviatrix integration.
