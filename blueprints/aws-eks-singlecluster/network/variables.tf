@@ -1,7 +1,12 @@
 variable "name_prefix" {
-  description = "Prefix for all resource names."
+  description = "Prefix for all resource names. Also used verbatim as the EKS cluster name. Capped at 17 chars because the eks-cluster module derives IRSA IAM role name_prefixes as \"<name_prefix>-alb-controller-role-\" and AWS caps an IAM role name_prefix at 38 chars."
   type        = string
   default     = "eks-singlecluster"
+
+  validation {
+    condition     = length(var.name_prefix) >= 1 && length(var.name_prefix) <= 17
+    error_message = "name_prefix must be 1-17 characters (it becomes the cluster name, and the eks-cluster module's IRSA role name_prefixes must stay within AWS's 38-char limit)."
+  }
 }
 
 variable "aviatrix_aws_account_name" {

@@ -7,7 +7,12 @@ provider "aws" {
 }
 
 locals {
-  cluster_name = "${var.name_prefix}-cluster"
+  # The cluster is named after name_prefix directly (no "-cluster" suffix): the
+  # eks-cluster module derives IRSA role name_prefixes as
+  # "${cluster_name}-alb-controller-role-" (21 chars of suffix), and AWS caps an
+  # IAM role name_prefix at 38 chars. Keeping cluster_name == name_prefix (<= 17,
+  # enforced in variables.tf) keeps the longest IRSA prefix at <= 38.
+  cluster_name = var.name_prefix
 }
 
 module "spoke_vpc" {
