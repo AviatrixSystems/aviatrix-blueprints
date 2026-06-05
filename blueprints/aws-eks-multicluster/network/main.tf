@@ -69,6 +69,13 @@ module "aws_transit" {
   excluded_advertised_spoke_routes = local.secondary_cidr
 }
 
+# NOTE: Spoke gateways are named "${var.name}-spoke" by the shared module, so
+# they are "frontend-spoke" / "backend-spoke" here (var.name is kept bare so the
+# VPC Name tag keeps matching the DCF VPC SmartGroups in dcf.tf). This is a rename
+# relative to any pre-refactor deployment, which used "${name_prefix}-frontend-spoke".
+# Upgrading an existing network state requires `terraform state mv` or a
+# destroy + apply of this layer.
+
 #####################
 # Frontend VPC and Spoke (aws-eks-spoke-vpc, aviatrix transit mode)
 #####################
