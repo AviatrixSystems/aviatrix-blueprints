@@ -517,6 +517,16 @@ kubectl apply -f ../../k8s-apps/backend/gatus.yaml
 
 ### Step 10: Verify Deployment
 
+> [!NOTE]
+> **Allow 2–5 minutes after Step 9 before cross-cluster service checks turn green.**
+> After deploying Gatus, the cross-cluster endpoints (frontend ↔ backend on port 8080)
+> depend on ExternalDNS publishing the Route53 CNAMEs (1-minute poll interval), any prior
+> negative-DNS cache expiring, and the internal NLB targets passing health checks (~1–3 min).
+> During this window the checks may show red and a `curl` by name can return `HTTP 000` /
+> "could not resolve host" even though the network path is fine. If a check is red, wait a
+> few minutes and re-test. To confirm the path independently of DNS, `curl` the NLB's private
+> IP directly (`aws ec2 describe-network-interfaces --filters "Name=description,Values=ELB net/k8s-gatus-*"`).
+
 **Verify Aviatrix DCF CRDs:**
 
 ```bash
