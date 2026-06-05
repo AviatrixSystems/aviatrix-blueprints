@@ -16,7 +16,7 @@ The module builds every layer needed between raw AWS account credentials and a r
 - **Internet gateway** attached to the public route tables.
 - **Aviatrix spoke gateway** (via the `terraform-aviatrix-modules/mc-spoke/aviatrix` module), optionally attached to an Aviatrix transit.
 - **Custom SNAT** (aviatrix mode only) so pods using a non-routable overlay CIDR are translated to the spoke gateway private IP before entering the transit fabric.
-- **Native-cloud route programming** (aws_tgw / aws_cloudwan mode, when a transit target ID is supplied) with `aws_route` resources on infra_private and pod_private for default + east-west destinations.
+- **Native-cloud route programming** (aws_tgw / aws_cloudwan mode, when a transit target ID is supplied): `aws_route` resources adding east-west destinations to the native transit. The default route stays controller-owned (see Route-table programming below).
 
 ## Transit type and pod-CIDR mode matrix
 
@@ -85,18 +85,17 @@ A dedicated `aviatrix_gateway_snat` resource is created with `snat_mode = "custo
 
 Route entries are only programmed when `transit_type` is `aws_tgw` or `aws_cloudwan` AND the corresponding transit target ID/ARN is non-empty (`local.manage_native_routes = true`). With an empty target (standalone), the module programs nothing.
 
-The spoke gateway's primary ENI (`data.aws_instance.spoke[0].network_interface_id`) is used as the next-hop for non-transit routes.
+**The default route is owned by the Aviatrix Controller, not this module.** Once the single-IP-SNAT spoke gateway is up, the controller programs `0.0.0.0/0 -> spoke gateway ENI` on the private route tables (verified on a live deploy), exactly as in aviatrix-transit mode. `lifecycle { ignore_changes = [route] }` preserves it. The module does **not** add a `0.0.0.0/0` route — doing so collides with the controller's (`RouteAlreadyExists`). The module only adds the east-west overrides below (all targeting the native transit, so no spoke-ENI lookup is needed):
 
 | Route table | Destination | Next hop | Condition |
 |---|---|---|---|
 | `avx_public` | Each CIDR in `east_west_cidrs` | TGW or Cloud WAN core network | aws_tgw or aws_cloudwan with target set |
-| `infra_private` | `0.0.0.0/0` | Spoke gateway ENI | aws_tgw or aws_cloudwan with target set |
 | `infra_private` | Each CIDR in `east_west_cidrs` | TGW or Cloud WAN core network | aws_tgw or aws_cloudwan with target set |
-| `pod_private` | `0.0.0.0/0` | Spoke gateway ENI | aws_tgw or aws_cloudwan with target set |
-| `pod_private` | Each CIDR in `east_west_cidrs` | Spoke gateway ENI | `pod_cidr_mode = "non_routable"` |
-| `pod_private` | Each CIDR in `east_west_cidrs` | TGW or Cloud WAN core network | `pod_cidr_mode = "routable"` |
+| `pod_private` | Each CIDR in `east_west_cidrs` | TGW or Cloud WAN core network | `pod_cidr_mode = "routable"` with target set |
 
-All route tables use `lifecycle { ignore_changes = [route] }` so Aviatrix controller-programmed RFC1918 routes (in aviatrix mode) are not removed on re-apply.
+For `pod_cidr_mode = "non_routable"` the module adds **no** pod-private east-west route: that traffic follows the controller's default route to the gateway, which SNATs it and forwards via the `avx_public` east-west route. The `0.0.0.0/0 -> spoke ENI` default route on `infra_private`/`pod_private` is the controller's in every mode.
+
+All route tables use `lifecycle { ignore_changes = [route] }` so Aviatrix controller-programmed routes are not removed on re-apply.
 
 ## Outputs
 
