@@ -324,29 +324,36 @@ resource "aviatrix_gateway_snat" "this" {
 #####################
 # Native-cloud route programming (aws_tgw / aws_cloudwan)
 #
-# In native mode, the Aviatrix Controller does NOT program VPC route tables
-# (that only happens for aviatrix-transit spokes). This module programs them
-# instead, but ONLY when a transit target is actually supplied
-# (local.manage_native_routes). In the standalone default case (empty target),
-# nothing is programmed -- attachment + routes are wired out-of-band.
+# Programmed ONLY when a transit target is supplied (local.manage_native_routes);
+# the standalone default (empty target) programs nothing -- attachment + routes
+# are wired out-of-band.
 #
-# The spoke gateway's primary ENI is the next hop for default + (some)
-# east-west routes. We source it deterministically from the gateway's EC2
-# instance id (cloud_instance_id, confirmed on the aviatrix_spoke_gateway
-# schema).
+# IMPORTANT: the default route (0.0.0.0/0 -> spoke gateway ENI) on the private
+# route tables is programmed by the Aviatrix Controller once the single-IP-SNAT
+# spoke gateway is up (verified on a live deploy), exactly as in aviatrix-transit
+# mode; lifecycle ignore_changes=[route] preserves it. This module must NOT also
+# manage the default route -- a module-owned 0.0.0.0/0 -> ENI route collides with
+# the controller's (RouteAlreadyExists) and would need a fragile ENI lookup.
+#
+# So the module only adds the east-west OVERRIDES the controller does not, all of
+# which target the native transit (no ENI involved):
+#   - avx_public:             east_west_cidrs -> native transit
+#                             (the gateway forwards SNAT'd pod/node E-W)
+#   - infra_private:          east_west_cidrs -> native transit
+#                             (nodes reach other VPCs directly)
+#   - pod_private (routable): east_west_cidrs -> native transit
+#                             (routable pods reach other VPCs directly)
+#   - pod_private (non_routable): nothing -- E-W follows the controller's default
+#                             route to the gateway, which SNATs and forwards via
+#                             the avx_public route above.
 #####################
 
-data "aws_instance" "spoke" {
-  count       = local.manage_native_routes ? 1 : 0
-  instance_id = module.spoke.spoke_gateway.cloud_instance_id
-}
-
 locals {
-  spoke_eni_id       = local.manage_native_routes ? data.aws_instance.spoke[0].network_interface_id : null
-  pod_ew_via_gateway = var.pod_cidr_mode == "non_routable"
+  # Routable pods send east-west straight to the native transit; non-routable
+  # pods must traverse the gateway (covered by the controller's default route).
+  pod_ew_to_transit = var.pod_cidr_mode == "routable"
 }
 
-# avx_public: east-west -> native transit (default route to IGW already on the RT).
 resource "aws_route" "avx_public_ew_tgw" {
   for_each               = (local.manage_native_routes && var.transit_type == "aws_tgw") ? toset(var.east_west_cidrs) : toset([])
   route_table_id         = aws_route_table.avx_public.id
@@ -359,14 +366,6 @@ resource "aws_route" "avx_public_ew_cwan" {
   route_table_id         = aws_route_table.avx_public.id
   destination_cidr_block = each.value
   core_network_arn       = var.aws_cloudwan_core_network_arn
-}
-
-# infra_private: default -> gateway ENI; east-west -> native transit.
-resource "aws_route" "infra_default" {
-  count                  = local.manage_native_routes ? 1 : 0
-  route_table_id         = aws_route_table.infra_private.id
-  destination_cidr_block = "0.0.0.0/0"
-  network_interface_id   = local.spoke_eni_id
 }
 
 resource "aws_route" "infra_ew_tgw" {
@@ -383,30 +382,15 @@ resource "aws_route" "infra_ew_cwan" {
   core_network_arn       = var.aws_cloudwan_core_network_arn
 }
 
-# pod_private: default -> gateway ENI always; east-west -> gateway ENI (non_routable) or native transit (routable).
-resource "aws_route" "pod_default" {
-  count                  = local.manage_native_routes ? 1 : 0
-  route_table_id         = aws_route_table.pod_private.id
-  destination_cidr_block = "0.0.0.0/0"
-  network_interface_id   = local.spoke_eni_id
-}
-
-resource "aws_route" "pod_ew_gateway" {
-  for_each               = (local.manage_native_routes && local.pod_ew_via_gateway) ? toset(var.east_west_cidrs) : toset([])
-  route_table_id         = aws_route_table.pod_private.id
-  destination_cidr_block = each.value
-  network_interface_id   = local.spoke_eni_id
-}
-
 resource "aws_route" "pod_ew_tgw" {
-  for_each               = (local.manage_native_routes && !local.pod_ew_via_gateway && var.transit_type == "aws_tgw") ? toset(var.east_west_cidrs) : toset([])
+  for_each               = (local.manage_native_routes && local.pod_ew_to_transit && var.transit_type == "aws_tgw") ? toset(var.east_west_cidrs) : toset([])
   route_table_id         = aws_route_table.pod_private.id
   destination_cidr_block = each.value
   transit_gateway_id     = var.aws_tgw_id
 }
 
 resource "aws_route" "pod_ew_cwan" {
-  for_each               = (local.manage_native_routes && !local.pod_ew_via_gateway && var.transit_type == "aws_cloudwan") ? toset(var.east_west_cidrs) : toset([])
+  for_each               = (local.manage_native_routes && local.pod_ew_to_transit && var.transit_type == "aws_cloudwan") ? toset(var.east_west_cidrs) : toset([])
   route_table_id         = aws_route_table.pod_private.id
   destination_cidr_block = each.value
   core_network_arn       = var.aws_cloudwan_core_network_arn
