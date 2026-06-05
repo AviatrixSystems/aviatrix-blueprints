@@ -1,0 +1,162 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gatus
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gatus
+  namespace: gatus
+data:
+  config.yaml: |
+    storage:
+      type: memory
+    metrics: true
+    endpoints:
+      # Egress - Allowed Traffic (expect green / PERMIT by DCF ruleset)
+      - name: "kubernetes.io"
+        group: "Egress"
+        url: "https://kubernetes.io"
+        interval: 60s
+        client:
+          insecure: true
+        conditions: ["[STATUS] == 200"]
+
+      - name: "registry.npmjs.org"
+        group: "Egress"
+        url: "https://registry.npmjs.org"
+        interval: 60s
+        client:
+          insecure: true
+        conditions: ["[STATUS] == 200"]
+
+      - name: "github.com/.../avxlabs-docs"
+        group: "Egress"
+        url: "https://github.com/AviatrixSystems/avxlabs-docs"
+        interval: 60s
+        client:
+          insecure: true
+        conditions: ["[STATUS] == 200"]
+
+      # Threats - Should be BLOCKED by DCF (expect red / DENY)
+      - name: "GeoBlock - Iran"
+        group: "Threats"
+        url: "icmp://www.irna.ir"
+        interval: 60s
+        conditions: ["[CONNECTED] == true"]
+
+      # NOTE: Confirm this IP appears in your active Aviatrix ThreatIQ feed before
+      # running a demo. Replace with a current entry from the ThreatIQ feed if needed.
+      - name: "Threat Feed - Malicious IP"
+        group: "Threats"
+        url: "icmp://185.38.148.2"
+        interval: 60s
+        conditions: ["[CONNECTED] == true"]
+
+    ui:
+      logo: "https://aviatrix.com/wp-content/uploads/2019/10/cropped-Aviatrix-Logo@2x-1-32x32.png"
+      header: "AKS Single Cluster - ${HOSTNAME}"
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gatus
+  namespace: gatus
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gatus
+  namespace: gatus
+  labels:
+    app: gatus
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gatus
+  template:
+    metadata:
+      name: gatus
+      labels:
+        app: gatus
+        aviatrix.com/app: gatus
+    spec:
+      serviceAccountName: gatus
+      terminationGracePeriodSeconds: 5
+      containers:
+        - image: twinproduction/gatus:v5.14.0
+          imagePullPolicy: IfNotPresent
+          name: gatus
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 250m
+              memory: 100M
+            requests:
+              cpu: 50m
+              memory: 30M
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 5
+          volumeMounts:
+            - mountPath: /config
+              name: gatus-config
+      volumes:
+        - configMap:
+            name: gatus
+          name: gatus-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gatus
+  namespace: gatus
+  labels:
+    app: gatus
+    service: gatus
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app: gatus
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gatus
+  namespace: gatus
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gatus
+                port:
+                  number: 8080
