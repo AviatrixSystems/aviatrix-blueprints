@@ -45,7 +45,7 @@ variable "kubernetes_version" {
 }
 
 variable "node_pool_config" {
-  description = "System/user node pool sizing."
+  description = "AKS system node pool sizing."
   type = object({
     node_count = number
     min_count  = number
@@ -73,9 +73,9 @@ variable "dns_service_ip" {
 }
 
 variable "authorized_ip_ranges" {
-  description = "Extra CIDRs allowed to reach the AKS API server. The spoke GW public IP and (optionally) controller IP are appended automatically."
+  description = "Extra CIDRs allowed to reach the AKS API server. The module always appends the spoke GW public IP and (when onboarding) the controller IP, so the empty-list default is least-privilege: only those /32s can reach the API server."
   type        = list(string)
-  default     = ["0.0.0.0/0"]
+  default     = []
 }
 
 variable "spoke_gateway_public_ip" {
