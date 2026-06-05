@@ -110,18 +110,8 @@ variable "tags" {
   default     = {}
 }
 
-# Cross-field validation: which transit-target inputs are allowed per transit_type.
-variable "_validate_transit_inputs" {
-  description = "Internal — do not set. Enforces transit_type ↔ target-input consistency."
-  type        = bool
-  default     = true
-
-  validation {
-    condition = var._validate_transit_inputs == (
-      var.transit_type == "aviatrix" ? (var.transit_gw_name != "" && var.aws_tgw_id == "" && var.aws_cloudwan_core_network_arn == "") :
-      var.transit_type == "aws_tgw" ? (var.transit_gw_name == "" && var.aws_cloudwan_core_network_arn == "") :
-      /* aws_cloudwan */ (var.transit_gw_name == "" && var.aws_tgw_id == "")
-    )
-    error_message = "Transit inputs inconsistent with transit_type. aviatrix: set transit_gw_name only (required). aws_tgw: aws_tgw_id optional, others empty. aws_cloudwan: aws_cloudwan_core_network_arn optional, others empty."
-  }
-}
+# NOTE: the cross-field transit-input consistency rule (which target inputs are
+# allowed per transit_type) is enforced by a lifecycle precondition on
+# aws_vpc.this in main.tf, not a variable validation -- variable validations
+# that reference other variables require Terraform >= 1.9, but this module
+# targets >= 1.5. Preconditions (>= 1.2) can reference multiple variables.

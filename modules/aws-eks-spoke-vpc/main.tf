@@ -27,6 +27,21 @@ resource "aws_vpc" "this" {
   enable_dns_support   = true
 
   tags = local.default_tags
+
+  # Cross-field transit-input consistency (Terraform >= 1.2 precondition; chosen
+  # over a variable validation so the module can stay at required_version >= 1.5).
+  # aviatrix: transit_gw_name required, aws_* targets empty.
+  # aws_tgw / aws_cloudwan: their own target optional, the other two empty.
+  lifecycle {
+    precondition {
+      condition = (
+        var.transit_type == "aviatrix" ? (var.transit_gw_name != "" && var.aws_tgw_id == "" && var.aws_cloudwan_core_network_arn == "") :
+        var.transit_type == "aws_tgw" ? (var.transit_gw_name == "" && var.aws_cloudwan_core_network_arn == "") :
+        (var.transit_gw_name == "" && var.aws_tgw_id == "")
+      )
+      error_message = "Transit inputs inconsistent with transit_type. aviatrix: set transit_gw_name only (required). aws_tgw: aws_tgw_id optional, others empty. aws_cloudwan: aws_cloudwan_core_network_arn optional, others empty."
+    }
+  }
 }
 
 resource "aws_vpc_ipv4_cidr_block_association" "secondary" {
