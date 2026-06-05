@@ -881,7 +881,7 @@ cd nodes/frontend/
 
 # Add another module block in main.tf:
 # module "gpu_node_group" {
-#   source = "../shared-modules/eks-node-group"
+#   source = "../../../../modules/aws-eks-node-group"
 #   ...
 # }
 
@@ -1062,6 +1062,8 @@ aws-eks-multicluster/
 ├── network/                    # Layer 1: Network infrastructure
 │   ├── main.tf                 # Transit, spokes, VPCs, DB VM
 │   ├── outputs.tf              # Export VPC IDs, subnet IDs, Route53 zone
+│   ├── modules/
+│   │   └── apache-vm/          # Test VM module
 │   └── terraform.tfstate       # Network state
 │
 ├── clusters/
@@ -1085,10 +1087,6 @@ aws-eks-multicluster/
 ├── k8s-apps/                   # Kubernetes application manifests
 │   ├── frontend/               # Frontend apps (Gatus)
 │   └── backend/                # Backend apps (Gatus)
-│
-├── modules/                    # Shared Terraform modules
-│   ├── eks-vpc/                # Custom VPC module
-│   └── apache-vm/              # Test VM module
 │
 └── architecture.svg            # Architecture diagram
 ```
