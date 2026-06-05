@@ -99,8 +99,3 @@ output "spoke_gateway" {
   description = "Full spoke gateway object from the mc-spoke module -- exposed for advanced callers."
   value       = module.spoke.spoke_gateway
 }
-
-output "spoke_vpc" {
-  description = "Spoke VPC object from the mc-spoke module."
-  value       = module.spoke.vpc
-}
