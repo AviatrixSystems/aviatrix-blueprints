@@ -68,6 +68,8 @@ resource "aviatrix_web_group" "azure_required" {
     match_expressions { snifilter = "registry.k8s.io" }
     match_expressions { snifilter = "archive.ubuntu.com" }
     match_expressions { snifilter = "security.ubuntu.com" }
+    match_expressions { snifilter = "acs-mirror.azureedge.net" }
+    match_expressions { snifilter = "packages.aks.azure.com" }
   }
 }
 
@@ -101,7 +103,8 @@ resource "aviatrix_web_group" "github_aviatrix" {
 
 resource "aviatrix_dcf_ruleset" "egress" {
   name = "${var.name_prefix}-egress"
-  # Attachment point: TERRAFORM_BEFORE_UI_MANAGED (hardcoded UUID — see aws-eks-singlecluster note)
+  # Attachment point: TERRAFORM_BEFORE_UI_MANAGED. Hardcoded UUID because the
+  # TERRAFORM_BEFORE_UI_MANAGED data source returns an incorrect ID on the controller.
   attach_to = "defa11a1-3000-4001-0000-000000000000"
 
   rules {

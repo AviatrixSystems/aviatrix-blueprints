@@ -51,11 +51,11 @@ output "spoke_gateway_public_ip" {
 }
 
 output "service_cidr" {
-  value = "172.16.0.0/16"
+  value = var.service_cidr
 }
 
 output "dns_service_ip" {
-  value = "172.16.0.10"
+  value = var.dns_service_ip
 }
 
 output "dcf_ruleset_uuid" {

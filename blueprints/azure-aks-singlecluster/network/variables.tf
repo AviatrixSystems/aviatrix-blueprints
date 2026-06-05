@@ -38,6 +38,18 @@ variable "pod_cidr" {
   default     = "100.64.0.0/16"
 }
 
+variable "service_cidr" {
+  description = "Kubernetes service CIDR (must not overlap vnet_cidr or pod_cidr)."
+  type        = string
+  default     = "172.16.0.0/16"
+}
+
+variable "dns_service_ip" {
+  description = "Kubernetes DNS service IP (within service_cidr)."
+  type        = string
+  default     = "172.16.0.10"
+}
+
 variable "transit_type" {
   description = "'none' for standalone (Single IP SNAT egress only) or 'aviatrix' to attach to an Aviatrix transit."
   type        = string
