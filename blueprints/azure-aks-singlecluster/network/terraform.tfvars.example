@@ -1,0 +1,23 @@
+# Azure region (both forms required)
+azure_region          = "eastus2"
+aviatrix_azure_region = "East US 2"
+
+# Aviatrix Azure access account as onboarded in the Controller
+aviatrix_azure_account_name = "Azure"
+
+# Resource naming
+name_prefix = "aks-single"
+
+# CIDRs
+vnet_cidr = "10.30.0.0/23"
+pod_cidr  = "100.64.0.0/16"
+
+# Transit posture: "none" = standalone egress via Single IP SNAT (default),
+# "aviatrix" = attach to an existing Aviatrix transit (set transit_gw_name).
+transit_type    = "none"
+transit_gw_name = ""
+
+# Aviatrix Controller credentials
+aviatrix_controller_ip = "x.x.x.x"
+aviatrix_username      = "admin"
+aviatrix_password      = "REPLACE_ME"
