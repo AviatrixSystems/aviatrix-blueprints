@@ -18,7 +18,7 @@ The blueprint deploys **standalone by default** (no transit attachment). Egress 
 
 A single spoke VNet carries two address spaces — a routable `/23` (`10.30.0.0/23`) and a dedicated pod CIDR (`100.64.0.0/16`) — carved into four subnets, each with its own route table:
 
-- **`<name>-avx-gw` (/28)** — Aviatrix spoke gateway. All cluster egress is SNAT'd here (`single_ip_snat`) and filtered by DCF. Route table is **excluded** from `private_route_table_config` (loop avoidance).
+- **`<name>-avx-gw` (/28)** — Aviatrix spoke gateway. In the default standalone posture, all internet-bound egress is Single-IP-SNAT'd here (`single_ip_snat`) and filtered by DCF; when attached to an Aviatrix transit (`transit_type = "aviatrix"`), east-west traffic is routed over the transit tunnel and only internet-bound egress is SNAT'd. Route table is **excluded** from `private_route_table_config` (loop avoidance).
 - **`<name>-ingress` (/25)** — internal Azure load balancer created by the in-cluster NGINX ingress controller. Route table is **excluded** so the LB replies directly to in-VNet clients (symmetric return path).
 - **`<name>-node` (/24)** — AKS system node pool VMs. Route table gets `0/0 → spoke GW`.
 - **`<name>-pod` (/16)** — pod IPs via Azure CNI pod-subnet mode + Cilium. Route table gets `0/0 → spoke GW`.

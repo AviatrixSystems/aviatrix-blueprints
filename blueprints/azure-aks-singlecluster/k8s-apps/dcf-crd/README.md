@@ -96,7 +96,7 @@ spec:
 | File | Purpose |
 |------|---------|
 | `firewallpolicy-infosec.yaml` | Allow infosec pods to access VirusTotal |
-| `webgrouppolicy-dev.yaml` | Allow dev namespace to access package registries |
+| `webgrouppolicy-dev.yaml` | Allow gatus namespace pods to access package registries |
 
 ## Applying Policies
 

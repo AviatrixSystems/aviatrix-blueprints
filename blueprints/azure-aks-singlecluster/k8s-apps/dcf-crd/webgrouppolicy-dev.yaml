@@ -1,10 +1,10 @@
 #####################
-# WebGroupPolicy CRD Example - Dev Namespace
+# WebGroupPolicy CRD Example - Gatus Namespace
 #
-# This policy allows pods in the dev namespace to access
+# This policy allows pods in the gatus namespace to access
 # additional development resources not covered by the base Terraform policy.
 #
-# Use case: Developer needs to access a new API temporarily for testing.
+# Use case: Operator needs to grant a running pod access to a new API temporarily.
 # Instead of modifying Terraform, apply a CRD-based policy.
 #
 # Prerequisites:
@@ -14,15 +14,15 @@
 #   kubectl apply -f webgrouppolicy-dev.yaml
 #
 # Verify:
-#   kubectl get webgrouppolicies -n dev
-#   kubectl get events -n dev
+#   kubectl get webgrouppolicies -n gatus
+#   kubectl get events -n gatus
 #####################
 
 apiVersion: networking.aviatrix.com/v1alpha1
 kind: WebGroupPolicy
 metadata:
   name: dev-external-apis
-  namespace: dev
+  namespace: gatus
 spec:
   selector:
     matchLabels:
