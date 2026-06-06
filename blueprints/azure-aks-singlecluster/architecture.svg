@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 660" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#37474f"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#2e7d32"/>
+    </marker>
+    <marker id="arrowDash" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#90a4ae"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="960" height="660" fill="#fafafa"/>
+  <text x="480" y="32" text-anchor="middle" font-size="21" font-weight="bold" fill="#263238">azure-aks-singlecluster — AKS spoke-in-a-box with Aviatrix DCF egress filtering</text>
+
+  <!-- Internet -->
+  <ellipse cx="120" cy="92" rx="72" ry="28" fill="#eceff1" stroke="#607d8b" stroke-width="2"/>
+  <text x="120" y="98" text-anchor="middle" font-size="15" fill="#263238">Internet</text>
+
+  <!-- Internet <-> spoke GW public IP -->
+  <line x1="120" y1="120" x2="120" y2="298" stroke="#2e7d32" stroke-width="2" marker-end="url(#arrowGreen)"/>
+  <text x="128" y="210" font-size="10" fill="#2e7d32" transform="rotate(90 128 210)">DCF-filtered egress via spoke GW public IP (Single IP SNAT)</text>
+
+  <!-- VNet box -->
+  <rect x="40" y="150" width="660" height="470" rx="10" fill="#e3f2fd" stroke="#1976d2" stroke-width="2"/>
+  <text x="60" y="176" font-size="16" font-weight="bold" fill="#0d47a1">Spoke VNet  10.30.0.0/23 + pod 100.64.0.0/16  (East US 2)</text>
+
+  <!-- gateway subnet w/ spoke GW -->
+  <rect x="60" y="196" width="300" height="100" rx="6" fill="#fff" stroke="#1976d2" stroke-width="1.5"/>
+  <text x="72" y="216" font-size="12" fill="#1565c0">avx-gw subnet  /28   (rt: NO 0/0 — loop avoidance)</text>
+  <rect x="72" y="226" width="276" height="58" rx="5" fill="#e8f5e9" stroke="#2e7d32" stroke-width="2"/>
+  <text x="210" y="250" text-anchor="middle" font-size="13" font-weight="bold" fill="#1b5e20">Aviatrix Spoke Gateway</text>
+  <text x="210" y="268" text-anchor="middle" font-size="11" fill="#33691e">Standard_D2s_v3 · DCF inspect · single_ip_snat</text>
+
+  <!-- ingress subnet w/ internal LB -->
+  <rect x="380" y="196" width="300" height="100" rx="6" fill="#fff" stroke="#1976d2" stroke-width="1.5"/>
+  <text x="392" y="216" font-size="12" fill="#1565c0">ingress subnet  /25   (rt: NO 0/0 — symmetric LB return)</text>
+  <rect x="392" y="226" width="276" height="58" rx="5" fill="#fff8e1" stroke="#f9a825" stroke-width="2"/>
+  <text x="530" y="250" text-anchor="middle" font-size="13" font-weight="bold" fill="#e65100">Internal Azure LB</text>
+  <text x="530" y="268" text-anchor="middle" font-size="11" fill="#ef6c00">NGINX ingress (private, in-VNet only)</text>
+
+  <!-- node subnet -->
+  <rect x="60" y="316" width="300" height="100" rx="6" fill="#fff" stroke="#1976d2" stroke-width="1.5"/>
+  <text x="72" y="336" font-size="12" fill="#1565c0">node subnet  /24   (rt: 0/0 -&gt; spoke GW)</text>
+  <rect x="72" y="346" width="276" height="58" rx="5" fill="#ede7f6" stroke="#5e35b1" stroke-width="2"/>
+  <text x="210" y="370" text-anchor="middle" font-size="13" font-weight="bold" fill="#4527a0">AKS System Node Pool</text>
+  <text x="210" y="388" text-anchor="middle" font-size="11" fill="#512da8">2x Standard_B2s (min 1 / max 3)</text>
+
+  <!-- pod subnet -->
+  <rect x="380" y="316" width="300" height="100" rx="6" fill="#fff" stroke="#1976d2" stroke-width="1.5"/>
+  <text x="392" y="336" font-size="12" fill="#1565c0">pod subnet  /16   (rt: 0/0 -&gt; spoke GW)</text>
+  <rect x="392" y="346" width="276" height="58" rx="5" fill="#e1f5fe" stroke="#0288d1" stroke-width="2"/>
+  <text x="530" y="370" text-anchor="middle" font-size="13" font-weight="bold" fill="#01579b">Pods  100.64.0.0/16</text>
+  <text x="530" y="388" text-anchor="middle" font-size="11" fill="#0277bd">Azure CNI pod-subnet mode + Cilium</text>
+
+  <!-- AKS control plane -->
+  <rect x="60" y="436" width="620" height="84" rx="6" fill="#fce4ec" stroke="#c2185b" stroke-width="2"/>
+  <text x="370" y="464" text-anchor="middle" font-size="14" font-weight="bold" fill="#880e4f">AKS Control Plane (Azure-managed, K8s 1.33)</text>
+  <text x="370" y="486" text-anchor="middle" font-size="11" fill="#ad1457">OIDC / workload identity · outbound_type = userDefinedRouting</text>
+  <text x="370" y="504" text-anchor="middle" font-size="11" fill="#ad1457">Onboarded to Aviatrix Controller (local-account kubeconfig)</text>
+
+  <!-- legend: route programming -->
+  <rect x="60" y="538" width="620" height="64" rx="6" fill="#f1f8e9" stroke="#7cb342" stroke-width="1.5"/>
+  <text x="72" y="558" font-size="12" font-weight="bold" fill="#33691e">Aviatrix 9.0 Single IP SNAT + private_route_table_config</text>
+  <text x="72" y="576" font-size="11" fill="#33691e">Controller programs 0.0.0.0/0 -&gt; spoke GW on node + pod route tables ONLY.</text>
+  <text x="72" y="592" font-size="11" fill="#33691e">gateway + ingress route tables excluded. NO default-deny in the DCF ruleset.</text>
+
+  <!-- node/pod egress -> spoke GW -->
+  <line x1="210" y1="346" x2="210" y2="284" stroke="#2e7d32" stroke-width="2" marker-end="url(#arrowGreen)"/>
+  <path d="M392 360 C 330 360, 300 300, 290 284" fill="none" stroke="#2e7d32" stroke-width="2" marker-end="url(#arrowGreen)"/>
+
+  <!-- Transit (faded, optional) -->
+  <rect x="760" y="300" width="160" height="130" rx="10" fill="#f5f5f5" stroke="#bdbdbd" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="840" y="350" text-anchor="middle" font-size="15" font-weight="bold" fill="#9e9e9e">Transit</text>
+  <text x="840" y="374" text-anchor="middle" font-size="11" fill="#9e9e9e">Aviatrix</text>
+  <text x="840" y="392" text-anchor="middle" font-size="10" fill="#9e9e9e">(optional)</text>
+
+  <!-- dashed arrow spoke GW -> transit -->
+  <path d="M350 255 C 540 255, 620 360, 758 360" fill="none" stroke="#90a4ae" stroke-width="2.5" stroke-dasharray="8 5" marker-end="url(#arrowDash)"/>
+  <text x="560" y="240" text-anchor="middle" font-size="11" fill="#607d8b">attach to transit (transit_type = aviatrix)</text>
+
+  <text x="480" y="646" text-anchor="middle" font-size="11" fill="#78909c">Default: standalone spoke (transit_type = none). Filtered internet egress only; no east-west until a transit is attached. Requires Controller 9.0+.</text>
+</svg>

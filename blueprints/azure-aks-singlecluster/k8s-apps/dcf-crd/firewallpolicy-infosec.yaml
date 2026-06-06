@@ -1,0 +1,49 @@
+#####################
+# FirewallPolicy CRD Example - InfoSec Namespace
+#
+# This policy demonstrates K8s-native DCF policy management.
+# Pods with label "app: infosec" can access security tools like VirusTotal.
+#
+# Prerequisites:
+#   helm install --repo https://aviatrixsystems.github.io/k8s-firewall-charts k8s-firewall k8s-firewall
+#
+# Apply:
+#   kubectl apply -f firewallpolicy-infosec.yaml
+#
+# Verify:
+#   kubectl get firewallpolicies -n gatus
+#   kubectl get events -n gatus
+#####################
+
+apiVersion: networking.aviatrix.com/v1alpha1
+kind: FirewallPolicy
+metadata:
+  name: infosec-egress
+  namespace: gatus
+spec:
+  rules:
+    - name: allow-virustotal
+      logging: true
+      selector:
+        matchLabels:
+          app: infosec
+      action: permit
+      protocol: tcp
+      ports:
+        - "443"
+      destinationSmartGroups:
+        - name: public-internet
+      webGroups:
+        - name: security-tools
+
+  webGroups:
+    - name: security-tools
+      domains:
+        - "www.virustotal.com"
+        - "virustotal.com"
+        - "*.virustotal.com"
+
+  smartGroups:
+    - name: public-internet
+      selectors:
+        - cidr: 0.0.0.0/0

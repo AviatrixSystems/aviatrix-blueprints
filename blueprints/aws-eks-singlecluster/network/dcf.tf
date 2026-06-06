@@ -263,6 +263,20 @@ resource "aviatrix_web_group" "eks_required" {
 }
 
 #####################
+# Enable Distributed Cloud Firewall (controller-wide)
+#
+# REQUIRED: without this, the ruleset below is configured but NOT enforced —
+# gateways pass all traffic (the egress allow-list "passes" only because nothing
+# is blocked, and the geo/threat DENY rules never fire). This is the global DCF
+# toggle; the ruleset depends_on it so enablement is sequenced first.
+# (Verified live: a standalone spoke does NOT enforce DCF until this is set.)
+#####################
+
+resource "aviatrix_distributed_firewalling_config" "enable" {
+  enable_distributed_firewalling = true
+}
+
+#####################
 # DCF Ruleset
 #####################
 
@@ -275,6 +289,8 @@ resource "aviatrix_dcf_ruleset" "k8s_demo" {
   # TODO: revert to data source once Controller returns correct ID
   # attach_to = data.aviatrix_dcf_attachment_point.tf_before_ui.id
   attach_to = "defa11a1-3000-4001-0000-000000000000"
+
+  depends_on = [aviatrix_distributed_firewalling_config.enable]
 
   #############################
   # THREAT PREVENTION (Priority 0-9)

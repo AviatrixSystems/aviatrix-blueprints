@@ -1,0 +1,19 @@
+kubernetes_version = "1.33"
+
+node_pool_config = {
+  node_count = 2
+  min_count  = 1
+  max_count  = 3
+  vm_size    = "Standard_B2s"
+}
+
+# Lock this down to your admin IP for non-lab use.
+authorized_ip_ranges = ["0.0.0.0/0"]
+
+# Onboard the cluster into the Aviatrix Controller for K8s SmartGroups.
+enable_aviatrix_onboarding    = true
+aviatrix_controller_public_ip = "x.x.x.x"
+
+aviatrix_controller_ip = "x.x.x.x"
+aviatrix_username      = "admin"
+aviatrix_password      = "REPLACE_ME"
