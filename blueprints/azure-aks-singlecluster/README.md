@@ -7,6 +7,9 @@ The blueprint deploys **standalone by default** (no transit attachment). Egress 
 > [!NOTE]
 > **Live deploy-verified** (2026-06-05, Controller 9.0.10, provider 9.0.0, AKS 1.33). Full deploy → enforce → destroy cycle validated: the 9.0 Single-IP-SNAT route-table selection, AKS `userDefinedRouting` bring-up, Aviatrix onboarding, internal-LB ingress, and **DCF egress enforcement** (allow-list permits + datapath-confirmed deny) all work. Geo/ThreatIQ blocking additionally requires the Controller's GeoIP/ThreatGuard intelligence feed to be populated — a Controller-side prerequisite independent of this blueprint's (correct) DCF config.
 
+> [!IMPORTANT]
+> **Controller/provider 9.0 only (for now).** This version depends on 9.0-era features — the Single-IP-SNAT `private_route_table_config` explicit-route-table selection and the 9.0 DCF resources. It has **not** been validated against 8.2 or earlier. A future revision will add **backwards compatibility to 8.2** (a Single-IP-SNAT-only path with the older provider, without the 9.0 route-table-selection config). Until then, treat 9.0+ as a hard requirement.
+
 > [!TIP]
 > **🤖 Optimized for Claude Code** — Run `/deploy-blueprint azure-aks-singlecluster` for AI-guided deployment with prerequisite checks and automated orchestration, or `/analyze-blueprint azure-aks-singlecluster` for resource and cost details. [Get Claude Code](https://claude.ai/code)
 
