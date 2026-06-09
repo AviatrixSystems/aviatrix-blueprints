@@ -1,9 +1,19 @@
 # ============================================================================
 # Distributed Cloud Firewall (DCF) Configuration
 # ============================================================================
-# NOTE: DCF must be enabled on the Controller before applying this blueprint.
-# This blueprint does NOT manage DCF enable/disable — only SmartGroups and
-# policies. Destroying this blueprint will NOT disable DCF.
+# DCF is enabled automatically by this blueprint via aviatrix_config_feature.
+# Destroying this blueprint will NOT disable DCF — this is intentional, as
+# disabling DCF on destroy would remove all policy enforcement from the
+# Controller, which may affect other workloads beyond this blueprint.
+
+# ============================================================================
+# Enable DCF on the Controller
+# ============================================================================
+
+resource "aviatrix_config_feature" "dcf" {
+  feature_name = "microseg"
+  is_enabled   = true
+}
 
 # ============================================================================
 # SmartGroups - Define network segments
@@ -63,6 +73,7 @@ resource "aviatrix_smart_group" "db" {
 
 resource "aviatrix_distributed_firewalling_policy_list" "main" {
   depends_on = [
+    aviatrix_config_feature.dcf,
     aviatrix_smart_group.dev,
     aviatrix_smart_group.prod,
     aviatrix_smart_group.db
