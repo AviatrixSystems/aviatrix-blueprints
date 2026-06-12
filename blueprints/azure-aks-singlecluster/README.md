@@ -8,7 +8,12 @@ The blueprint deploys **standalone by default** (no transit attachment). Egress 
 > **Live deploy-verified** (2026-06-05, Controller 9.0.10, provider 9.0.0, AKS 1.33). Full deploy → enforce → destroy cycle validated: the 9.0 Single-IP-SNAT route-table selection, AKS `userDefinedRouting` bring-up, Aviatrix onboarding, internal-LB ingress, and **DCF egress enforcement** (allow-list permits + datapath-confirmed deny) all work. Geo/ThreatIQ blocking additionally requires the Controller's GeoIP/ThreatGuard intelligence feed to be populated — a Controller-side prerequisite independent of this blueprint's (correct) DCF config.
 
 > [!IMPORTANT]
-> **Controller/provider 9.0 only (for now).** This version depends on 9.0-era features — the Single-IP-SNAT `private_route_table_config` explicit-route-table selection and the 9.0 DCF resources. It has **not** been validated against 8.2 or earlier. A future revision will add **backwards compatibility to 8.2** (a Single-IP-SNAT-only path with the older provider, without the 9.0 route-table-selection config). Until then, treat 9.0+ as a hard requirement.
+> **Defaults to Controller/provider 9.0; an 8.2 path is supported.** As shipped, this blueprint targets **Controller 9.0+** using Single-IP-SNAT `private_route_table_config` explicit-route-table selection. For an **Aviatrix Controller 8.2** — which does *not* honor that 9.0 selection — deploy the 8.2 variant with three edits (live-verified 2026-06-08 on Controller 8.2.10):
+> 1. `network/versions.tf` **and** `cluster/versions.tf`: set the aviatrix provider to `version = "~> 8.2.0"`.
+> 2. `network/main.tf`: point the spoke module at the 8.2 variant — `source = "../../../modules/azure-aks-spoke-vnet-82"`. It does Single IP SNAT via a blackhole `0.0.0.0/0 → None` placeholder that the 8.2 controller auto-selects (no `private_route_table_config`).
+> 3. `nodes`: set `k8s_firewall_chart_version = "8.2.0"` to match the controller major.
+>
+> These can't be a single runtime toggle: mc-spoke 9.0.0 (which provides `private_route_table_config`) requires provider `>= 9.0.0`, and the provider major must match the controller — so the version pins are a static, deploy-time choice. Details: [`modules/azure-aks-spoke-vnet-82`](../../modules/azure-aks-spoke-vnet-82/README.md).
 
 > [!TIP]
 > **🤖 Optimized for Claude Code** — Run `/deploy-blueprint azure-aks-singlecluster` for AI-guided deployment with prerequisite checks and automated orchestration, or `/analyze-blueprint azure-aks-singlecluster` for resource and cost details. [Get Claude Code](https://claude.ai/code)
@@ -421,7 +426,8 @@ az group show --name "<name_prefix>-rg"   # expect: ResourceGroupNotFound
 
 ## Related
 
-- [`modules/azure-aks-spoke-vnet`](../../modules/azure-aks-spoke-vnet/README.md) — the spoke-in-a-box VNet module (Single IP SNAT + `private_route_table_config` route-table selection).
+- [`modules/azure-aks-spoke-vnet`](../../modules/azure-aks-spoke-vnet/README.md) — the spoke-in-a-box VNet module for **Controller 9.0+** (Single IP SNAT + `private_route_table_config` route-table selection). Default.
+- [`modules/azure-aks-spoke-vnet-82`](../../modules/azure-aks-spoke-vnet-82/README.md) — the **Controller 8.2** variant of the spoke module (Single IP SNAT + blackhole `0/0 → None` route auto-selection; no `private_route_table_config`). Used by the 8.2 path above.
 - [`modules/azure-aks-cluster`](../../modules/azure-aks-cluster/README.md) — the AKS cluster module (Azure CNI + Cilium, workload identity, Aviatrix onboarding).
 - [`aws-eks-singlecluster`](../aws-eks-singlecluster/README.md) — the AWS analogue this blueprint mirrors.
 - [`azure-aks-multicluster`](../azure-aks-multicluster/README.md) — the multi-cluster Azure blueprint this is derived from.
