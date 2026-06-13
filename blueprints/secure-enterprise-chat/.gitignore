@@ -1,5 +1,7 @@
 # Secrets — never commit a real .env
 chart/.env
+# ...but DO ship the template (root .gitignore's `.env.*` would otherwise hide it)
+!chart/.env.example
 
 # Generated egress policy (regenerate from chart/librechat.yaml at deploy time;
 # in a GitOps app repo your CI commits this instead).
