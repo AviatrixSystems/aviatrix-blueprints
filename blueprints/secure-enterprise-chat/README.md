@@ -312,6 +312,14 @@ pod egress to registries is covered by the catalog's `always_on` domains.
 exists in the namespace and contains `CREDS_KEY`, `CREDS_IV`, `JWT_SECRET`,
 `JWT_REFRESH_SECRET`, and `MEILI_MASTER_KEY`.
 
+**No "Sign Up" button / can't create an account.** LibreChat treats
+`ALLOW_REGISTRATION`/`ALLOW_EMAIL_LOGIN` as disabled when unset, and the chart
+doesn't set them. Put them in the **credentials Secret** (they're in
+`.env.example`) — not in Helm `configEnv`, which only templates a fixed key set
+and silently drops arbitrary keys. Verify: `kubectl exec deploy/librechat -- printenv ALLOW_REGISTRATION`.
+To create a user without the signup page, the image ships
+`npm run create-user -- <email> <password> <name>`.
+
 **Azure OpenAI egress denied.** The generator parses `endpoints.custom[].baseURL`,
 not the first-class `azureOpenAI` block. Configure Azure as a custom endpoint
 (see `chart/librechat.yaml`) or add an `env_gated` entry for `AZURE_API_KEY` →
