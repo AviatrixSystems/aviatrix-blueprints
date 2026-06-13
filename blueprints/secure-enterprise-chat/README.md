@@ -58,10 +58,29 @@ pod. Nothing here is permitted to egress until it appears in that policy.
 ## Prerequisites
 
 ### Already deployed
-- A Kubernetes blueprint cluster with **DCF egress default-deny** and the
-  **Aviatrix K8s CRD controller** onboarded (any singlecluster blueprint; the
-  multicluster blueprints also work per-cluster). Confirm the cluster shows
-  fully onboarded (not "Partial") in CoPilot before relying on CRD enforcement.
+- A Kubernetes blueprint cluster with the **Aviatrix K8s CRD controller**
+  onboarded (any singlecluster blueprint; the multicluster blueprints also work
+  per-cluster). Confirm the cluster shows fully onboarded (not "Partial") in
+  CoPilot before relying on CRD enforcement.
+- **The base cluster MUST be in a DCF default-deny egress posture.** This
+  blueprint's `FirewallPolicy` only adds *permit* rules; "deny everything else"
+  comes from the base fabric's default-deny. If the base is default-permit (or
+  DCF micro-segmentation is not enabled on the spoke), the generated policy will
+  reconcile cleanly but **will not block anything** — unlisted egress still
+  flows. Verify default-deny is real before trusting this blueprint (see the
+  Validation section and Troubleshooting).
+- A **default StorageClass** backed by a working CSI driver (the chart's
+  MongoDB/MeiliSearch want PVCs). On EKS 1.23+ the legacy in-tree `gp2`
+  (`kubernetes.io/aws-ebs`) does **not** provision — install the
+  `aws-ebs-csi-driver` addon and a default `gp3`/`gp2` CSI StorageClass, or set
+  `*.persistence.enabled=false` for an ephemeral lab.
+
+> **Validation status (last live test):** deploy + CRD reconciliation are
+> verified end-to-end on a real controller (the generated `FirewallPolicy` synced
+> and received a `ruleset`/`attachmentPoint`/SmartGroup/WebGroup). Egress **deny**
+> enforcement was **not** demonstrated on the test cluster because that cluster
+> was not in a default-deny posture — see Troubleshooting. Treat default-deny as
+> the hard prerequisite it is.
 
 ### Required tools
 - `kubectl`, configured for the target cluster
@@ -252,6 +271,32 @@ pod label. The chart uses `app.kubernetes.io/name: librechat` (from
 `fullnameOverride`). If you changed the release name, regenerate with
 `--pod-label app.kubernetes.io/name=<release>`. Verify:
 `kubectl -n librechat get pod -l app.kubernetes.io/name=librechat`.
+
+**Unlisted egress still reachable (deny not enforced).** The base cluster is not
+in a default-deny posture. This blueprint only adds *permit* rules; the deny must
+come from the fabric. Quick check from the running pod:
+```bash
+POD=$(kubectl get pod -n librechat -l app.kubernetes.io/name=librechat -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -n librechat $POD -- node -e 'require("https").get({host:"example.org",port:443,timeout:8000},r=>{console.log("reachable",r.statusCode);process.exit()}).on("timeout",()=>{console.log("BLOCKED (good)");process.exit()}).on("error",e=>console.log(e.code))'
+```
+`reachable 200` means default-deny is **not** active — enable DCF
+micro-segmentation / default-deny on the base spoke before relying on this.
+
+**`helm` fails with `docker-credential-desktop ... not found`.** Stale
+`~/.docker/config.json` (`credsStore: desktop`) breaks the OCI pull. Use a clean
+config: `mkdir -p /tmp/dc && echo '{}' >/tmp/dc/config.json && DOCKER_CONFIG=/tmp/dc helm install ...`
+
+**MongoDB pod `ErrImagePull` (`docker.io/bitnami/mongodb:...: not found`).** As of
+Aug 2025 Bitnami relocated most images out of `docker.io/bitnami`. Override to the
+legacy repo: `--set mongodb.image.repository=bitnamilegacy/mongodb` (or run your
+own MongoDB and point LibreChat at it).
+
+**Pods `Pending` on `unbound ... PersistentVolumeClaims`.** No default StorageClass
+that can provision (e.g. legacy `gp2` on EKS 1.34 has no in-tree provisioner).
+Install the EBS CSI driver + a default CSI StorageClass, or disable persistence:
+`--set mongodb.persistence.enabled=false --set meilisearch.persistence.enabled=false --set librechat.imageVolume.enabled=false`
+(MeiliSearch is a StatefulSet — its volumeClaimTemplate is immutable on upgrade,
+so delete the STS + PVC if you toggle this after first install).
 
 **Pods stuck pulling images / app can't start.** Image pulls happen on the node;
 ensure the base blueprint permits node egress to the image registries. Runtime
