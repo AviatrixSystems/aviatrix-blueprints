@@ -62,25 +62,28 @@ pod. Nothing here is permitted to egress until it appears in that policy.
   onboarded (any singlecluster blueprint; the multicluster blueprints also work
   per-cluster). Confirm the cluster shows fully onboarded (not "Partial") in
   CoPilot before relying on CRD enforcement.
-- **The base cluster MUST be in a DCF default-deny egress posture.** This
-  blueprint's `FirewallPolicy` only adds *permit* rules; "deny everything else"
-  comes from the base fabric's default-deny. If the base is default-permit (or
-  DCF micro-segmentation is not enabled on the spoke), the generated policy will
-  reconcile cleanly but **will not block anything** — unlisted egress still
-  flows. Verify default-deny is real before trusting this blueprint (see the
-  Validation section and Troubleshooting).
+- **DCF micro-segmentation must be enabled on the base spoke** so CRD policies
+  are enforced (confirm the cluster is fully onboarded in CoPilot). The generated
+  policy is **self-enforcing**: it ends with a per-pod `deny-other-egress` rule
+  (tcp/443 → `0.0.0.0/0`) after the permits, so it does **not** depend on a
+  fabric-wide default-deny — permitted FQDNs pass, everything else from the
+  LibreChat pods is dropped. (A fabric-wide default-deny is still good
+  defense-in-depth. Pass `--no-default-deny` to the generator to omit the
+  trailing deny and rely on the fabric instead.)
 - A **default StorageClass** backed by a working CSI driver (the chart's
   MongoDB/MeiliSearch want PVCs). On EKS 1.23+ the legacy in-tree `gp2`
   (`kubernetes.io/aws-ebs`) does **not** provision — install the
   `aws-ebs-csi-driver` addon and a default `gp3`/`gp2` CSI StorageClass, or set
   `*.persistence.enabled=false` for an ephemeral lab.
 
-> **Validation status (last live test):** deploy + CRD reconciliation are
-> verified end-to-end on a real controller (the generated `FirewallPolicy` synced
-> and received a `ruleset`/`attachmentPoint`/SmartGroup/WebGroup). Egress **deny**
-> enforcement was **not** demonstrated on the test cluster because that cluster
-> was not in a default-deny posture — see Troubleshooting. Treat default-deny as
-> the hard prerequisite it is.
+> **Validation status (live test on EKS + real controller):** verified
+> end-to-end. The generated `FirewallPolicy` reconciled on the controller
+> (`ruleset`/`attachmentPoint`/SmartGroups/WebGroup created), and egress
+> enforcement was **proven from the running pod**: allowlisted FQDNs
+> (`registry.librechat.ai`, `bedrock-runtime.us-east-1.amazonaws.com`) connected,
+> while unlisted destinations (`example.org`, `api.openai.com`) were reset by the
+> trailing per-pod deny rule. The deploy workarounds in Troubleshooting were all
+> exercised on that run.
 
 ### Required tools
 - `kubectl`, configured for the target cluster
@@ -272,9 +275,12 @@ pod label. The chart uses `app.kubernetes.io/name: librechat` (from
 `--pod-label app.kubernetes.io/name=<release>`. Verify:
 `kubectl -n librechat get pod -l app.kubernetes.io/name=librechat`.
 
-**Unlisted egress still reachable (deny not enforced).** The base cluster is not
-in a default-deny posture. This blueprint only adds *permit* rules; the deny must
-come from the fabric. Quick check from the running pod:
+**Unlisted egress still reachable (deny not enforced).** With the default
+self-enforcing policy this should not happen. If it does: (a) you generated with
+`--no-default-deny` and the fabric has no default-deny; (b) DCF
+micro-segmentation isn't enabled on the spoke / the cluster shows "Partial"; or
+(c) the policy's pod selector doesn't match (see the pod-label note below).
+Quick check from the running pod:
 ```bash
 POD=$(kubectl get pod -n librechat -l app.kubernetes.io/name=librechat -o jsonpath='{.items[0].metadata.name}')
 kubectl exec -n librechat $POD -- node -e 'require("https").get({host:"example.org",port:443,timeout:8000},r=>{console.log("reachable",r.statusCode);process.exit()}).on("timeout",()=>{console.log("BLOCKED (good)");process.exit()}).on("error",e=>console.log(e.code))'

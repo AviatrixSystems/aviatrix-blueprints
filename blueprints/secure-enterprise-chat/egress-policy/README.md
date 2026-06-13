@@ -33,6 +33,16 @@ blueprint reconciles it into live DCF):
 kubectl apply -f firewall-policy.yaml
 ```
 
+## Default-deny (self-enforcing)
+
+By default the generated policy ends with a per-pod `deny-other-egress` rule
+(tcp/443 → `0.0.0.0/0`) placed after the permits. DCF is first-match, so
+allowlisted FQDNs pass and everything else from the LibreChat pods is dropped —
+the policy enforces least-privilege on its own, without depending on a
+fabric-wide default-deny. Pass `--no-default-deny` to omit it and rely on the
+fabric default-deny instead. (Verified live: allowlisted FQDNs connect; unlisted
+destinations are reset.)
+
 ## Catalog
 
 `egress-catalog.yaml` is the data-only extension point for domains not derived

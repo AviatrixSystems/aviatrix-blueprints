@@ -256,6 +256,7 @@ def render_policy(
     pod_label: Tuple[str, str],
     config_sha: str,
     env_sha: str,
+    default_deny: bool = True,
 ) -> str:
     label_key, label_value = pod_label
     lines: List[str] = []
@@ -290,6 +291,21 @@ def render_policy(
     lines.append("      webGroups:")
     lines.append("        - name: librechat-allowed-domains")
     lines.append("      logging: true")
+    # Trailing per-pod default-deny: makes the policy self-enforcing instead of
+    # relying on a fabric-wide default-deny. First-match ordering means the
+    # permit above wins for allowed FQDNs; everything else from these pods on
+    # 443 is denied. Consistent with the HTTPS-only egress model.
+    if default_deny:
+        lines.append("    - name: deny-other-egress")
+        lines.append("      selector:")
+        lines.append("        matchLabels:")
+        lines.append(f"          {label_key}: {label_value}")
+        lines.append("      action: deny")
+        lines.append("      protocol: tcp")
+        lines.append("      port: 443")
+        lines.append("      destinationSmartGroups:")
+        lines.append("        - name: anywhere")
+        lines.append("      logging: true")
     lines.append("  smartGroups:")
     lines.append("    - name: anywhere")
     lines.append("      selectors:")
@@ -345,6 +361,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--strict", action="store_true",
         help="Exit 1 if any subprocess MCP servers are present",
     )
+    parser.add_argument(
+        "--no-default-deny", dest="default_deny", action="store_false",
+        help="Omit the trailing per-pod deny rule (rely on a fabric-wide default-deny instead)",
+    )
+    parser.set_defaults(default_deny=True)
     return parser
 
 
@@ -383,6 +404,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         pod_label=pod_label,
         config_sha=config_sha,
         env_sha=env_sha,
+        default_deny=args.default_deny,
     )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
