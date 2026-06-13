@@ -1,0 +1,47 @@
+# Static egress domain catalog for the LibreChat API pod.
+# Pure data: generate.py reads this; never edit generated output instead of this file.
+
+always_on:
+  image_registry:
+    domains:
+      - "registry.librechat.ai"
+      - "auth.docker.io"
+      - "registry-1.docker.io"
+      - "production.cloudflare.docker.com"
+  bedrock_sts:
+    domains:
+      - "sts.amazonaws.com"
+
+env_gated:
+  RAG_OPENAI_API_KEY:
+    domains: ["api.openai.com"]
+  FLUX_API_BASE_URL:
+    domains: ["api.us1.bfl.ai"]
+  TAVILY_API_KEY:
+    domains: ["api.tavily.com"]
+  TRAVERSAAL_API_KEY:
+    domains: ["api-ares.traversaal.ai"]
+  WOLFRAM_APP_ID:
+    domains: ["www.wolframalpha.com"]
+  OPENWEATHER_API_KEY:
+    domains: ["api.openweathermap.org"]
+  SERPAPI_API_KEY:
+    domains: ["serpapi.com"]
+  DISCORD_CLIENT_ID:
+    domains: ["discord.com", "cdn.discordapp.com"]
+  GOOGLE_CLIENT_ID:
+    domains: ["accounts.google.com"]
+  GITHUB_CLIENT_ID:
+    domains: ["github.com"]
+  FACEBOOK_CLIENT_ID:
+    domains: ["graph.facebook.com"]
+  APPLE_CLIENT_ID:
+    domains: ["appleid.apple.com"]
+  OPENID_CLIENT_ID:
+    domains: ["login.microsoftonline.com", "graph.microsoft.com"]
+
+subprocess_mcp:
+  uvx:
+    domains: ["pypi.org", "files.pythonhosted.org"]
+  npx:
+    domains: ["registry.npmjs.org"]

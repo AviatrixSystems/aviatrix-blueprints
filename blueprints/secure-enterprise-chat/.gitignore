@@ -1,0 +1,17 @@
+# Secrets — never commit a real .env
+chart/.env
+
+# Generated egress policy (regenerate from chart/librechat.yaml at deploy time;
+# in a GitOps app repo your CI commits this instead).
+egress-policy/firewall-policy.yaml
+
+# Python
+egress-policy/__pycache__/
+*.pyc
+
+# Terraform (local state only; no secrets in VCS)
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+crash.log

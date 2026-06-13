@@ -1,0 +1,53 @@
+# Example ArgoCD Application — deploys the OFFICIAL LibreChat chart with this
+# blueprint's values + librechat.yaml, via the multi-source pattern.
+#
+# Prereqs:
+#  - The OCI Helm repo is registered in ArgoCD (or use the oci:// repoURL form
+#    supported by your Argo CD version).
+#  - repoURL below points at YOUR fork/clone of aviatrix-blueprints.
+#  - The librechat-credentials-env Secret exists in the target namespace
+#    (Argo does not create it — keep secrets out of git; use a SealedSecret/
+#    ExternalSecret or create it out-of-band).
+#  - The generated firewall-policy.yaml is synced separately (see note below).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: secure-enterprise-chat
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: librechat
+  sources:
+    # 1) Official LibreChat chart (OCI), parameterized from the config repo.
+    - repoURL: ghcr.io/danny-avila/librechat-chart
+      chart: librechat
+      targetRevision: 2.0.2
+      helm:
+        valueFiles:
+          - $config/blueprints/secure-enterprise-chat/chart/values.yaml
+        # Inject the standalone librechat.yaml as configYamlContent (same as
+        # `helm --set-file`). This keeps librechat.yaml a single source of truth
+        # for both the app and the egress-policy generator.
+        fileParameters:
+          - name: librechat.configYamlContent
+            path: $config/blueprints/secure-enterprise-chat/chart/librechat.yaml
+    # 2) Config repo (this blueprint), referenced by the chart source above.
+    - repoURL: https://github.com/AviatrixSystems/aviatrix-blueprints.git
+      targetRevision: main
+      ref: config
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+# NOTE — egress policy:
+# The Aviatrix FirewallPolicy CRD is produced by the egress-policy generator
+# from librechat.yaml. Commit the generated firewall-policy.yaml and sync it
+# with a second, tiny Application (directory source over a folder containing the
+# CRD), or add it to the config repo and reference it as a third source. Keeping
+# it as its own Application makes the "config change -> regenerate -> sync"
+# GitOps loop explicit. See ../README.md (CI/CD section).

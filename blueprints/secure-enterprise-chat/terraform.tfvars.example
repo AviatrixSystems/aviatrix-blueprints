@@ -1,0 +1,11 @@
+# Copy to terraform.tfvars and edit. The wrapper installs onto an EXISTING
+# Aviatrix-protected cluster via your kubeconfig — no cloud credentials needed.
+
+kubeconfig_path = "~/.kube/config"
+kube_context    = "" # e.g. the context for your aks/eks singlecluster blueprint; empty = current context
+
+namespace    = "librechat"
+release_name = "librechat" # keep as "librechat" so the pod label stays app.kubernetes.io/name=librechat
+
+chart_version = "2.0.2"
+ingress_host  = "chat.example.com"
