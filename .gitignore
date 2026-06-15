@@ -65,3 +65,8 @@ tfplan
 
 # Git worktrees (local isolated workspaces)
 .worktrees/
+
+# AI tool runtime data (machine-specific, not for public repo)
+.playwright-mcp/
+.serena/
+.superpowers/
