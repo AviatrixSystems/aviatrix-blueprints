@@ -74,6 +74,11 @@ output "external_dns_role_arn" {
   value       = module.external_dns_irsa_role.arn
 }
 
+output "ebs_csi_role_arn" {
+  description = "IAM role ARN for the EBS CSI driver (IRSA), consumed by the aws-ebs-csi-driver addon"
+  value       = module.ebs_csi_irsa_role.arn
+}
+
 output "configure_kubectl" {
   description = "Command to configure kubectl"
   value       = "aws eks update-kubeconfig --region ${var.region} --name ${var.cluster_name}"

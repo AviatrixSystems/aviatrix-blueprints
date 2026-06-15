@@ -18,6 +18,8 @@ It is, deliberately, **really just a Helm chart**:
 
 ## Architecture
 
+![Architecture: LibreChat on an existing Aviatrix-protected cluster, with egress through the spoke gateway where DCF evaluates the per-pod FirewallPolicy CRD before traffic reaches Bedrock/Azure OpenAI/approved integrations](architecture.svg)
+
 ```
   Existing Aviatrix-protected cluster (built by a base k8s blueprint)
   ┌───────────────────────────────────────────────────────────────┐
@@ -72,28 +74,41 @@ pod. Nothing here is permitted to egress until it appears in that policy.
   defense-in-depth. Pass `--no-default-deny` to the generator to omit the
   trailing deny and rely on the fabric instead.)
 - A **default StorageClass** backed by a working CSI driver (the chart's
-  MongoDB/MeiliSearch want PVCs). On EKS 1.23+ the legacy in-tree `gp2`
-  (`kubernetes.io/aws-ebs`) does **not** provision — install the
-  `aws-ebs-csi-driver` addon and a default `gp3`/`gp2` CSI StorageClass, or set
-  `*.persistence.enabled=false` for an ephemeral lab.
-
-> **Validation status (live test on EKS + real controller):** verified
-> end-to-end. The generated `FirewallPolicy` reconciled on the controller
-> (`ruleset`/`attachmentPoint`/SmartGroups/WebGroup created), and egress
-> enforcement was **proven from the running pod**: allowlisted FQDNs
-> (`bedrock-runtime.us-east-1.amazonaws.com`, `sts.amazonaws.com`, `mcp.deepwiki.com`)
-> connected, while unlisted destinations (`example.org`, `api.openai.com`) were reset by the
-> trailing per-pod deny rule. **AWS Bedrock via IRSA was proven end-to-end**: with
-> no static keys, the pod assumed its IAM role through the web-identity token and
-> Claude 3.5 Haiku returned a real completion through the permitted
-> `bedrock-runtime.us-east-1` path. The deploy workarounds in Troubleshooting were
-> all exercised on that run.
+  MongoDB/MeiliSearch want PVCs). The repo's EKS blueprints
+  (`aws-eks-singlecluster`, `aws-eks-multicluster`) already provision this — their
+  nodes layer installs the `aws-ebs-csi-driver` addon and a default `gp3`
+  StorageClass — so clusters built from them satisfy this out of the box. You
+  only need to add one for an **externally-built or non-EKS cluster** that lacks a
+  default StorageClass (on EKS 1.23+ the legacy in-tree `gp2`,
+  `kubernetes.io/aws-ebs`, does **not** provision). For an ephemeral lab you can
+  instead set `*.persistence.enabled=false`.
 
 ### Required tools
 - `kubectl`, configured for the target cluster
 - `helm` >= 3.8 (OCI support) — for the raw-Helm path
 - `python3` + `pip` — for the egress-policy shim (`pip install -r egress-policy/requirements.txt`)
 - `terraform` >= 1.5 — only for the optional TF wrapper
+
+## Resources Created
+
+This blueprint **does not build infrastructure** — it layers a workload and a
+firewall policy onto a cluster you already own. There is **no incremental
+Aviatrix or cloud control-plane spend**; the only cost is the compute/storage the
+chart consumes on the existing cluster.
+
+| Resource | Where | Created by | Cost note |
+|---|---|---|---|
+| `librechat` Helm release (LibreChat API pod) | existing cluster | Helm / TF wrapper | Rides existing node capacity; ~no new spend |
+| `mongodb` (Deployment + PVC) | existing cluster | LibreChat chart dep | ~1 small PVC on the default StorageClass (e.g. `gp3` ~$0.08/GB-mo) |
+| `meilisearch` (StatefulSet + PVC) | existing cluster | LibreChat chart dep | ~1 small PVC on the default StorageClass |
+| `librechat-credentials-env` Secret | existing cluster | you (kubectl) | none |
+| `FirewallPolicy` CRD (+ reconciled DCF ruleset/attachmentPoint/SmartGroups/WebGroup) | Aviatrix Controller | egress generator + CRD controller | none (rules on the existing spoke) |
+| Ingress record / LB (if your ingress controller provisions one) | cloud | existing ingress controller | Standard ALB/LB hourly + LCU if exposed |
+| **Optional** IAM role for Bedrock via IRSA | AWS | you (`eksctl`/console) | IAM is free; Bedrock usage billed per token |
+
+**Estimated cost:** **~$0 incremental** for the lab itself (PVC storage is a few
+cents/day). Bedrock/Azure OpenAI token usage and any internet-facing
+load balancer are billed normally by the cloud provider.
 
 ## Deploy
 
@@ -315,6 +330,12 @@ kubectl -n librechat delete secret librechat-credentials-env
 kubectl delete namespace librechat
 ```
 
+If you created an IRSA role for Bedrock via `eksctl create iamserviceaccount`,
+it is **not** managed by this blueprint — delete it so it doesn't orphan:
+```bash
+eksctl delete iamserviceaccount --cluster <cluster> --namespace librechat --name librechat
+```
+
 The base cluster (and its DCF default-deny) is left intact — tear it down with
 its own blueprint when finished.
 
@@ -348,9 +369,12 @@ Aug 2025 Bitnami relocated most images out of `docker.io/bitnami`. Override to t
 legacy repo: `--set mongodb.image.repository=bitnamilegacy/mongodb` (or run your
 own MongoDB and point LibreChat at it).
 
-**Pods `Pending` on `unbound ... PersistentVolumeClaims`.** No default StorageClass
-that can provision (e.g. legacy `gp2` on EKS 1.34 has no in-tree provisioner).
-Install the EBS CSI driver + a default CSI StorageClass, or disable persistence:
+**Pods `Pending` on `unbound ... PersistentVolumeClaims`.** The cluster has no
+default StorageClass that can provision. Clusters built from this repo's EKS
+blueprints already ship a default `gp3` StorageClass (EBS CSI driver), so this
+should not occur there. On an externally-built or non-EKS cluster (e.g. legacy
+`gp2` on EKS 1.34 has no in-tree provisioner), install the EBS CSI driver + a
+default CSI StorageClass, or disable persistence:
 `--set mongodb.persistence.enabled=false --set meilisearch.persistence.enabled=false --set librechat.imageVolume.enabled=false`
 (MeiliSearch is a StatefulSet — its volumeClaimTemplate is immutable on upgrade,
 so delete the STS + PVC if you toggle this after first install).

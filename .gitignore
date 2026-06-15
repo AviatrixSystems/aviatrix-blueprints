@@ -62,3 +62,6 @@ tfplan
 *.tfstate
 *.tfstate.backup
 .terraform/
+
+# Git worktrees (local isolated workspaces)
+.worktrees/
