@@ -48,15 +48,16 @@ endpoints:
   #     titleConvo: true
   #     titleModel: "gpt-4o"
 
-# --- MCP servers (optional) ---
+# --- MCP servers ---
 # Remote (sse / streamable-http) servers are domain-scoped automatically from
 # their url. Subprocess servers (command: uvx | npx) run INSIDE the LibreChat
 # pod and cannot be isolated per-server at the pod level — the generator emits
 # their package-registry domains and warns, recommending the Aviatrix OBOT VCA
 # for true workload isolation. Use the generator's --strict flag in CI to fail
 # the build when subprocess MCP servers are present.
-#
-# mcpServers:
-#   example-remote:
-#     type: streamable-http
-#     url: https://mcp.example.com/
+mcpServers:
+  # DeepWiki: public, no-auth remote MCP that answers questions about GitHub repo
+  # docs. Its host (mcp.deepwiki.com) is added to the egress allowlist.
+  deepwiki:
+    type: streamable-http
+    url: https://mcp.deepwiki.com/mcp

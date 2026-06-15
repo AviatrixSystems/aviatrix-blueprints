@@ -39,13 +39,6 @@ spec:
   webGroups:
     - name: librechat-allowed-domains
       domains:
-        # --- always_on: image_registry ---
-        - "registry.librechat.ai"
-        - "auth.docker.io"
-        - "registry-1.docker.io"
-        - "production.cloudflare.docker.com"
-        # --- always_on: bedrock_sts ---
-        - "sts.amazonaws.com"
         # --- subprocess mcp package registries ---
         - "pypi.org"
         - "files.pythonhosted.org"

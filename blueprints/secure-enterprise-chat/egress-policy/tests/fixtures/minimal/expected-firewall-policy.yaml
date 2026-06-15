@@ -39,12 +39,7 @@ spec:
   webGroups:
     - name: librechat-allowed-domains
       domains:
-        # --- always_on: image_registry ---
-        - "registry.librechat.ai"
-        - "auth.docker.io"
-        - "registry-1.docker.io"
-        - "production.cloudflare.docker.com"
-        # --- always_on: bedrock_sts ---
+        # --- bedrock sts (IRSA) ---
         - "sts.amazonaws.com"
         # --- bedrock runtime ---
         - "bedrock-runtime.us-east-1.amazonaws.com"

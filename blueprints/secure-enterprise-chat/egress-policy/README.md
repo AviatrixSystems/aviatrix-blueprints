@@ -46,8 +46,10 @@ destinations are reset.)
 ## Catalog
 
 `egress-catalog.yaml` is the data-only extension point for domains not derived
-from `librechat.yaml` (image registries, STS, OAuth providers, optional
-integrations keyed on env vars). Edit it — never the generated
+directly from `librechat.yaml`: the Bedrock STS endpoint (`bedrock.sts_domains`,
+emitted only when Bedrock is enabled) and optional integrations keyed on env vars
+(`env_gated`). It deliberately lists **no** container-registry domains — image
+pulls happen on the node, not the pod. Edit it — never the generated
 `firewall-policy.yaml` — to add domains. To support Azure OpenAI without
 configuring it as a custom endpoint, add an `env_gated` entry, e.g.:
 

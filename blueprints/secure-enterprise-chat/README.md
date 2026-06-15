@@ -81,8 +81,8 @@ pod. Nothing here is permitted to egress until it appears in that policy.
 > end-to-end. The generated `FirewallPolicy` reconciled on the controller
 > (`ruleset`/`attachmentPoint`/SmartGroups/WebGroup created), and egress
 > enforcement was **proven from the running pod**: allowlisted FQDNs
-> (`registry.librechat.ai`, `bedrock-runtime.us-east-1.amazonaws.com`) connected,
-> while unlisted destinations (`example.org`, `api.openai.com`) were reset by the
+> (`bedrock-runtime.us-east-1.amazonaws.com`, `sts.amazonaws.com`, `mcp.deepwiki.com`)
+> connected, while unlisted destinations (`example.org`, `api.openai.com`) were reset by the
 > trailing per-pod deny rule. **AWS Bedrock via IRSA was proven end-to-end**: with
 > no static keys, the pod assumed its IAM role through the web-identity token and
 > Claude 3.5 Haiku returned a real completion through the permitted
@@ -256,7 +256,8 @@ Identity). No long-lived keys in the cluster.
    `BEDROCK_AWS_DEFAULT_REGION` (LibreChat reads region from it).
 
 Egress is already covered: `sts.amazonaws.com` (token exchange) is in the
-catalog's `always_on`, and `bedrock-runtime.<region>` comes from `librechat.yaml`.
+catalog and is emitted whenever Bedrock is enabled, and `bedrock-runtime.<region>`
+comes from `librechat.yaml`.
 **Pod Identity** alternative: create a Pod Identity association (SA→role) + the
 pod-identity-agent addon; no SA annotation needed (LibreChat uses the same
 default chain).
@@ -354,9 +355,11 @@ Install the EBS CSI driver + a default CSI StorageClass, or disable persistence:
 (MeiliSearch is a StatefulSet — its volumeClaimTemplate is immutable on upgrade,
 so delete the STS + PVC if you toggle this after first install).
 
-**Pods stuck pulling images / app can't start.** Image pulls happen on the node;
-ensure the base blueprint permits node egress to the image registries. Runtime
-pod egress to registries is covered by the catalog's `always_on` domains.
+**Pods stuck pulling images / app can't start.** Image pulls happen on the node
+(kubelet), not from the pod, so they are **not** governed by this pod-scoped
+FirewallPolicy — and the catalog deliberately does not list image-registry
+domains. If pulls fail, ensure the base blueprint permits **node** egress to the
+image registries (a separate, node-level concern).
 
 **LibreChat crashes on boot.** Confirm the `librechat-credentials-env` Secret
 exists in the namespace and contains `CREDS_KEY`, `CREDS_IV`, `JWT_SECRET`,

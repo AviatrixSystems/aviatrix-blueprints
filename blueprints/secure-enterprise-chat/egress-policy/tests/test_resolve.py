@@ -54,7 +54,10 @@ def test_resolve_orders_and_dedupes(catalog):
     )
     result = generate.resolve_domains(cfg, catalog, {"TAVILY_API_KEY"}, {})
     flat = _flat(result)
-    assert flat[0] == "registry.librechat.ai"
+    # Bedrock is enabled, so STS (IRSA) leads, then the runtime endpoints.
+    assert flat[0] == "sts.amazonaws.com"
+    # Container image-registry domains are NOT in a pod-scoped policy.
+    assert "registry.librechat.ai" not in flat
     assert "bedrock-runtime.us-east-1.amazonaws.com" in flat
     assert "bedrock-runtime.us-west-2.amazonaws.com" in flat
     assert "api.groq.com" in flat
@@ -118,3 +121,17 @@ def test_resolve_degenerate_mcp_server_is_safe(catalog):
     result = generate.resolve_domains(cfg, catalog, set(), {})
     # a server with no url and no command classifies as unparseable: a warning, no crash
     assert any("empty" in w for w in result.warnings)
+
+
+def test_resolve_sts_gated_on_bedrock(catalog):
+    # No Bedrock -> no STS, and no image-registry domains.
+    none = _flat(generate.resolve_domains(
+        generate.LibreChatConfig(bedrock_regions=[], custom_base_urls=[], mcp_servers=[]),
+        catalog, set(), {}))
+    assert "sts.amazonaws.com" not in none
+    assert "registry.librechat.ai" not in none
+    # Bedrock enabled -> STS present.
+    on = _flat(generate.resolve_domains(
+        generate.LibreChatConfig(bedrock_regions=["us-east-1"], custom_base_urls=[], mcp_servers=[]),
+        catalog, set(), {}))
+    assert "sts.amazonaws.com" in on

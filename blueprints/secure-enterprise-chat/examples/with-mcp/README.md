@@ -15,13 +15,15 @@ base config; `firewall-policy.yaml` is the generated result.
 So the generated `webGroups` allowlist is:
 
 ```
-# --- always_on: image_registry ---   (registry.librechat.ai, docker.io, ...)
-# --- always_on: bedrock_sts ---       (sts.amazonaws.com)
+# --- bedrock sts (IRSA) ---           (sts.amazonaws.com)        <-- only because Bedrock is enabled
 # --- bedrock runtime ---              (bedrock-runtime.us-east-1.amazonaws.com)
 # --- remote mcp servers ---           (mcp.deepwiki.com)        <-- from deepwiki
 # --- subprocess mcp package registries --- (registry.npmjs.org) <-- from npx server
 # notes: (skipped internal MCP local-tool: http://host.docker.internal:3001/mcp)
 ```
+
+(No container-registry domains: image pulls happen on the node, not from the
+pod, so a pod-scoped policy never sees them.)
 
 …followed by the trailing per-pod `deny-other-egress` rule. Net effect: the
 LibreChat pod can reach Bedrock **and** `mcp.deepwiki.com` **and**

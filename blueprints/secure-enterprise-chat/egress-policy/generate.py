@@ -176,17 +176,20 @@ def resolve_domains(
         if deduped:
             result.groups.append(DomainGroup(comment=comment, domains=deduped))
 
-    # 1. always_on
-    for subsection, body in (catalog.get("always_on") or {}).items():
-        add_group(f"always_on: {subsection}", list(body.get("domains") or []))
-
-    # 2. bedrock runtime
+    # 1. Bedrock. The LibreChat pod has no unconditional egress, so nothing is
+    #    "always on" — image-registry pulls happen on the node (kubelet), not
+    #    from the pod, so they are NOT governed by this pod-scoped policy.
+    #    STS is required only for Bedrock (IRSA token exchange), so it is gated
+    #    on Bedrock actually being enabled rather than emitted unconditionally.
     bedrock_domains = [f"bedrock-runtime.{r}.amazonaws.com" for r in config.bedrock_regions]
     default_region = env_values.get("BEDROCK_AWS_DEFAULT_REGION")
     if default_region:
         candidate = f"bedrock-runtime.{default_region}.amazonaws.com"
         if candidate not in bedrock_domains:
             bedrock_domains.append(candidate)
+    if bedrock_domains:
+        sts_domains = list((catalog.get("bedrock") or {}).get("sts_domains") or [])
+        add_group("bedrock sts (IRSA)", sts_domains)
     add_group("bedrock runtime", bedrock_domains)
 
     # 3. custom endpoints

@@ -9,8 +9,8 @@ import generate  # noqa: E402
 
 def test_load_catalog_has_required_sections(catalog_path):
     catalog = generate.load_catalog(catalog_path)
-    assert set(catalog.keys()) >= {"always_on", "env_gated", "subprocess_mcp"}
-    assert "registry.librechat.ai" in catalog["always_on"]["image_registry"]["domains"]
+    assert set(catalog.keys()) >= {"bedrock", "env_gated", "subprocess_mcp"}
+    assert "sts.amazonaws.com" in catalog["bedrock"]["sts_domains"]
     assert catalog["subprocess_mcp"]["uvx"]["domains"] == ["pypi.org", "files.pythonhosted.org"]
 
 
