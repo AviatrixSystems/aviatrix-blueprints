@@ -62,6 +62,27 @@ module "external_dns_irsa_role" {
   tags = var.tags
 }
 
+# IAM role for service accounts - EBS CSI driver
+# Required so the aws-ebs-csi-driver addon (installed in the node-group layer)
+# can provision EBS volumes. EKS 1.34 ships no in-tree kubernetes.io/aws-ebs
+# provisioner, so without this addon + role there is no working block storage.
+module "ebs_csi_irsa_role" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts"
+  version = "~> 6.2"
+
+  name                  = "${var.cluster_name}-ebs-csi"
+  attach_ebs_csi_policy = true
+
+  oidc_providers = {
+    main = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["kube-system:ebs-csi-controller-sa"]
+    }
+  }
+
+  tags = var.tags
+}
+
 # Security group for cluster-level traffic (e.g., monitoring)
 resource "aws_security_group" "cluster_additional" {
   name        = "${var.cluster_name}-cluster-additional-sg"

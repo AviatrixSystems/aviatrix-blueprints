@@ -104,8 +104,8 @@ The blueprint is a **4-layer** deployment. Deploy in order: **network → cluste
 
 ```
 network/    Layer 1  Spoke VPC (module), Aviatrix spoke gateway, DCF SmartGroups/WebGroups/Ruleset
-cluster/    Layer 2  EKS control plane, OIDC/IRSA, VPC CNI addon, Controller onboarding
-nodes/      Layer 3  k8s-firewall Helm chart, ENIConfig, node group, CoreDNS, ALB Controller
+cluster/    Layer 2  EKS control plane, OIDC/IRSA (ALB, ExternalDNS, EBS CSI), VPC CNI addon, Controller onboarding
+nodes/      Layer 3  k8s-firewall Helm chart, ENIConfig, node group, CoreDNS, EBS CSI driver + default gp3 StorageClass, ALB Controller
 k8s-apps/   Layer 4  Gatus (kubectl apply); optional DCF CRD examples
 ```
 
@@ -146,7 +146,7 @@ cp terraform.tfvars.example terraform.tfvars
 terraform apply
 ```
 
-Creates: EKS control plane (K8s 1.34), OIDC provider, IRSA roles (ALB Controller, ExternalDNS), pod security group, and VPC CNI addon with custom networking. Onboards the cluster to the Aviatrix Controller.
+Creates: EKS control plane (K8s 1.34), OIDC provider, IRSA roles (ALB Controller, ExternalDNS, EBS CSI driver), pod security group, and VPC CNI addon with custom networking. Onboards the cluster to the Aviatrix Controller.
 
 ### Step 3: Nodes layer (~5-7 min)
 
@@ -156,7 +156,7 @@ terraform init
 terraform apply
 ```
 
-Creates (in order): k8s-firewall Helm chart (FirewallPolicy + WebGroupPolicy CRDs) → ENIConfig (one per AZ) → managed node group (2× t3.large SPOT) → CoreDNS addon → AWS Load Balancer Controller (Helm).
+Creates (in order): k8s-firewall Helm chart (FirewallPolicy + WebGroupPolicy CRDs) → ENIConfig (one per AZ) → managed node group (2× t3.large SPOT) → CoreDNS addon → EBS CSI driver addon + default `gp3` StorageClass → AWS Load Balancer Controller (Helm).
 
 ### Step 4: Configure kubectl + deploy k8s-apps (~1-2 min)
 

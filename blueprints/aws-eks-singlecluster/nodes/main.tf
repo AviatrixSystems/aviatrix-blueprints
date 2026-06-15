@@ -139,3 +139,59 @@ resource "aws_eks_addon" "coredns" {
   # Ensure nodes are created before CoreDNS is deployed
   depends_on = [module.default_node_group]
 }
+
+#####################
+# EBS CSI Driver Addon + default StorageClass
+#####################
+
+# EKS 1.34 ships NO in-tree kubernetes.io/aws-ebs provisioner, so the
+# auto-created `gp2` StorageClass is non-functional and is not marked default.
+# Install the managed aws-ebs-csi-driver addon (provisioner ebs.csi.aws.com)
+# so PVC-backed workloads (databases, caches, etc.) can provision block storage.
+# IRSA role comes from the cluster layer. Deployed here (Layer 3) because the
+# controller/node pods need nodes to schedule on - same reason as CoreDNS.
+resource "aws_eks_addon" "aws_ebs_csi_driver" {
+  cluster_name             = data.terraform_remote_state.cluster.outputs.cluster_name
+  addon_name               = "aws-ebs-csi-driver"
+  service_account_role_arn = data.terraform_remote_state.cluster.outputs.ebs_csi_role_arn
+
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+
+  preserve = true
+
+  tags = {
+    Environment = "demo"
+    Terraform   = "true"
+  }
+
+  # Controller pods need a node to schedule on
+  depends_on = [module.default_node_group]
+}
+
+# Default StorageClass backed by the EBS CSI driver (gp3).
+# Marked default so PVCs without an explicit storageClassName bind here instead
+# of falling through to the dead in-tree `gp2` class. gp3 is cheaper and faster
+# than gp2 and supports volume expansion.
+resource "kubernetes_storage_class_v1" "gp3" {
+  metadata {
+    name = "gp3"
+    annotations = {
+      "storageclass.kubernetes.io/is-default-class" = "true"
+    }
+  }
+
+  storage_provisioner    = "ebs.csi.aws.com"
+  reclaim_policy         = "Delete"
+  volume_binding_mode    = "WaitForFirstConsumer"
+  allow_volume_expansion = true
+
+  parameters = {
+    type      = "gp3"
+    fsType    = "ext4"
+    encrypted = "true"
+  }
+
+  # StorageClass is meaningless until the provisioner exists
+  depends_on = [aws_eks_addon.aws_ebs_csi_driver]
+}
