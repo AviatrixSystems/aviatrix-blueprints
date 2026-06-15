@@ -82,8 +82,11 @@ pod. Nothing here is permitted to egress until it appears in that policy.
 > enforcement was **proven from the running pod**: allowlisted FQDNs
 > (`registry.librechat.ai`, `bedrock-runtime.us-east-1.amazonaws.com`) connected,
 > while unlisted destinations (`example.org`, `api.openai.com`) were reset by the
-> trailing per-pod deny rule. The deploy workarounds in Troubleshooting were all
-> exercised on that run.
+> trailing per-pod deny rule. **AWS Bedrock via IRSA was proven end-to-end**: with
+> no static keys, the pod assumed its IAM role through the web-identity token and
+> Claude 3.5 Haiku returned a real completion through the permitted
+> `bedrock-runtime.us-east-1` path. The deploy workarounds in Troubleshooting were
+> all exercised on that run.
 
 ### Required tools
 - `kubectl`, configured for the target cluster
@@ -373,6 +376,13 @@ not the first-class `azureOpenAI` block. Configure Azure as a custom endpoint
 
 **CRD not reconciled.** Confirm the base cluster shows fully onboarded (not
 "Partial") in CoPilot and the Aviatrix CRD controller is healthy.
+
+**Bedrock `ValidationException: ... on-demand throughput isn't supported`.** Use a
+cross-region **inference profile** id (`us.`/`eu.` prefix), e.g.
+`us.anthropic.claude-3-5-haiku-20241022-v1:0`, not the bare model id. The IAM
+policy must allow `bedrock:InvokeModel*` on both the `inference-profile/*` ARN and
+the underlying `foundation-model/anthropic.*` ARNs (the role created for IRSA
+covers both).
 
 ## Tested With
 

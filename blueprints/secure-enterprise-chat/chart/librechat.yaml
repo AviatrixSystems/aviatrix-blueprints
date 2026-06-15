@@ -21,6 +21,9 @@ endpoints:
   # --- AWS Bedrock (Claude) ---
   # Each region expands to bedrock-runtime.<region>.amazonaws.com in the policy.
   # Remove this block to disable the AWS path (no Bedrock domains permitted).
+  # NOTE: Claude 3.5+ requires a cross-region INFERENCE PROFILE id for on-demand
+  # invoke (us./eu. prefix), e.g. us.anthropic.claude-3-5-haiku-20241022-v1:0.
+  # Bare ids (anthropic.claude-3-5-...) fail with a ValidationException.
   bedrock:
     availableRegions:
       - us-east-1
