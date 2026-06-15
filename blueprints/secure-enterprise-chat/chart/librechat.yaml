@@ -27,8 +27,11 @@ endpoints:
   bedrock:
     availableRegions:
       - us-east-1
-    titleModel: us.anthropic.claude-3-5-haiku-20241022-v1:0
+    titleModel: us.anthropic.claude-haiku-4-5-20251001-v1:0
     streamRate: 35
+    # The model dropdown is controlled by the BEDROCK_AWS_MODELS env var (set in
+    # the credentials secret / .env), e.g.:
+    #   us.anthropic.claude-haiku-4-5-20251001-v1:0,us.anthropic.claude-sonnet-4-6
 
   # --- Azure OpenAI / OpenAI-compatible backends ---
   # Configure as a CUSTOM endpoint so the generator captures the host from
