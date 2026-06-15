@@ -197,8 +197,8 @@ Layer 2: EKS Clusters (Control Plane Only)
 ├── clusters/backend/           # Control plane, IAM roles, security groups, VPC CNI addon
 
 Layer 3: EKS Node Groups + Kubernetes Resources
-├── nodes/frontend/             # k8s-firewall Helm, ENIConfig, nodes, CoreDNS, Helm charts (ALB Controller, ExternalDNS)
-├── nodes/backend/              # k8s-firewall Helm, ENIConfig, nodes, CoreDNS, Helm charts (ALB Controller, ExternalDNS)
+├── nodes/frontend/             # k8s-firewall Helm, ENIConfig, nodes, CoreDNS, EBS CSI + gp3 SC, Helm charts (ALB Controller, ExternalDNS)
+├── nodes/backend/              # k8s-firewall Helm, ENIConfig, nodes, CoreDNS, EBS CSI + gp3 SC, Helm charts (ALB Controller, ExternalDNS)
 ```
 
 Each layer reads the previous layer's state via `terraform_remote_state` data sources.
@@ -308,10 +308,11 @@ terraform apply
 - EKS managed node groups
 - Node IAM roles with SSM access
 - CoreDNS addon
+- EBS CSI driver addon + default `gp3` StorageClass (per cluster)
 - AWS Load Balancer Controller v1.10.1 (via Helm)
 - ExternalDNS v1.19.0 (via Helm)
 
-**Deployment order:** k8s-firewall Helm chart → ENIConfig → Node Groups → CoreDNS → Helm Charts (ALB Controller, ExternalDNS)
+**Deployment order:** k8s-firewall Helm chart → ENIConfig → Node Groups → CoreDNS → EBS CSI driver + gp3 StorageClass → Helm Charts (ALB Controller, ExternalDNS)
 
 **⚠️ IMPORTANT:** You cannot run kubectl commands until you configure kubectl in Step 5.
 
