@@ -1,0 +1,37 @@
+# Example: LibreChat config WITH MCP servers, to show how the egress-policy
+# generator folds MCP egress into the FirewallPolicy allowlist.
+#
+# Generate the policy from THIS file:
+#   python ../../egress-policy/generate.py \
+#     --config librechat.yaml --namespace librechat \
+#     --pod-label app.kubernetes.io/name=librechat \
+#     --env-keys "" --output firewall-policy.yaml
+#
+# See firewall-policy.yaml (committed next to this file) for the result.
+version: 1.2.8
+cache: true
+
+endpoints:
+  bedrock:
+    availableRegions:
+      - us-east-1
+    titleModel: us.anthropic.claude-haiku-4-5-20251001-v1:0
+
+mcpServers:
+  # (1) Remote MCP server -> its hostname is added to the allowlist verbatim.
+  deepwiki:
+    type: streamable-http
+    url: https://mcp.deepwiki.com/mcp
+
+  # (2) Subprocess (npx) MCP server -> cannot be domain-scoped per server, so the
+  #     generator adds its package-registry domain (registry.npmjs.org) and emits
+  #     a warning recommending the Aviatrix OBOT VCA for true workload isolation.
+  sequential-thinking:
+    type: stdio
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+
+  # (3) Internal/cluster-local MCP -> skipped (left as a note in the output).
+  local-tool:
+    type: streamable-http
+    url: http://host.docker.internal:3001/mcp

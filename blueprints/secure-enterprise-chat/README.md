@@ -50,6 +50,7 @@ pod. Nothing here is permitted to egress until it appears in that policy.
 | `chart/.env.example` | Template for the `librechat-credentials-env` Secret (AI creds, JWT/CREDS keys). |
 | `egress-policy/` | The translator shim: `generate.py` + `egress-catalog.yaml`. Produces the `FirewallPolicy` CRD. |
 | `argocd/application.yaml` | Example ArgoCD Application (multi-source) for GitOps deploys. |
+| `examples/with-mcp/` | Worked example: MCP servers (remote + subprocess + internal) and the resulting allowlist. See its README. |
 | `main.tf`, `variables.tf`, `versions.tf`, `outputs.tf` | **Optional** thin Terraform `helm_release` wrapper. |
 
 > No LibreChat application source is vendored here. The chart pulls

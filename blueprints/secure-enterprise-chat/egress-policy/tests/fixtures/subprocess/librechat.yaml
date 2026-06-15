@@ -1,0 +1,10 @@
+version: 1.2.8
+mcpServers:
+  fetch:
+    type: stdio
+    command: uvx
+    args: ["mcp-server-fetch"]
+  thinking:
+    type: stdio
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-sequential-thinking"]

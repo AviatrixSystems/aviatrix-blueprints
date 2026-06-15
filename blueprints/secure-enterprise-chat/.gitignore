@@ -8,8 +8,9 @@ chart/.env
 egress-policy/firewall-policy.yaml
 
 # Python
-egress-policy/__pycache__/
+__pycache__/
 *.pyc
+.pytest_cache/
 
 # Terraform (local state only; no secrets in VCS)
 .terraform/

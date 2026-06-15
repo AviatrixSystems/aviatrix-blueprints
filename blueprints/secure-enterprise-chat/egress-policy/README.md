@@ -5,9 +5,9 @@ Aviatrix `FirewallPolicy` CRD that permits only the egress the current LibreChat
 configuration actually requires. Everything else stays denied by the base
 cluster's DCF default-deny.
 
-> Vendored copy. The canonical, fully test-covered version lives in the
-> LibreChat repo at `utils/egress-policy/`. Keep them in sync if you change the
-> resolution logic. This copy exists so the blueprint is self-contained.
+> This is the source of record for the generator — it ships with the blueprint
+> and is covered by the `tests/` suite (golden-file + unit; run `pytest`). The
+> tests document the behavior.
 
 ## Run it for this blueprint
 
