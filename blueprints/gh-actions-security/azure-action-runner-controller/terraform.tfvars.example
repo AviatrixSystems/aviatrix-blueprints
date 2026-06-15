@@ -1,0 +1,51 @@
+# Copy to terraform.tfvars and fill in values before running terraform apply.
+#
+# Aviatrix controller credentials are NOT set here — export them as TF_VAR_* env vars:
+#   export TF_VAR_aviatrix_controller_ip=your-controller.example.com
+#   export TF_VAR_aviatrix_username=admin
+#   export TF_VAR_aviatrix_password=...
+
+azure_subscription_id = "00000000-0000-0000-0000-000000000000"
+aviatrix_account_name = "azure-myaccount"
+
+# Object ID of the Aviatrix Azure service principal.
+# Find it: az ad sp list --display-name "Aviatrix" --query "[].id" -o tsv
+# The SP needs AKS Cluster User Role (assigned automatically by the blueprint).
+aviatrix_sp_object_id = "00000000-0000-0000-0000-000000000000"
+
+location = "westeurope"
+
+# GitHub runner registration
+github_repo_url = "https://github.com/your-org/your-repo"
+github_pat      = "ghp_..."
+
+# ARC scale set name — becomes the runs-on label in workflow YAML.
+# Must be unique per runner registration target (org/repo).
+# arc_runner_name = "azure-arc"
+
+# Optional overrides (defaults shown)
+# name_prefix        = "gh-aks-runner"      # 6-digit suffix auto-appended
+# spoke_gateway_name = null                 # null → derived from name_prefix
+# vnet_cidr          = "10.10.30.0/24"
+# gw_subnet_cidr     = "10.10.30.0/26"
+# aks_subnet_cidr    = "10.10.30.128/25"    # 128 IPs for AKS nodes + pods (Azure CNI)
+# spoke_gw_size      = "Standard_B2ms"
+# aks_node_count     = 1
+# aks_node_vm_size   = "Standard_B2s_v2"
+
+# FQDNs runner pods may reach for tool/agent calls (HTTP 80 + HTTPS 443).
+tool_call_fqdns = [
+  "www.example.com",
+]
+
+# Aviatrix MITM CA certificate (PEM). Used by the TLS-decrypt probe pod.
+# Fetch once from the controller:
+#   TOKEN=$(curl -sk -X POST "https://<controller>/v1/api" \
+#     -d "action=login&username=admin&password=..." \
+#     | python3 -c "import sys,json; print(json.load(sys.stdin)['CID'])")
+#   curl -sk "https://<controller>/v2.5/api/mitm/ca" -H "Authorization: cid $TOKEN"
+aviatrix_mitm_ca_pem = <<-EOT
+  -----BEGIN CERTIFICATE-----
+  ...
+  -----END CERTIFICATE-----
+EOT
