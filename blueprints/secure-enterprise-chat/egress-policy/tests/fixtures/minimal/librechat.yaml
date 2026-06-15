@@ -1,0 +1,9 @@
+version: 1.2.8
+endpoints:
+  bedrock:
+    availableRegions:
+      - us-east-1
+mcpServers:
+  docs:
+    type: streamable-http
+    url: https://mcp.example.com/

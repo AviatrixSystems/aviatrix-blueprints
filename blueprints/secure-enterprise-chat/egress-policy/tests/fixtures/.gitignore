@@ -1,0 +1,3 @@
+# These are synthetic test fixtures, not real configs — unignore them.
+!librechat.yaml
+!*/librechat.yaml

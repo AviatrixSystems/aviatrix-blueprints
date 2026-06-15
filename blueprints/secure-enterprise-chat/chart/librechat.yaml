@@ -1,0 +1,63 @@
+# librechat.yaml — LibreChat application config.
+#
+# This is the SINGLE SOURCE OF TRUTH for both the running app and the egress
+# allowlist: the egress-policy generator (../egress-policy/generate.py) reads
+# this file to build the Aviatrix FirewallPolicy CRD. Enable only the backends
+# you actually use — every enabled backend widens the egress allowlist.
+#
+# Regenerate the policy after editing this file (see ../README.md).
+
+version: 1.2.8
+cache: true
+
+interface:
+  # Trim the UI to the essentials for a locked-down deployment.
+  privacyPolicy:
+    externalUrl: ""
+  termsOfService:
+    externalUrl: ""
+
+endpoints:
+  # --- AWS Bedrock (Claude) ---
+  # Each region expands to bedrock-runtime.<region>.amazonaws.com in the policy.
+  # Remove this block to disable the AWS path (no Bedrock domains permitted).
+  # NOTE: Claude 3.5+ requires a cross-region INFERENCE PROFILE id for on-demand
+  # invoke (us./eu. prefix), e.g. us.anthropic.claude-3-5-haiku-20241022-v1:0.
+  # Bare ids (anthropic.claude-3-5-...) fail with a ValidationException.
+  bedrock:
+    availableRegions:
+      - us-east-1
+    titleModel: us.anthropic.claude-haiku-4-5-20251001-v1:0
+    streamRate: 35
+    # The model dropdown is controlled by the BEDROCK_AWS_MODELS env var (set in
+    # the credentials secret / .env), e.g.:
+    #   us.anthropic.claude-haiku-4-5-20251001-v1:0,us.anthropic.claude-sonnet-4-6
+
+  # --- Azure OpenAI / OpenAI-compatible backends ---
+  # Configure as a CUSTOM endpoint so the generator captures the host from
+  # baseURL. (The generator parses endpoints.custom[].baseURL; it does not
+  # parse the first-class azureOpenAI block.) Uncomment and set your resource:
+  #
+  # custom:
+  #   - name: AzureOpenAI
+  #     baseURL: "https://YOUR-RESOURCE.openai.azure.com/openai/deployments/YOUR-DEPLOYMENT"
+  #     apiKey: "${AZURE_API_KEY}"
+  #     models:
+  #       default: ["gpt-4o"]
+  #       fetch: false
+  #     titleConvo: true
+  #     titleModel: "gpt-4o"
+
+# --- MCP servers ---
+# Remote (sse / streamable-http) servers are domain-scoped automatically from
+# their url. Subprocess servers (command: uvx | npx) run INSIDE the LibreChat
+# pod and cannot be isolated per-server at the pod level — the generator emits
+# their package-registry domains and warns, recommending the Aviatrix OBOT VCA
+# for true workload isolation. Use the generator's --strict flag in CI to fail
+# the build when subprocess MCP servers are present.
+mcpServers:
+  # DeepWiki: public, no-auth remote MCP that answers questions about GitHub repo
+  # docs. Its host (mcp.deepwiki.com) is added to the egress allowlist.
+  deepwiki:
+    type: streamable-http
+    url: https://mcp.deepwiki.com/mcp
