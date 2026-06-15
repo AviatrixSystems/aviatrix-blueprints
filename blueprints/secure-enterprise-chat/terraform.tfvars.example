@@ -9,3 +9,7 @@ release_name = "librechat" # keep as "librechat" so the pod label stays app.kube
 
 chart_version = "2.0.2"
 ingress_host  = "chat.example.com"
+
+# AWS Bedrock via IRSA (EKS). Set to your role ARN to annotate the SA; leave the
+# BEDROCK_AWS_* static keys out of chart/.env when using this. Empty = no IRSA.
+irsa_role_arn = "" # e.g. "arn:aws:iam::123456789012:role/librechat-bedrock"

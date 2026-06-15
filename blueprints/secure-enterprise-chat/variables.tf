@@ -33,3 +33,9 @@ variable "ingress_host" {
   type        = string
   default     = "chat.example.com"
 }
+
+variable "irsa_role_arn" {
+  description = "IAM role ARN for AWS Bedrock via IRSA. When set, annotates the LibreChat ServiceAccount (eks.amazonaws.com/role-arn) so the pod assumes this role; leave the BEDROCK_AWS_* static keys out of the secret. Empty = no annotation (use static keys or non-AWS auth). The role's trust policy must allow system:serviceaccount:<namespace>:librechat."
+  type        = string
+  default     = ""
+}

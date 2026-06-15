@@ -46,6 +46,20 @@ service:
   type: ClusterIP
   port: 3080
 
+# ServiceAccount for the LibreChat pod.
+# On EKS, prefer IRSA (or Pod Identity) for AWS Bedrock instead of static keys:
+# annotate this SA with the IAM role ARN below and leave BEDROCK_AWS_ACCESS_KEY_ID
+# / BEDROCK_AWS_SECRET_ACCESS_KEY UNSET in the secret — LibreChat then resolves
+# credentials via the AWS default provider chain (the web-identity token IRSA
+# injects). The IAM role's trust policy must allow this SA:
+#   system:serviceaccount:<namespace>:librechat
+serviceAccount:
+  create: true
+  name: librechat # fixed name so the IAM trust policy is stable
+  annotations: {}
+  # annotations:
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::<ACCOUNT_ID>:role/librechat-bedrock
+
 # LibreChat config + credentials.
 librechat:
   # librechat.yaml is injected at install time (see header). Leave empty here.

@@ -212,6 +212,51 @@ their own app repo and let ArgoCD/Flux drive everything:
 4. The loop becomes: edit `librechat.yaml` → CI regenerates the CRD → Argo syncs
    both the chart and the policy. Config and its firewall posture move together.
 
+## AWS Bedrock auth via IRSA (recommended on EKS)
+
+LibreChat passes **no explicit credentials** to the Bedrock client when
+`BEDROCK_AWS_ACCESS_KEY_ID`/`BEDROCK_AWS_SECRET_ACCESS_KEY` are unset, so the AWS
+SDK default provider chain resolves the **IRSA** web-identity token (or EKS Pod
+Identity). No long-lived keys in the cluster.
+
+1. **IAM role + trust policy** (IRSA) — allow the cluster's OIDC provider to
+   assume the role for the `librechat` SA in your namespace:
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [{
+       "Effect": "Allow",
+       "Principal": { "Federated": "arn:aws:iam::<ACCOUNT_ID>:oidc-provider/oidc.eks.<region>.amazonaws.com/id/<OIDC_ID>" },
+       "Action": "sts:AssumeRoleWithWebIdentity",
+       "Condition": { "StringEquals": {
+         "oidc.eks.<region>.amazonaws.com/id/<OIDC_ID>:sub": "system:serviceaccount:librechat:librechat",
+         "oidc.eks.<region>.amazonaws.com/id/<OIDC_ID>:aud": "sts.amazonaws.com"
+       }}
+     }]
+   }
+   ```
+   ```bash
+   # one-liner alternative (handles the trust policy for you):
+   eksctl create iamserviceaccount --cluster <cluster> --namespace librechat \
+     --name librechat --attach-policy-arn arn:aws:iam::aws:policy/AmazonBedrockFullAccess \
+     --approve --override-existing-serviceaccounts
+   ```
+   Attach a permissions policy allowing `bedrock:InvokeModel*` (scope to the
+   model ARNs you use; `AmazonBedrockFullAccess` is the broad option).
+
+2. **Wire the role to the SA** (pick one):
+   - Helm: `--set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=<role-arn>` (or set it in `chart/values.yaml`).
+   - Terraform: `irsa_role_arn = "<role-arn>"`.
+
+3. **Keep the BEDROCK_AWS_* keys out of `chart/.env`**, but still set
+   `BEDROCK_AWS_DEFAULT_REGION` (LibreChat reads region from it).
+
+Egress is already covered: `sts.amazonaws.com` (token exchange) is in the
+catalog's `always_on`, and `bedrock-runtime.<region>` comes from `librechat.yaml`.
+**Pod Identity** alternative: create a Pod Identity association (SA→role) + the
+pod-identity-agent addon; no SA annotation needed (LibreChat uses the same
+default chain).
+
 ## Variables (Terraform wrapper)
 
 | Variable | Default | Description |
@@ -222,6 +267,7 @@ their own app repo and let ArgoCD/Flux drive everything:
 | `release_name` | `librechat` | keep as `librechat` to preserve the pod label |
 | `chart_version` | `2.0.2` | official LibreChat chart version |
 | `ingress_host` | `chat.example.com` | ingress hostname |
+| `irsa_role_arn` | `""` | IAM role ARN for Bedrock via IRSA; annotates the SA. Empty = none |
 
 ## Outputs (Terraform wrapper)
 

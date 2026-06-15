@@ -38,4 +38,14 @@ resource "helm_release" "librechat" {
     name  = "ingress.hosts[0].host"
     value = var.ingress_host
   }
+
+  # IRSA: annotate the ServiceAccount with the Bedrock IAM role when provided.
+  # The dotted annotation key is escaped so Helm treats it as one key, not nesting.
+  dynamic "set" {
+    for_each = var.irsa_role_arn != "" ? [1] : []
+    content {
+      name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+      value = var.irsa_role_arn
+    }
+  }
 }
