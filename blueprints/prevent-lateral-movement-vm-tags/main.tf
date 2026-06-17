@@ -221,6 +221,12 @@ resource "aviatrix_spoke_gateway" "spokes" {
   tags = merge(local.common_tags, {
     Environment = each.value.environment
   })
+
+  # Explicit dependency on the route table association ensures the IGW route
+  # exists before Aviatrix validates the subnet is public. Without this,
+  # Aviatrix may see the subnet before the route table association is applied
+  # and throw AVXERR-TRANSIT-0024 ("Gateways can only be launched in public subnets").
+  depends_on = [aws_route_table_association.spokes_public]
 }
 
 # ============================================================================
@@ -305,6 +311,19 @@ resource "aws_security_group" "test_vms" {
       protocol    = "tcp"
       cidr_blocks = ["10.0.0.0/8"]
       description = "PostgreSQL from private address space (DCF enforces policy)"
+    }
+  }
+
+  # Allow SSH (22) from private address space for cross-spoke DCF policy testing.
+  # DCF enforces whether this traffic actually reaches the DB, regardless of SG allowance.
+  dynamic "ingress" {
+    for_each = each.key == "db" ? [1] : []
+    content {
+      from_port   = 22
+      to_port     = 22
+      protocol    = "tcp"
+      cidr_blocks = ["10.0.0.0/8"]
+      description = "SSH from private address space (DCF enforces policy)"
     }
   }
 
