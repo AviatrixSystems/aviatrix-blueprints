@@ -33,7 +33,7 @@ It does this using **Aviatrix Distributed Cloud Firewall (DCF)** with **SmartGro
 │  │            Transit VPC (10.0.0.0/23)         │    │
 │  │     ┌────────────────────────────────┐       │    │
 │  │     │  Aviatrix Transit Gateway      │       │    │
-│  │     │  (zt-seg-transit-gw, t3.small) │       │    │
+│  │     │  (plm-transit-gw, t3.small)    │       │    │
 │  │     └───┬─────────────┬─────────┬───┘       │    │
 │  └─────────┼─────────────┼─────────┼───────────┘    │
 │            │             │         │                  │
@@ -43,7 +43,7 @@ It does this using **Aviatrix Distributed Cloud Firewall (DCF)** with **SmartGro
 │  10.1.0.0/24  10.2.0.0/24 10.3.0.0/24               │
 │  Spoke GW     Spoke GW    Spoke GW                   │
 │  Dev VM       Prod VM     DB VM                      │
-│  EICE         EICE+Gatus                             │
+│  EICE         EICE+Gatus  EICE                       │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -61,7 +61,7 @@ It does this using **Aviatrix Distributed Cloud Firewall (DCF)** with **SmartGro
 - Stores and enforces DCF policy configuration
 - Manages SmartGroup membership in real time
 
-> **DCF must be enabled on the Controller before deploying.** Enable it at: Security > Distributed Cloud Firewall > Configuration > Enable. This blueprint manages SmartGroups and policies only — it deliberately does not enable/disable DCF so that `terraform destroy` never conflicts with other active policies on shared Controllers.
+> **DCF is managed by this blueprint.** `terraform apply` enables DCF; `terraform destroy` disables it. If your Controller has other active DCF policies you want to preserve, remove the `aviatrix_distributed_firewalling_config` resource from `dcf.tf` before running `terraform destroy`.
 
 **What to show in the demo:** The Controller itself is mostly invisible during the demo — everything is shown in CoPilot. Mention it exists as the management plane.
 
@@ -169,7 +169,7 @@ Three `t3.micro` EC2 instances (Amazon Linux 2), one per spoke VPC, deployed in 
 
 **What they are:** AWS-managed tunnels that let you SSH into private EC2 instances using only your existing AWS credentials — no bastion host, no public IP, no key file management.
 
-**Deployed for:** Dev and Prod spoke VPCs (not DB — it's a target-only VM with no need for interactive access).
+**Deployed for:** All three spoke VPCs — Dev, Prod, and DB. All test VMs are reachable via EC2 Instance Connect for manual test scenarios.
 
 **How to use:**
 ```bash
@@ -194,8 +194,9 @@ aws ec2-instance-connect ssh --instance-id <instance-id> --region us-east-1
 | Probe | From | To | Protocol | Expected | Why |
 |---|---|---|---|---|---|
 | G1 | Gatus (prod) | DB VM | ICMP | 🟢 GREEN | `allow-prod-to-db` — legitimate traffic |
-| G2 | Gatus (prod) | Dev VM | ICMP | 🔴 RED | `deny-prod-to-dev` — lateral movement blocked |
-| G3 | Gatus (prod) | Dev VM | TCP:22 | 🔴 RED | `default-deny-all` — default deny catches everything else |
+| G2 | Gatus (prod) | DB VM | TCP:5432 | 🟢 GREEN | `allow-prod-to-db` — database port permitted end-to-end |
+| G3 | Gatus (prod) | Dev VM | ICMP | 🔴 RED | `deny-prod-to-dev` — lateral movement blocked |
+| G4 | Gatus (prod) | Dev VM | TCP:22 | 🔴 RED | `default-deny-all` — default deny catches everything else |
 
 **Why Gatus is in the Prod SmartGroup:** The Gatus VM is tagged `Environment=production` so it's classified into `prod-smartgroup`. This means the `allow-prod-to-db` policy applies — Gatus probes can reach the DB VM and show GREEN. If it were tagged differently and unclassified, `default-deny-all` would block all its probes.
 

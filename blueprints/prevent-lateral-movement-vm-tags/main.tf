@@ -48,6 +48,19 @@ resource "aws_subnet" "transit_public" {
   })
 }
 
+resource "aws_subnet" "transit_ha" {
+  count = var.transit_gateway.ha_enabled ? 1 : 0
+
+  vpc_id                  = aws_vpc.transit.id
+  cidr_block              = cidrsubnet(var.transit_gateway.cidr, 2, 1)
+  availability_zone       = data.aws_availability_zones.available.names[1]
+  map_public_ip_on_launch = true
+
+  tags = merge(local.common_tags, {
+    Name = "${var.name_prefix}-transit-ha-subnet"
+  })
+}
+
 resource "aws_internet_gateway" "transit" {
   vpc_id = aws_vpc.transit.id
 
@@ -74,6 +87,13 @@ resource "aws_route_table_association" "transit_public" {
   route_table_id = aws_route_table.transit_public.id
 }
 
+resource "aws_route_table_association" "transit_ha" {
+  count = var.transit_gateway.ha_enabled ? 1 : 0
+
+  subnet_id      = aws_subnet.transit_ha[0].id
+  route_table_id = aws_route_table.transit_public.id
+}
+
 # Aviatrix Transit Gateway
 resource "aviatrix_transit_gateway" "main" {
   cloud_type   = 1 # AWS
@@ -83,7 +103,7 @@ resource "aviatrix_transit_gateway" "main" {
   vpc_reg      = var.aws_region
   gw_size      = "t3.small"
   subnet       = aws_subnet.transit_public.cidr_block
-  ha_subnet    = var.transit_gateway.ha_enabled ? cidrsubnet(var.transit_gateway.cidr, 2, 1) : null
+  ha_subnet    = var.transit_gateway.ha_enabled ? aws_subnet.transit_ha[0].cidr_block : null
   ha_gw_size   = var.transit_gateway.ha_enabled ? "t3.small" : null
 
   local_as_number               = var.transit_gateway.asn
@@ -201,6 +221,12 @@ resource "aviatrix_spoke_gateway" "spokes" {
   tags = merge(local.common_tags, {
     Environment = each.value.environment
   })
+
+  # Explicit dependency on the route table association ensures the IGW route
+  # exists before Aviatrix validates the subnet is public. Without this,
+  # Aviatrix may see the subnet before the route table association is applied
+  # and throw AVXERR-TRANSIT-0024 ("Gateways can only be launched in public subnets").
+  depends_on = [aws_route_table_association.spokes_public]
 }
 
 # ============================================================================
@@ -211,12 +237,12 @@ resource "aviatrix_spoke_gateway" "spokes" {
 # no IP whitelisting required. The `aws ec2-instance-connect ssh` command in
 # the gatus_dashboards output auto-discovers these endpoints.
 #
-# Only dev and prod need endpoints (Gatus runs there). DB is a target-only VM.
+# One endpoint per spoke VPC — dev, prod, and db all get EICE so SEs can SSH in to test DCF policy enforcement from any VM.
 
 # Security group for EC2 Instance Connect Endpoints.
 # Allows outbound SSH (port 22) to the spoke VPC CIDR only.
 resource "aws_security_group" "eice" {
-  for_each = { for k, v in var.spokes : k => v if k != "db" }
+  for_each = { for k, v in var.spokes : k => v }
 
   name_prefix = "${var.name_prefix}-${each.key}-eice-sg"
   description = "Security group for EC2 Instance Connect Endpoint in ${each.key} spoke"
@@ -241,7 +267,7 @@ resource "aws_security_group" "eice" {
 }
 
 resource "aws_ec2_instance_connect_endpoint" "spokes" {
-  for_each = { for k, v in var.spokes : k => v if k != "db" }
+  for_each = { for k, v in var.spokes : k => v }
 
   subnet_id          = aws_subnet.spokes_public[each.key].id
   security_group_ids = [aws_security_group.eice[each.key].id]
@@ -264,18 +290,7 @@ resource "aws_security_group" "test_vms" {
   description = "Security group for ${each.key} test VM"
   vpc_id      = aws_vpc.spokes[each.key].id
 
-  # DB has no EICE (target-only VM) — SSH allowed within VPC CIDR only.
-  # Dev/prod SSH is added via aws_security_group_rule below (requires source SG reference).
-  dynamic "ingress" {
-    for_each = each.key == "db" ? [1] : []
-    content {
-      from_port   = 22
-      to_port     = 22
-      protocol    = "tcp"
-      cidr_blocks = [var.spokes[each.key].cidr]
-      description = "SSH within VPC CIDR only"
-    }
-  }
+  # DB SSH ingress from EICE security group is added via aws_security_group_rule below (same as dev/prod).
 
   # Allow ICMP (ping) from within the RFC1918 range for DCF policy testing
   ingress {
@@ -284,6 +299,32 @@ resource "aws_security_group" "test_vms" {
     protocol    = "icmp"
     cidr_blocks = ["10.0.0.0/8"]
     description = "ICMP ping from private address space"
+  }
+
+  # Allow TCP 5432 (PostgreSQL) from private space — used for Gatus TCP probe demo
+  # DCF enforces whether this traffic actually reaches the DB, regardless of SG allowance.
+  dynamic "ingress" {
+    for_each = each.key == "db" ? [1] : []
+    content {
+      from_port   = 5432
+      to_port     = 5432
+      protocol    = "tcp"
+      cidr_blocks = ["10.0.0.0/8"]
+      description = "PostgreSQL from private address space (DCF enforces policy)"
+    }
+  }
+
+  # Allow SSH (22) from private address space for cross-spoke DCF policy testing.
+  # DCF enforces whether this traffic actually reaches the DB, regardless of SG allowance.
+  dynamic "ingress" {
+    for_each = each.key == "db" ? [1] : []
+    content {
+      from_port   = 22
+      to_port     = 22
+      protocol    = "tcp"
+      cidr_blocks = ["10.0.0.0/8"]
+      description = "SSH from private address space (DCF enforces policy)"
+    }
   }
 
   # Allow all outbound
@@ -321,10 +362,31 @@ resource "aws_instance" "test_vms" {
   user_data = <<-SCRIPT
     #!/bin/bash
     yum update -y
-    yum install -y tcpdump netcat nmap
+    yum install -y tcpdump nmap
     hostnamectl set-hostname ${each.key}-test-vm
     echo "Welcome to ${each.key} test VM" > /etc/motd
+    %{if each.key == "db"}
+    # Persistent TCP listener on port 5432 — lets Gatus verify DCF permits
+    # Prod -> DB TCP traffic end-to-end. Uses Python3 (pre-installed on AL2)
+    # instead of nc/netcat which is not available in Amazon Linux 2 repos.
+    cat > /etc/systemd/system/demo-db-listener.service <<EOF
+[Unit]
+Description=Demo DB port 5432 listener
+After=network.target
+[Service]
+ExecStart=/usr/bin/python3 -c "import socket; s=socket.socket(); s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1); s.bind(('0.0.0.0',5432)); s.listen(10); [s.accept()[0].close() for _ in iter(int,1)]"
+Restart=always
+RestartSec=3
+[Install]
+WantedBy=multi-user.target
+EOF
+    systemctl daemon-reload
+    systemctl enable demo-db-listener
+    systemctl start demo-db-listener
+    %{endif}
     SCRIPT
+
+  user_data_replace_on_change = true
 
   tags = merge(local.common_tags, {
     Name        = "${var.name_prefix}-${each.key}-test-vm"
@@ -337,7 +399,7 @@ resource "aws_instance" "test_vms" {
 # Uses aws_security_group_rule (not inline ingress) because source_security_group_id
 # is not supported in inline ingress blocks.
 resource "aws_security_group_rule" "test_vm_ssh_from_eice" {
-  for_each = { for k, v in var.spokes : k => v if k != "db" }
+  for_each = { for k, v in var.spokes : k => v }
 
   type                     = "ingress"
   from_port                = 22

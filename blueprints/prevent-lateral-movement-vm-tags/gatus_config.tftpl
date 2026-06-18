@@ -30,6 +30,12 @@ endpoints:
     interval: 10s
     conditions:
       - "[CONNECTED] == true"
+  - name: "Prod to DB TCP:5432 (ALLOWED — DCF permit rule)"
+    group: "Should Be GREEN"
+    url: "tcp://${db_ip}:5432"
+    interval: 10s
+    conditions:
+      - "[CONNECTED] == true"
   - name: "Prod to Dev ICMP (BLOCKED — no lateral movement)"
     group: "Should Be RED"
     url: "icmp://${dev_ip}"

@@ -21,20 +21,20 @@ aws_region = "us-east-1"
 # ============================================================================
 
 # Prefix for all resource names (keep it short, 8 chars or less)
-name_prefix = "zt-seg"
-
-# EC2 key pair name for SSH access to test VMs
-# Must exist in your AWS account in the specified region
-test_vm_key_name = "my-keypair"
+name_prefix = "plm"
 
 # EC2 instance type for test VMs (t3.micro is fine for testing)
 test_vm_instance_type = "t3.micro"
 
 # ============================================================================
-# Advanced Configuration (Optional - defaults are sensible)
+# Advanced Configuration (Optional — defaults shown below work for most demos)
 # ============================================================================
 
 # Transit Gateway configuration
+# cidr:       CIDR for the transit VPC. Must not overlap with spoke CIDRs.
+# asn:        BGP ASN for the transit gateway. Use a private ASN (64512–65534).
+# ha_enabled: Set to true to deploy a second transit gateway in a different AZ.
+#             Adds ~5 minutes to deployment and doubles transit gateway cost.
 # transit_gateway = {
 #   cidr       = "10.0.0.0/23"
 #   asn        = 64512
@@ -42,6 +42,12 @@ test_vm_instance_type = "t3.micro"
 # }
 
 # Spoke configurations
+# Each spoke creates: 1 VPC, 1 Aviatrix Spoke Gateway, 1 test VM, 1 EICE endpoint.
+# cidr:        VPC CIDR. Must not overlap with transit or other spoke CIDRs.
+# environment: EC2 tag value — must match the DCF SmartGroup tag selector exactly.
+#              dev → SmartGroup matches Environment=development
+#              prod → SmartGroup matches Environment=production
+#              db → SmartGroup matches Environment=database
 # spokes = {
 #   dev = {
 #     cidr        = "10.1.0.0/24"

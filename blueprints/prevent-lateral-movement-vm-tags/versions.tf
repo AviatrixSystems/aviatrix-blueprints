@@ -3,7 +3,7 @@ terraform {
 
   required_providers {
     aviatrix = {
-      source  = "AviatrixSystems/aviatrix"
+      source = "AviatrixSystems/aviatrix"
       # Pin this to match your Controller version. The provider version must
       # match the Controller version exactly (e.g. Controller 8.2.x → provider ~> 8.2).
       # Full compatibility matrix:

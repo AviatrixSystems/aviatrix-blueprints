@@ -79,6 +79,13 @@ output "test_scenarios" {
   }
 }
 
+output "ssh_commands" {
+  description = "Ready-to-run commands to SSH into each test VM via EC2 Instance Connect (no key pair required)"
+  value = {
+    for k, v in aws_instance.test_vms : k => "aws ec2-instance-connect ssh --instance-id ${v.id} --region ${var.aws_region}"
+  }
+}
+
 output "gatus_dashboard_url" {
   description = "URL of the live Zero Trust connectivity dashboard (available ~2-3 min after apply once ALB health check passes)"
   value       = "http://${aws_lb.gatus.dns_name}"

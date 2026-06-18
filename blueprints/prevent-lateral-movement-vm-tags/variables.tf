@@ -1,7 +1,7 @@
 variable "name_prefix" {
   description = "Prefix for all resource names"
   type        = string
-  default     = "zt-seg"
+  default     = "plm"
 }
 
 variable "aws_region" {
@@ -58,8 +58,9 @@ variable "test_vm_instance_type" {
 }
 
 variable "test_vm_key_name" {
-  description = "EC2 key pair name for SSH access to test VMs"
+  description = "EC2 key pair name for SSH access to test VMs. Optional — EC2 Instance Connect (EICE) is the primary access method and does not require a key pair."
   type        = string
+  default     = null
 }
 
 variable "gatus_allowed_cidr" {
