@@ -19,7 +19,7 @@
 #####################
 
 apiVersion: networking.aviatrix.com/v1alpha1
-kind: WebGroupPolicy
+kind: WebgroupPolicy
 metadata:
   name: dev-external-apis
   namespace: dev
@@ -28,13 +28,9 @@ spec:
     matchLabels:
       environment: development
 
-  action: permit
-  protocol: tcp
-  ports:
-    - "443"
   logging: true
 
-  domains:
+  allowedDomains:
     # Package registries
     - "pypi.org"
     - "*.pypi.org"

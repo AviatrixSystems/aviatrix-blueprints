@@ -251,9 +251,14 @@ resource "aviatrix_kubernetes_cluster" "this" {
 resource "aws_eks_access_entry" "aviatrix_controller" {
   count = var.enable_aviatrix_onboarding && var.aviatrix_controller_role_arn != "" ? 1 : 0
 
-  cluster_name      = module.eks.cluster_name
-  principal_arn     = var.aviatrix_controller_role_arn
-  kubernetes_groups = ["view-nodes"]
+  cluster_name  = module.eks.cluster_name
+  principal_arn = var.aviatrix_controller_role_arn
+  # "avx-controller" is the group the k8s-firewall Helm chart (installed in the
+  # nodes layer) binds its ClusterRole to; that ClusterRole is the only grant of
+  # networking.aviatrix.com/* (FirewallPolicy/WebgroupPolicy) read access. Without
+  # it the Controller can authenticate but gets "forbidden" listing the CRDs, so
+  # CRD-based policies never sync. "view-nodes" remains for the nodes grant.
+  kubernetes_groups = ["view-nodes", "avx-controller"]
   type              = "STANDARD"
 
   depends_on = [module.eks]
