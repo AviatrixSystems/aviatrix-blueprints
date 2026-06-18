@@ -4,3 +4,7 @@ data "terraform_remote_state" "network" {
     path = "${path.module}/../network-infra/terraform.tfstate"
   }
 }
+
+data "azurerm_client_config" "current" {
+  provider = azurerm.workload_subscription
+}

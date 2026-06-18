@@ -173,8 +173,17 @@ resource "aviatrix_spoke_transit_attachment" "main" {
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Aviatrix DCF — Smart Groups, Web Groups, Ruleset
+# Aviatrix DCF — Smart Groups, Web Groups, TLS Profile, Policy List
 # ══════════════════════════════════════════════════════════════════════════════
+
+# ── TLS profile — strict SNI + certificate validation ────────────────────────
+
+resource "aviatrix_dcf_tls_profile" "strict" {
+  display_name           = "foundry-strict-${local.suffix}"
+  verify_sni             = true
+  ca_bundle_id           = "def000ad-6000-0000-0000-000000000002"
+  certificate_validation = "CERTIFICATE_VALIDATION_ENFORCE"
+}
 
 # ── Smart group — Foundry Agent subnet ───────────────────────────────────────
 
@@ -240,91 +249,94 @@ resource "aviatrix_web_group" "foundry_tool_calls" {
   }
 }
 
-# ── DCF attachment point ──────────────────────────────────────────────────────
+# ── DCF policy list — Foundry Agent egress ───────────────────────────────────
+# Inserts rules into the global Distributed Firewalling policy list.
+# aviatrix_distributed_firewalling_policy_list owns the full list — no
+# ruleset / attachment point needed.
 
-data "aviatrix_dcf_attachment_point" "tf_before_ui" {
-  name = "TERRAFORM_BEFORE_UI_MANAGED"
-}
-
-# ── DCF ruleset — Foundry Agent egress ───────────────────────────────────────
-
-resource "aviatrix_dcf_ruleset" "foundry_agent" {
-  name      = "rs-foundry-agent-egress-${local.suffix}"
-  attach_to = data.aviatrix_dcf_attachment_point.tf_before_ui.id
+resource "aviatrix_distributed_firewalling_policy_list" "foundry_agent" {
 
   # Rule 1 — deny known-malicious destinations before any permit (ThreatGroup)
-  rules {
-    name             = "foundry-deny-threat-intel-${local.suffix}"
-    priority         = 1
-    action           = "DENY"
-    protocol         = "ANY"
-    logging          = true
-    src_smart_groups = [aviatrix_smart_group.foundry_agent.uuid]
-    dst_smart_groups = [local.sg_threat_intel]
+  policies {
+    name                     = "foundry-deny-threat-intel-${local.suffix}"
+    priority                 = 1
+    action                   = "DENY"
+    protocol                 = "ANY"
+    logging                  = true
+    exclude_sg_orchestration = true
+    src_smart_groups         = [aviatrix_smart_group.foundry_agent.uuid]
+    dst_smart_groups         = [local.sg_threat_intel]
   }
 
   # Rule 2 — ACA runtime FQDNs: permit without decryption (TLS break breaks ACA startup)
-  rules {
-    name                 = "aca-requirements-fqdn-${local.suffix}"
-    priority             = 2
-    action               = "PERMIT"
-    decrypt_policy       = "DECRYPT_NOT_ALLOWED"
-    protocol             = "TCP"
-    flow_app_requirement = "TLS_REQUIRED"
-    logging              = true
-    src_smart_groups     = [aviatrix_smart_group.foundry_agent.uuid]
-    dst_smart_groups     = [local.sg_public_internet]
-    web_groups           = [aviatrix_web_group.aca_requirements_fqdns.uuid]
+  policies {
+    name                     = "aca-requirements-fqdn-${local.suffix}"
+    priority                 = 2
+    action                   = "PERMIT"
+    decrypt_policy           = "DECRYPT_NOT_ALLOWED"
+    protocol                 = "TCP"
+    flow_app_requirement     = "TLS_REQUIRED"
+    tls_profile              = aviatrix_dcf_tls_profile.strict.uuid
+    logging                  = true
+    exclude_sg_orchestration = true
+    src_smart_groups         = [aviatrix_smart_group.foundry_agent.uuid]
+    dst_smart_groups         = [local.sg_public_internet]
+    web_groups               = [aviatrix_web_group.aca_requirements_fqdns.uuid]
     port_ranges {
       lo = 443
       hi = 443
     }
   }
 
-  # Rule 3 — ACA runtime Service Tags: permit without decryption (control-plane, not tool-call surface)
-  rules {
-    name                 = "aca-requirements-svctag-${local.suffix}"
-    priority             = 3
-    action               = "PERMIT"
-    decrypt_policy       = "DECRYPT_NOT_ALLOWED"
-    protocol             = "TCP"
-    flow_app_requirement = "TLS_REQUIRED"
-    logging              = true
-    src_smart_groups     = [aviatrix_smart_group.foundry_agent.uuid]
-    dst_smart_groups     = [aviatrix_smart_group.aca_platform_svctags.uuid]
+  # Rule 3 — ACA platform Service Tags: permit without decryption (control-plane)
+  policies {
+    name                     = "aca-requirements-svctag-${local.suffix}"
+    priority                 = 3
+    action                   = "PERMIT"
+    decrypt_policy           = "DECRYPT_NOT_ALLOWED"
+    protocol                 = "TCP"
+    flow_app_requirement     = "TLS_REQUIRED"
+    tls_profile              = aviatrix_dcf_tls_profile.strict.uuid
+    logging                  = true
+    exclude_sg_orchestration = true
+    src_smart_groups         = [aviatrix_smart_group.foundry_agent.uuid]
+    dst_smart_groups         = [aviatrix_smart_group.aca_platform_svctags.uuid]
     port_ranges {
       lo = 443
       hi = 443
     }
   }
 
-  # Rule 4 — approved tool-call FQDNs: permit (always enforced)
-  rules {
-    name             = "foundry-tool-calls-${local.suffix}"
-    priority         = 4
-    action           = "PERMIT"
-    watch            = false
-    protocol         = "TCP"
-    logging          = true
-    src_smart_groups = [aviatrix_smart_group.foundry_agent.uuid]
-    dst_smart_groups = [local.sg_public_internet]
-    web_groups       = [aviatrix_web_group.foundry_tool_calls.uuid]
+  # Rule 4 — approved tool-call FQDNs: permit with TLS decryption and strict SNI verification
+  policies {
+    name                     = "foundry-tool-calls-${local.suffix}"
+    priority                 = 4
+    action                   = "PERMIT"
+    watch                    = false
+    protocol                 = "TCP"
+    logging                  = true
+    tls_profile              = aviatrix_dcf_tls_profile.strict.uuid
+    exclude_sg_orchestration = true
+    src_smart_groups         = [aviatrix_smart_group.foundry_agent.uuid]
+    dst_smart_groups         = [local.sg_public_internet]
+    web_groups               = [aviatrix_web_group.foundry_tool_calls.uuid]
     port_ranges {
       lo = 443
       hi = 443
     }
   }
 
-  # Rule 5 — no-zero-trust: permit all web destinations (AllWeb) — comment out to demo DCF protection
-  rules {
-    name             = "no-zero-trust-${local.suffix}"
-    priority         = 5
-    action           = "PERMIT"
-    protocol         = "TCP"
-    logging          = true
-    src_smart_groups = [aviatrix_smart_group.foundry_agent.uuid]
-    dst_smart_groups = [local.sg_public_internet]
-    web_groups       = [local.wg_allweb]
+  # Rule 5 — no-zero-trust: permit all web (AllWeb) — comment out to demo DCF protection
+  policies {
+    name                     = "no-zero-trust-${local.suffix}"
+    priority                 = 5
+    action                   = "PERMIT"
+    protocol                 = "TCP"
+    logging                  = true
+    exclude_sg_orchestration = true
+    src_smart_groups         = [aviatrix_smart_group.foundry_agent.uuid]
+    dst_smart_groups         = [local.sg_public_internet]
+    web_groups               = [local.wg_allweb]
     port_ranges {
       lo = 80
       hi = 80
@@ -335,25 +347,27 @@ resource "aviatrix_dcf_ruleset" "foundry_agent" {
     }
   }
 
-  # Rule 6 — default deny internet: any unlisted FQDN/destination not matched above
-  rules {
-    name             = "foundry-deny-internet-${local.suffix}"
-    priority         = 6
-    action           = "DENY"
-    protocol         = "ANY"
-    logging          = true
-    src_smart_groups = [aviatrix_smart_group.foundry_agent.uuid]
-    dst_smart_groups = [local.sg_public_internet]
+  # Rule 6 — default deny internet: any destination not matched above
+  policies {
+    name                     = "foundry-deny-internet-${local.suffix}"
+    priority                 = 6
+    action                   = "DENY"
+    protocol                 = "ANY"
+    logging                  = true
+    exclude_sg_orchestration = true
+    src_smart_groups         = [aviatrix_smart_group.foundry_agent.uuid]
+    dst_smart_groups         = [local.sg_public_internet]
   }
 
-  # Rule 7 — default deny East-West: no lateral movement from agent subnet to adjacent spokes
-  rules {
-    name             = "foundry-deny-east-west-${local.suffix}"
-    priority         = 7
-    action           = "DENY"
-    protocol         = "ANY"
-    logging          = true
-    src_smart_groups = [aviatrix_smart_group.foundry_agent.uuid]
-    dst_smart_groups = [local.sg_any]
+  # Rule 7 — default deny East-West: no lateral movement from agent subnet
+  policies {
+    name                     = "foundry-deny-east-west-${local.suffix}"
+    priority                 = 7
+    action                   = "DENY"
+    protocol                 = "ANY"
+    logging                  = true
+    exclude_sg_orchestration = true
+    src_smart_groups         = [aviatrix_smart_group.foundry_agent.uuid]
+    dst_smart_groups         = [local.sg_any]
   }
 }
