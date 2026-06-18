@@ -30,8 +30,12 @@ image:
   tag: "v0.8.4"
   pullPolicy: IfNotPresent
 
-# Front the app via the cluster's existing ingress controller (the base
-# Kubernetes blueprint deploys ingress-nginx). Set the host to taste.
+# Front the app via the cluster's existing ingress controller. className MUST
+# match a controller the base cluster actually runs: the AKS singlecluster path
+# deploys ingress-nginx (className: nginx), but this repo's EKS blueprints
+# (aws-eks-*) ship the AWS Load Balancer Controller (className: alb). Set
+# className to match your base cluster, or disable ingress (enabled: false) and
+# port-forward for a quick test. Then set the host to taste.
 ingress:
   enabled: true
   className: nginx
@@ -73,6 +77,12 @@ librechat:
 # In-cluster dependencies (no external egress; safe under DCF default-deny).
 mongodb:
   enabled: true
+  # Bitnami relocated most images out of docker.io/bitnami (Aug 2025), so the
+  # chart's default mongodb image no longer resolves (ErrImagePull). Pin the
+  # relocated legacy repo so a default install works out of the box. See the
+  # README troubleshooting if you'd rather run your own MongoDB.
+  image:
+    repository: bitnamilegacy/mongodb
   auth:
     enabled: false
 meilisearch:

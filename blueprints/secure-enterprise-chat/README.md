@@ -169,6 +169,16 @@ and the GitOps section below.
 
 All three consume the **same** `chart/values.yaml` + `chart/librechat.yaml`.
 
+> [!IMPORTANT]
+> **Ingress class must match your base cluster.** `chart/values.yaml` ships
+> `ingress.className: nginx`, which assumes the base cluster runs ingress-nginx
+> (the AKS singlecluster path). This repo's EKS blueprints (`aws-eks-*`) instead
+> ship the **AWS Load Balancer Controller** (`className: alb`). On those, set
+> `--set ingress.className=alb`, or skip ingress for a quick test with
+> `--set ingress.enabled=false` and `kubectl port-forward`. Otherwise the install
+> fails with `admission webhook ... denied the request: invalid ingress class:
+> IngressClass "nginx" not found`.
+
 ## CI/CD integration
 
 The egress policy must be regenerated whenever `chart/librechat.yaml` (or the
@@ -306,17 +316,24 @@ Open a chat against a configured backend (e.g. Bedrock). It responds. In CoPilot
 shows **permitted** against the `librechat-egress` policy.
 
 ### Scenario 2: Default-deny blocks the unlisted
-From the LibreChat pod, attempt egress to a domain not in the policy:
+From the LibreChat pod, attempt egress to a domain not in the policy. The
+official image ships `node` (not `curl`), so probe with a small node script:
 ```bash
-kubectl -n librechat exec deploy/librechat -- \
-  curl -sS --max-time 5 https://example.org || echo "blocked as expected"
+kubectl -n librechat exec deploy/librechat -- node -e \
+  'require("https").get({host:"example.org",port:443,timeout:5000},r=>{console.log("reachable",r.statusCode);process.exit()}).on("timeout",()=>{console.log("blocked as expected");process.exit()}).on("error",e=>console.log("blocked as expected:",e.code))'
 ```
-It is denied; the drop is visible in DCF Monitor.
+It is denied (connection reset or timeout); the drop is visible in DCF Monitor.
 
 ### Scenario 3: Config change tightens/loosens the policy
-Remove the `bedrock` block from `chart/librechat.yaml`, regenerate
-(Step 2), `kubectl apply`, and confirm Bedrock egress is now denied — the
-allowlist tracks the config exactly.
+Remove the `bedrock` block from `chart/librechat.yaml` **and** unset
+`BEDROCK_AWS_DEFAULT_REGION` (and `BEDROCK_AWS_MODELS`) in `chart/.env`, then
+regenerate (Step 2), recreate the secret, and `kubectl apply`. The Bedrock
+domains (`bedrock-runtime.<region>.amazonaws.com`, `sts.amazonaws.com`) drop out
+of the allowlist and that egress is now denied — the allowlist tracks the config
+exactly. Note: the generator derives the Bedrock domain from **both**
+`endpoints.bedrock` in `librechat.yaml` **and** `BEDROCK_AWS_DEFAULT_REGION` in
+the env (so the allowlist matches what the pod can actually reach), so you must
+clear **both** sources to remove it.
 
 ## Cleanup
 
@@ -360,9 +377,13 @@ kubectl exec -n librechat $POD -- node -e 'require("https").get({host:"example.o
 `reachable 200` means default-deny is **not** active — enable DCF
 micro-segmentation / default-deny on the base spoke before relying on this.
 
-**`helm` fails with `docker-credential-desktop ... not found`.** Stale
-`~/.docker/config.json` (`credsStore: desktop`) breaks the OCI pull. Use a clean
-config: `mkdir -p /tmp/dc && echo '{}' >/tmp/dc/config.json && DOCKER_CONFIG=/tmp/dc helm install ...`
+**OCI chart pull fails with `docker-credential-desktop ... not found`.** A stale
+`~/.docker/config.json` (`credsStore: desktop`) breaks the `oci://` chart pull
+for **all three install paths** — raw Helm, the Terraform wrapper (the `helm`
+provider hits the same credential helper), and ArgoCD. Point the tool at a clean
+Docker config: `mkdir -p /tmp/dc && echo '{}' >/tmp/dc/config.json`, then prefix
+the command — `DOCKER_CONFIG=/tmp/dc helm install ...` **or**
+`DOCKER_CONFIG=/tmp/dc terraform apply`.
 
 **MongoDB pod `ErrImagePull` (`docker.io/bitnami/mongodb:...: not found`).** As of
 Aug 2025 Bitnami relocated most images out of `docker.io/bitnami`. Override to the
