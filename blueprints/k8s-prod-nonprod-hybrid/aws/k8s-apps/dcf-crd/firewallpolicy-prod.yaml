@@ -1,0 +1,53 @@
+# Pattern C: Production FirewallPolicy CRDs
+# Strict egress — approved APIs only
+---
+apiVersion: networking.aviatrix.com/v1alpha1
+kind: FirewallPolicy
+metadata:
+  name: team-a-prod-egress
+  namespace: team-a-prod
+spec:
+  rules:
+    - name: allow-prod-apis
+      logging: true
+      selector:
+        matchLabels:
+          team: team-a
+      action: permit
+      protocol: tcp
+      port: 443
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: prod-approved-apis
+  webGroups:
+    - name: prod-approved-apis
+      domains:
+        - "api.stripe.com"
+        - "api.datadog.com"
+        - "*.amazonaws.com"
+---
+apiVersion: networking.aviatrix.com/v1alpha1
+kind: FirewallPolicy
+metadata:
+  name: team-b-prod-egress
+  namespace: team-b-prod
+spec:
+  rules:
+    - name: allow-prod-apis
+      logging: true
+      selector:
+        matchLabels:
+          team: team-b
+      action: permit
+      protocol: tcp
+      port: 443
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: prod-cdn
+  webGroups:
+    - name: prod-cdn
+      domains:
+        - "*.cloudfront.net"
+        - "*.akamaized.net"

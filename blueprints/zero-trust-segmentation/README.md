@@ -1,6 +1,6 @@
-# Zero Trust Network Segmentation
+# Zero Trust Workload Segmentation
 
-Demonstrates Zero Trust Network Segmentation using Aviatrix Distributed Cloud Firewall (DCF) with SmartGroups. This blueprint creates a simple three-tier architecture (Dev, Prod, Database) with policy-based segmentation that prevents lateral movement while allowing authorized traffic flows.
+Demonstrates Zero Trust workload segmentation with the **Aviatrix Cloud Native Security Fabric** — Distributed Cloud Firewall (DCF) and SmartGroups. This blueprint creates a simple three-tier architecture (Dev, Prod, Database) with policy-based segmentation that prevents lateral movement while allowing authorized traffic flows.
 
 > [!TIP]
 > **🤖 Optimized for Claude Code** — Run `/deploy-blueprint zero-trust-segmentation` for AI-guided deployment with prerequisite checks, or `/analyze-blueprint zero-trust-segmentation` for resource and cost details. [Get Claude Code](https://claude.ai/code)

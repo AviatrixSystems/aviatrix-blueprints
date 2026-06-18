@@ -4,7 +4,7 @@ Thank you for your interest in contributing to Aviatrix Blueprints! This documen
 
 ## Code of Conduct
 
-Please be respectful and constructive in all interactions. We're building a community resource for cloud networking professionals.
+Please be respectful and constructive in all interactions. We're building a community resource for cloud security and platform teams.
 
 ## Recommended Development Environment
 
@@ -88,6 +88,7 @@ cp -r blueprints/_template blueprints/your-blueprint-name
 Every blueprint **must** include:
 
 - [ ] **README.md** with all required sections (see [Blueprint Standards](docs/blueprint-standards.md))
+- [ ] **AGENTS.md** with agent deployment context (Required Variables, Deploy Sequence, Verification, Common Errors, Constraints)
 - [ ] **Architecture diagram** (PNG or SVG in the blueprint directory)
 - [ ] **terraform.tfvars.example** with documented variables
 - [ ] **versions.tf** with required provider versions

@@ -1,0 +1,170 @@
+# -----------------------------------------------------------------------------
+# Pattern C: Non-Production FirewallPolicy CRDs — Azure AKS
+# Slightly relaxed egress for dev/staging
+# Sandbox has broader egress but NO prod data access
+# Team self-service rules via spec.rules[] format
+# Applied to the non-production AKS cluster
+# -----------------------------------------------------------------------------
+
+# Team A dev — slightly relaxed egress
+apiVersion: networking.aviatrix.com/v1alpha1
+kind: FirewallPolicy
+metadata:
+  name: team-a-dev-egress
+  namespace: team-a-dev
+spec:
+  rules:
+    - name: allow-https-egress
+      logging: true
+      selector:
+        matchLabels:
+          app: api
+      action: permit
+      protocol: tcp
+      port: 443
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: public-internet
+    - name: allow-http-egress
+      logging: true
+      selector:
+        matchLabels:
+          app: api
+      action: permit
+      protocol: tcp
+      port: 80
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: public-internet
+  webGroups:
+    - name: public-internet
+      domains:
+        - "*"
+---
+# Team B staging — slightly relaxed egress
+apiVersion: networking.aviatrix.com/v1alpha1
+kind: FirewallPolicy
+metadata:
+  name: team-b-staging-egress
+  namespace: team-b-staging
+spec:
+  rules:
+    - name: allow-https-egress
+      logging: true
+      selector:
+        matchLabels:
+          app: api
+      action: permit
+      protocol: tcp
+      port: 443
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: public-internet
+    - name: allow-http-egress
+      logging: true
+      selector:
+        matchLabels:
+          app: api
+      action: permit
+      protocol: tcp
+      port: 80
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: public-internet
+  webGroups:
+    - name: public-internet
+      domains:
+        - "*"
+---
+# Sandbox — broader egress (any HTTPS) but NO prod data access
+# CRITICAL: Prod data protection is enforced at Layer 1 (VNet SmartGroups)
+#           nonprod-vpc -> prod-vpc and nonprod-vpc -> prod-db are DENIED
+apiVersion: networking.aviatrix.com/v1alpha1
+kind: FirewallPolicy
+metadata:
+  name: sandbox-relaxed-egress
+  namespace: sandbox
+spec:
+  rules:
+    - name: allow-https-egress
+      logging: true
+      action: permit
+      protocol: tcp
+      port: 443
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: sandbox-relaxed-domains
+    - name: allow-http-egress
+      logging: true
+      action: permit
+      protocol: tcp
+      port: 80
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: sandbox-relaxed-domains
+    - name: allow-alt-https-egress
+      logging: true
+      action: permit
+      protocol: tcp
+      port: 8080
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: sandbox-relaxed-domains
+    - name: allow-dev-port-3000
+      logging: true
+      action: permit
+      protocol: tcp
+      port: 3000
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: sandbox-relaxed-domains
+    - name: allow-dev-port-5000
+      logging: true
+      action: permit
+      protocol: tcp
+      port: 5000
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: sandbox-relaxed-domains
+    - name: allow-dev-port-8443
+      logging: true
+      action: permit
+      protocol: tcp
+      port: 8443
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: sandbox-relaxed-domains
+  webGroups:
+    - name: sandbox-relaxed-domains
+      domains:
+        - "*"
+---
+# Allow team-a-dev to reach team-b-staging for integration testing
+# NOTE: This is explicitly managed — default deny between teams
+apiVersion: networking.aviatrix.com/v1alpha1
+kind: FirewallPolicy
+metadata:
+  name: nonprod-integration-test
+  namespace: team-a-dev
+spec:
+  rules:
+    - name: allow-integration-test
+      logging: true
+      selector:
+        matchLabels:
+          app: integration-test
+      action: permit
+      protocol: tcp
+      port: 8080
+      destinationSmartGroups:
+        - name: patternc-team-b-staging

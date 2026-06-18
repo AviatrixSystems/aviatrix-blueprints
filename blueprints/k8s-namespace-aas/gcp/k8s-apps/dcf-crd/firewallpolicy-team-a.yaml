@@ -1,0 +1,42 @@
+# Pattern B: Namespace-as-a-Service — Team A Egress CRD (GCP/GKE)
+#
+# This FirewallPolicy is deployed by Team A via GitOps into their namespace.
+# CRD-managed policies fill priority 70-99 (team self-service).
+# Platform team sets baseline via Terraform; app teams extend via CRDs + GitOps.
+---
+kind: FirewallPolicy
+apiVersion: networking.aviatrix.com/v1alpha1
+metadata:
+  name: team-a-egress
+  namespace: team-a
+spec:
+  rules:
+    - name: allow-payment-api
+      logging: true
+      selector:
+        matchLabels:
+          app: api
+      action: permit
+      protocol: tcp
+      port: 443
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: approved-apis
+    - name: allow-email-api
+      logging: true
+      selector:
+        matchLabels:
+          app: notifications
+      action: permit
+      protocol: tcp
+      port: 443
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: approved-apis
+  webGroups:
+    - name: approved-apis
+      domains:
+        - "api.stripe.com"
+        - "api.sendgrid.com"

@@ -1,0 +1,42 @@
+# -----------------------------------------------------------------------------
+# Pattern C: Non-Production Namespace Setup
+# Applied to the non-production EKS cluster
+# Teams get dev/staging namespaces + sandbox with relaxed egress
+# CRITICAL: Sandbox has relaxed egress but NO prod data access
+# -----------------------------------------------------------------------------
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-a-dev
+  labels:
+    environment: development
+    team: team-a
+    aviatrix.io/enforced: "true"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-b-staging
+  labels:
+    environment: staging
+    team: team-b
+    aviatrix.io/enforced: "true"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sandbox
+  labels:
+    environment: sandbox
+    purpose: experimentation
+    aviatrix.io/enforced: "true"
+    egress-policy: relaxed
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    environment: non-production
+    purpose: observability
+    aviatrix.io/enforced: "true"

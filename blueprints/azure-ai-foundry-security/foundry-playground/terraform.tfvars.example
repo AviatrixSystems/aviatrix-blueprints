@@ -1,0 +1,5 @@
+subscription_id_infra      = "44444444-4444-4444-4444-444444444444"
+subscription_id_resources  = "55555555-5555-5555-5555-555555555555"
+
+# Optional: grant Foundry User role to a specific user/SP instead of the deploying identity
+# foundry_user_principal_id = "00000000-0000-0000-0000-000000000000"

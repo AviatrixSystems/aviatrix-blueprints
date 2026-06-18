@@ -1,0 +1,36 @@
+# Copy to terraform.tfvars and fill in values before running terraform apply.
+#
+# Aviatrix controller credentials are NOT set here — export them as TF_VAR_* env vars:
+#   export TF_VAR_aviatrix_controller_ip=your-controller.example.com
+#   export TF_VAR_aviatrix_username=admin
+#   export TF_VAR_aviatrix_password=your-password
+#
+# AWS credentials follow the standard AWS provider chain:
+#   export AWS_PROFILE=your-profile
+#   # or
+#   export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... AWS_REGION=...
+
+# AWS region and matching Aviatrix-side account name
+aws_region            = "eu-west-3"
+aviatrix_account_name = "aws-alweiss"
+
+# GitHub runner registration
+github_repo_url = "https://github.com/your-org/your-repo"
+github_pat      = "ghp_..."
+
+# Optional overrides (defaults shown)
+# name_prefix           = "gh-runner"            # 6-digit suffix auto-appended per deployment
+# spoke_gateway_name    = null                   # null → derived from name_prefix
+# runner_instance_type  = "t3.small"
+# aviatrix_gw_size      = "t3.medium"
+# aws_key_pair_name     = "my-keypair"           # null = no SSH key attached
+# vpc_cidr              = "10.20.10.0/24"
+# gw_subnet_cidr        = "10.20.10.0/26"
+# runner_subnet_cidr    = "10.20.10.64/26"
+# runner_version        = "2.334.0"
+
+# FQDNs the runner may reach for tool/agent calls (HTTP 80 + HTTPS 443).
+# www.example.com — MOTD target used by test-pii-exfil workflow.
+tool_call_fqdns = [
+  "www.example.com",
+]

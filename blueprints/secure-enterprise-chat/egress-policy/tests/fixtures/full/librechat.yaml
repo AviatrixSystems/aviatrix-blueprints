@@ -1,0 +1,22 @@
+version: 1.2.8
+endpoints:
+  bedrock:
+    availableRegions:
+      - us-east-1
+      - us-west-2
+  custom:
+    - name: groq
+      baseURL: https://api.groq.com/openai/v1/
+    - name: OpenRouter
+      baseURL: https://openrouter.ai/api/v1
+mcpServers:
+  remote-sse:
+    type: sse
+    url: https://mcp.example.com/sse
+  internal-tool:
+    type: streamable-http
+    url: http://host.docker.internal:3001/mcp
+  fetch:
+    type: stdio
+    command: uvx
+    args: ["mcp-server-fetch"]

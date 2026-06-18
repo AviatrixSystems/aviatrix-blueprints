@@ -8,7 +8,7 @@ terraform {
     }
     aviatrix = {
       source  = "AviatrixSystems/aviatrix"
-      version = "~> 8.2"
+      version = "~> 8.2.0"
     }
     kubernetes = {
       source  = "hashicorp/kubernetes"
@@ -56,7 +56,7 @@ provider "kubernetes" {
 #####################
 
 module "backend_eks" {
-  source = "../../modules/eks-cluster"
+  source = "../../../../modules/aws-eks-cluster"
 
   cluster_name       = local.cluster_name
   kubernetes_version = var.kubernetes_version

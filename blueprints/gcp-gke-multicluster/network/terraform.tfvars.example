@@ -1,0 +1,48 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# gcp-gke-multicluster / network — variable reference
+#
+# Aviatrix Controller credentials are NOT in this file. Export them as env
+# vars (the standard pattern across blueprints):
+#   export AVIATRIX_CONTROLLER_IP="<controller-ip>"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="..."
+# Or `source ~/Documents/Scripting/chris-avx-lab/controller_env_ga.sh`
+#
+# GCP authentication: use Application Default Credentials.
+#   gcloud auth application-default login
+#   gcloud config set project cmchenry-01
+# ─────────────────────────────────────────────────────────────────────────────
+
+name_prefix              = "gke-demo"
+aviatrix_gcp_account_name = "Google"
+gcp_project_id           = "cmchenry-01"
+gcp_region               = "us-central1"
+gcp_zone                 = "us-central1-a"
+
+# CIDR plan (defaults are sane; change only if they collide with peered networks)
+# transit_cidr             = "10.2.0.0/24"
+# frontend_vpc_cidr        = "10.10.0.0/20"
+# frontend_nodes_cidr      = "10.10.0.0/22"
+# frontend_avx_gw_cidr     = "10.10.4.0/28"
+# frontend_proxy_only_cidr = "10.10.5.0/24"
+# frontend_master_cidr     = "172.20.0.0/28"
+# backend_vpc_cidr         = "10.20.0.0/20"
+# backend_nodes_cidr       = "10.20.0.0/22"
+# backend_avx_gw_cidr      = "10.20.4.0/28"
+# backend_proxy_only_cidr  = "10.20.5.0/24"
+# backend_master_cidr      = "172.20.1.0/28"
+# db_vpc_cidr              = "10.5.0.0/22"
+# db_subnet_cidr           = "10.5.0.0/24"
+# db_avx_gw_cidr           = "10.5.1.0/28"
+
+# Pod/Services secondary ranges — overlapping by design across clusters.
+# Aviatrix spoke GWs SNAT pod source IPs before forwarding to transit.
+# pods_cidr     = "100.64.0.0/16"
+# services_cidr = "172.16.0.0/20"
+
+# Cloud DNS private zone (must end with '.')
+# private_dns_zone_name = "gcp.aviatrixdemo.local."
+
+# Toggle K8s-typed SmartGroups + the priority-50 demo rule. Keep true for
+# normal use; flip to false and apply BEFORE destroying the clusters layer.
+# enable_k8s_smartgroup_demo = true

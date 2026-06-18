@@ -1,0 +1,100 @@
+# Pattern B: Namespace-as-a-Service — Namespace Creation + RBAC (GCP/GKE)
+#
+# Creates team namespaces and shared infrastructure namespaces.
+# Each team gets a dedicated namespace with labels for DCF SmartGroup matching.
+#
+# IMPORTANT: RBAC is NOT a hard security boundary — DCF is the primary network isolation.
+# RBAC prevents accidental cross-namespace access; DCF enforces it at the network level.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-a
+  labels:
+    team: team-a
+    pattern: namespace-aas
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-b
+  labels:
+    team: team-b
+    pattern: namespace-aas
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-c
+  labels:
+    team: team-c
+    pattern: namespace-aas
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    app: monitoring
+    pattern: namespace-aas
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-system
+  labels:
+    app: istio
+    pattern: namespace-aas
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-manager
+  labels:
+    app: cert-manager
+    pattern: namespace-aas
+---
+# RBAC: Team A can only manage resources in team-a namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: team-a-admin
+  namespace: team-a
+subjects:
+  - kind: Group
+    name: team-a-developers
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: admin
+  apiGroup: rbac.authorization.k8s.io
+---
+# RBAC: Team B can only manage resources in team-b namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: team-b-admin
+  namespace: team-b
+subjects:
+  - kind: Group
+    name: team-b-developers
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: admin
+  apiGroup: rbac.authorization.k8s.io
+---
+# RBAC: Team C can only manage resources in team-c namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: team-c-admin
+  namespace: team-c
+subjects:
+  - kind: Group
+    name: team-c-developers
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: admin
+  apiGroup: rbac.authorization.k8s.io

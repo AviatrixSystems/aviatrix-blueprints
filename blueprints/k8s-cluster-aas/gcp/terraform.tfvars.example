@@ -1,0 +1,57 @@
+# Pattern A: Cluster-as-a-Service - GCP
+#
+# Copy this file to terraform.tfvars and fill in the values.
+# Deploy layers in order: network -> clusters -> nodes
+
+# Aviatrix Controller credentials (set via environment variables):
+#   export AVIATRIX_CONTROLLER_IP="controller.example.com"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
+
+# GCP credentials:
+#   gcloud auth application-default login
+#   # or set GOOGLE_APPLICATION_CREDENTIALS
+
+#####################
+# Network Layer (network/)
+#####################
+
+name_prefix               = "caas"
+aviatrix_gcp_account_name = "gcp-account"
+gcp_project               = "my-gcp-project-id"
+gcp_region                = "us-central1"
+
+# VPC CIDRs - each team gets a dedicated /20
+team_a_vpc_cidr = "10.40.0.0/20"
+team_b_vpc_cidr = "10.41.0.0/20"
+team_c_vpc_cidr = "10.42.0.0/20"
+db_vpc_cidr     = "10.45.0.0/22"
+transit_cidr    = "10.38.0.0/20"
+pod_cidr        = "100.64.0.0/16"
+services_cidr   = "172.40.0.0/20"
+
+# GKE master CIDRs (must be unique /28 per cluster)
+team_a_master_cidr = "172.16.0.0/28"
+team_b_master_cidr = "172.16.0.16/28"
+team_c_master_cidr = "172.16.0.32/28"
+
+# DNS
+dns_private_zone_name = "gcp.aviatrixdemo.local"
+
+#####################
+# Cluster Layer (clusters/team-{a,b,c}/)
+#####################
+
+# release_channel = "REGULAR"
+
+#####################
+# Node Layer (nodes/team-{a,b,c}/)
+#####################
+
+# node_pool_config = {
+#   min_node_count     = 1
+#   max_node_count     = 3
+#   initial_node_count = 1
+#   machine_type       = "e2-standard-4"
+#   spot               = true
+# }

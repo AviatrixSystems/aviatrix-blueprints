@@ -1,0 +1,50 @@
+# -----------------------------------------------------------------------------
+# Pattern C: Prod/Non-Prod + Namespace-as-a-Service — Azure
+# RECOMMENDED pattern for most organizations
+# Copy this file to terraform.tfvars and fill in values
+# -----------------------------------------------------------------------------
+
+# Aviatrix Controller
+aviatrix_controller_ip = "controller.example.com"
+aviatrix_username      = "admin"
+aviatrix_password      = "CHANGE_ME"
+
+# Azure
+azure_account_name  = "azure-prod-account"
+azure_region        = "East US"
+resource_group_name = "rg-patternc"
+
+# Naming
+environment_prefix = "patternc"
+
+# CIDRs (defaults shown — override if needed)
+# transit_cidr      = "10.28.0.0/20"
+# prod_vnet_cidr    = "10.30.0.0/20"
+# nonprod_vnet_cidr = "10.31.0.0/20"
+# db_spoke_cidr     = "10.35.0.0/22"
+# pod_cidr          = "100.64.0.0/16"
+
+# Gateway sizing
+# transit_gw_size  = "Standard_D3_v2"
+# spoke_gw_size    = "Standard_D3_v2"
+# db_spoke_gw_size = "Standard_B2ms"
+
+# HA
+enable_ha = true
+
+# DNS
+dns_domain = "internal.example.com"
+
+# Teams
+teams = {
+  team-a = {
+    prod_namespace    = "team-a-prod"
+    nonprod_namespace = "team-a-dev"
+    contact           = "team-a@example.com"
+  }
+  team-b = {
+    prod_namespace    = "team-b-prod"
+    nonprod_namespace = "team-b-staging"
+    contact           = "team-b@example.com"
+  }
+}

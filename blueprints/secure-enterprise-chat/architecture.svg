@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="560" viewBox="0 0 860 560" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#444"/>
+    </marker>
+    <marker id="arrowR" markerWidth="10" markerHeight="10" refX="2" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M8,0 L0,3 L8,6 Z" fill="#444"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="860" height="560" fill="#ffffff"/>
+  <text x="430" y="30" text-anchor="middle" font-size="20" font-weight="700" fill="#1a1a2e">Secure Enterprise Chat — LibreChat on an Aviatrix-protected cluster</text>
+
+  <!-- Existing cluster boundary -->
+  <rect x="40" y="55" width="780" height="235" rx="12" fill="#f5f7fb" stroke="#9aa7c7" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="60" y="80" font-size="14" font-weight="700" fill="#3a4a7a">Existing Aviatrix-protected cluster (built by a base k8s blueprint)</text>
+  <text x="60" y="100" font-size="12" fill="#667">namespace: librechat</text>
+
+  <!-- LibreChat pod -->
+  <rect x="80" y="120" width="200" height="120" rx="10" fill="#e8f0ff" stroke="#3a6ea5" stroke-width="2"/>
+  <text x="180" y="150" text-anchor="middle" font-size="15" font-weight="700" fill="#1a3a6a">LibreChat</text>
+  <text x="180" y="172" text-anchor="middle" font-size="12" fill="#33506a">(API pod)</text>
+  <text x="180" y="210" text-anchor="middle" font-size="10.5" fill="#667">app.kubernetes.io/</text>
+  <text x="180" y="225" text-anchor="middle" font-size="10.5" fill="#667">name=librechat</text>
+
+  <!-- MongoDB -->
+  <rect x="360" y="120" width="190" height="60" rx="10" fill="#eafaf0" stroke="#2f8f5b" stroke-width="2"/>
+  <text x="455" y="156" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5e3a">MongoDB</text>
+
+  <!-- MeiliSearch -->
+  <rect x="360" y="190" width="190" height="60" rx="10" fill="#eafaf0" stroke="#2f8f5b" stroke-width="2"/>
+  <text x="455" y="226" text-anchor="middle" font-size="14" font-weight="700" fill="#1d5e3a">MeiliSearch</text>
+
+  <!-- in-cluster link -->
+  <line x1="280" y1="165" x2="360" y2="150" stroke="#444" stroke-width="1.8" marker-end="url(#arrow)" marker-start="url(#arrowR)"/>
+  <line x1="280" y1="195" x2="360" y2="220" stroke="#444" stroke-width="1.8" marker-end="url(#arrow)" marker-start="url(#arrowR)"/>
+  <text x="320" y="140" text-anchor="middle" font-size="10" fill="#667">in-cluster</text>
+
+  <!-- FirewallPolicy CRD note -->
+  <rect x="600" y="120" width="200" height="130" rx="10" fill="#fff5e6" stroke="#cc8a1f" stroke-width="2"/>
+  <text x="700" y="148" text-anchor="middle" font-size="13" font-weight="700" fill="#8a5a0f">FirewallPolicy CRD</text>
+  <text x="700" y="172" text-anchor="middle" font-size="10.5" fill="#7a5">permit listed domains;</text>
+  <text x="700" y="188" text-anchor="middle" font-size="10.5" fill="#7a5">trailing per-pod deny</text>
+  <text x="700" y="212" text-anchor="middle" font-size="10" fill="#996">reconciled by the</text>
+  <text x="700" y="227" text-anchor="middle" font-size="10" fill="#996">Aviatrix CRD controller</text>
+
+  <!-- egress arrow down -->
+  <line x1="180" y1="240" x2="180" y2="330" stroke="#b33" stroke-width="2.4" marker-end="url(#arrow)"/>
+  <text x="195" y="285" font-size="11" fill="#b33">external egress (TCP 443)</text>
+
+  <!-- Aviatrix spoke gateway + DCF -->
+  <rect x="40" y="335" width="780" height="90" rx="12" fill="#fdeef0" stroke="#b33" stroke-width="2"/>
+  <text x="180" y="370" text-anchor="middle" font-size="15" font-weight="700" fill="#8a1f2a">Aviatrix spoke gateway</text>
+  <text x="430" y="370" text-anchor="middle" font-size="13" font-weight="600" fill="#8a1f2a">DCF evaluates the FirewallPolicy CRD</text>
+  <text x="430" y="392" text-anchor="middle" font-size="11.5" fill="#a44">permit listed domains, deny the rest</text>
+  <text x="430" y="410" text-anchor="middle" font-size="11" fill="#a44">(self-enforcing per-pod deny on tcp/443 → 0.0.0.0/0)</text>
+
+  <!-- egress arrow to backends -->
+  <line x1="180" y1="425" x2="180" y2="475" stroke="#b33" stroke-width="2.4" marker-end="url(#arrow)"/>
+
+  <!-- backends -->
+  <rect x="40" y="480" width="780" height="60" rx="12" fill="#eef0f5" stroke="#667" stroke-width="2"/>
+  <text x="430" y="516" text-anchor="middle" font-size="13" font-weight="600" fill="#334">Bedrock / Azure OpenAI / approved integrations (only allowlisted FQDNs)</text>
+</svg>

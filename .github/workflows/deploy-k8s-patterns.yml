@@ -1,0 +1,432 @@
+name: Deploy Aviatrix K8s Blueprints
+
+on:
+  workflow_dispatch:
+    inputs:
+      pattern:
+        description: 'Deployment pattern'
+        required: true
+        type: choice
+        options:
+          - cluster-aas
+          - namespace-aas
+          - prod-nonprod-hybrid
+      csp:
+        description: 'Cloud provider'
+        required: true
+        type: choice
+        options:
+          - aws
+          - azure
+          - gcp
+      action:
+        description: 'Terraform action'
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+      layer:
+        description: 'Deploy layer (or "all" for full stack)'
+        required: true
+        type: choice
+        options:
+          - all
+          - network
+          - clusters
+          - nodes
+
+# Required secrets:
+#   AVIATRIX_CONTROLLER_IP, AVIATRIX_USERNAME, AVIATRIX_PASSWORD
+#   AWS_ROLE_ARN, AWS_ACCOUNT_ID, AZURE_CREDENTIALS, GCP_CREDENTIALS
+#   AVIATRIX_AWS_ACCOUNT, AVIATRIX_AZURE_ACCOUNT, AVIATRIX_GCP_ACCOUNT
+# Required vars: AWS_REGION
+# Note: Terraform providers used include aviatrix, aws/azurerm/google, helm, kubernetes, and time.
+#       Ensure the `time` provider is declared in required_providers for modules that use it.
+env:
+  TF_VERSION: '1.7.0'
+  TF_INPUT: 'false'
+  TF_IN_AUTOMATION: 'true'
+  AVIATRIX_CONTROLLER_IP: ${{ secrets.AVIATRIX_CONTROLLER_IP }}
+  AVIATRIX_USERNAME: ${{ secrets.AVIATRIX_USERNAME }}
+  AVIATRIX_PASSWORD: ${{ secrets.AVIATRIX_PASSWORD }}
+
+jobs:
+  # ──────────────────────────────────────────────────────────
+  # Layer 1: Network
+  # ──────────────────────────────────────────────────────────
+  network:
+    name: "L1: Network (${{ inputs.pattern }}/${{ inputs.csp }})"
+    runs-on: ubuntu-latest
+    if: inputs.layer == 'all' || inputs.layer == 'network'
+    defaults:
+      run:
+        working-directory: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/network
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        if: inputs.csp == 'aws'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Check AWS service quotas
+        if: inputs.csp == 'aws'
+        run: |
+          VPC_LIMIT=$(aws service-quotas get-service-quota --service-code vpc --quota-code L-F678F1CE --region ${{ vars.AWS_REGION }} --query 'Quota.Value' --output text)
+          EIP_LIMIT=$(aws service-quotas get-service-quota --service-code ec2 --quota-code L-0263D0A3 --region ${{ vars.AWS_REGION }} --query 'Quota.Value' --output text)
+          echo "VPC limit: $VPC_LIMIT, EIP limit: $EIP_LIMIT"
+          if (( $(echo "$VPC_LIMIT < 10" | bc -l) )); then
+            echo "::warning::VPC limit is $VPC_LIMIT - may need increase for this pattern"
+          fi
+
+      - name: Configure Azure credentials
+        if: inputs.csp == 'azure'
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Configure GCP credentials
+        if: inputs.csp == 'gcp'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Set Aviatrix account name
+        run: |
+          case "${{ inputs.csp }}" in
+            aws)   echo "TF_VAR_aviatrix_aws_account_name=${{ secrets.AVIATRIX_AWS_ACCOUNT }}" >> $GITHUB_ENV ;;
+            azure) echo "TF_VAR_aviatrix_azure_account_name=${{ secrets.AVIATRIX_AZURE_ACCOUNT }}" >> $GITHUB_ENV ;;
+            gcp)   echo "TF_VAR_aviatrix_gcp_account_name=${{ secrets.AVIATRIX_GCP_ACCOUNT }}" >> $GITHUB_ENV ;;
+          esac
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        if: inputs.action == 'plan' || inputs.action == 'apply'
+        run: terraform plan -no-color -out=tfplan
+
+      - name: Terraform Apply
+        if: inputs.action == 'apply'
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Destroy
+        if: inputs.action == 'destroy'
+        run: terraform destroy -auto-approve -no-color
+
+      - name: Upload state
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: network-state-${{ inputs.pattern }}-${{ inputs.csp }}
+          path: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/network/terraform.tfstate
+          retention-days: 30
+
+  # ──────────────────────────────────────────────────────────
+  # Layer 2: Clusters
+  # ──────────────────────────────────────────────────────────
+  clusters:
+    name: "L2: Clusters (${{ inputs.pattern }}/${{ inputs.csp }})"
+    runs-on: ubuntu-latest
+    needs: [network]
+    if: |
+      always() &&
+      (inputs.layer == 'all' || inputs.layer == 'clusters') &&
+      (inputs.action != 'destroy')
+    strategy:
+      matrix:
+        cluster: ${{ fromJson(
+          inputs.pattern == 'cluster-aas' && '["team-a","team-b","team-c"]' ||
+          inputs.pattern == 'namespace-aas' && '["shared"]' ||
+          '["prod","nonprod"]'
+        ) }}
+      max-parallel: 3
+    defaults:
+      run:
+        working-directory: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/clusters/${{ matrix.cluster }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        if: inputs.csp == 'aws'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Configure Azure credentials
+        if: inputs.csp == 'azure'
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Configure GCP credentials
+        if: inputs.csp == 'gcp'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Download network state
+        uses: actions/download-artifact@v4
+        with:
+          name: network-state-${{ inputs.pattern }}-${{ inputs.csp }}
+          path: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/network/
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        if: inputs.action == 'plan' || inputs.action == 'apply'
+        run: terraform plan -no-color -out=tfplan
+
+      - name: Terraform Apply
+        if: inputs.action == 'apply'
+        run: terraform apply -auto-approve tfplan
+
+      - name: Add Aviatrix controller access to EKS
+        if: inputs.csp == 'aws' && inputs.action == 'apply'
+        run: |
+          CLUSTERS=$(terraform output -json | jq -r 'to_entries[] | select(.key | contains("cluster_name")) | .value.value')
+          AVX_ROLE="arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/aviatrix-role-app"
+          for cluster in $CLUSTERS; do
+            aws eks create-access-entry --cluster-name "$cluster" --region ${{ vars.AWS_REGION }} --principal-arn "$AVX_ROLE" || true
+            aws eks associate-access-policy --cluster-name "$cluster" --region ${{ vars.AWS_REGION }} \
+              --principal-arn "$AVX_ROLE" \
+              --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
+              --access-scope type=cluster || true
+          done
+
+      - name: Upload state
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cluster-state-${{ inputs.pattern }}-${{ inputs.csp }}-${{ matrix.cluster }}
+          path: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/clusters/${{ matrix.cluster }}/terraform.tfstate
+          retention-days: 30
+
+  # ──────────────────────────────────────────────────────────
+  # Layer 3: Nodes
+  # ──────────────────────────────────────────────────────────
+  nodes:
+    name: "L3: Nodes (${{ inputs.pattern }}/${{ inputs.csp }})"
+    runs-on: ubuntu-latest
+    needs: [clusters]
+    if: |
+      always() &&
+      (inputs.layer == 'all' || inputs.layer == 'nodes') &&
+      (inputs.action != 'destroy')
+    strategy:
+      matrix:
+        node_group: ${{ fromJson(
+          inputs.pattern == 'cluster-aas' && '["team-a","team-b","team-c"]' ||
+          inputs.pattern == 'namespace-aas' && '["shared"]' ||
+          '["prod","nonprod"]'
+        ) }}
+      max-parallel: 3
+    defaults:
+      run:
+        working-directory: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/nodes/${{ matrix.node_group }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        if: inputs.csp == 'aws'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Configure Azure credentials
+        if: inputs.csp == 'azure'
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Configure GCP credentials
+        if: inputs.csp == 'gcp'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Download network state
+        uses: actions/download-artifact@v4
+        with:
+          name: network-state-${{ inputs.pattern }}-${{ inputs.csp }}
+          path: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/network/
+
+      - name: Download cluster state
+        uses: actions/download-artifact@v4
+        with:
+          name: cluster-state-${{ inputs.pattern }}-${{ inputs.csp }}-${{ matrix.node_group }}
+          path: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/clusters/${{ matrix.node_group }}/
+
+      - name: Install kubectl & Helm
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        if: inputs.action == 'plan' || inputs.action == 'apply'
+        run: terraform plan -no-color -out=tfplan
+
+      - name: Terraform Apply
+        if: inputs.action == 'apply'
+        run: terraform apply -auto-approve tfplan
+
+      - name: Upload state
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nodes-state-${{ inputs.pattern }}-${{ inputs.csp }}-${{ matrix.node_group }}
+          path: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/nodes/${{ matrix.node_group }}/terraform.tfstate
+          retention-days: 30
+
+  # ──────────────────────────────────────────────────────────
+  # Layer 4: CRDs (patterns B and C only)
+  # ──────────────────────────────────────────────────────────
+  crds:
+    name: "L4: CRDs (${{ inputs.pattern }}/${{ inputs.csp }})"
+    runs-on: ubuntu-latest
+    needs: [nodes]
+    if: |
+      always() &&
+      inputs.action == 'apply' &&
+      inputs.layer == 'all' &&
+      inputs.pattern != 'cluster-aas'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS credentials
+        if: inputs.csp == 'aws'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+      - name: Apply CRD manifests
+        run: |
+          CRD_DIR="blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/k8s-apps/dcf-crd"
+          if [ -d "$CRD_DIR" ]; then
+            # Get cluster names from terraform state
+            cd blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/clusters
+            for cluster_dir in */; do
+              cd "$cluster_dir"
+              CLUSTER_NAME=$(terraform output -raw cluster_name 2>/dev/null || echo "")
+              REGION=$(terraform output -raw cluster_region 2>/dev/null || echo "${{ vars.AWS_REGION }}")
+              if [ -n "$CLUSTER_NAME" ]; then
+                aws eks update-kubeconfig --name "$CLUSTER_NAME" --region "$REGION"
+                # Apply namespace files first, then policies
+                kubectl apply -f "$CRD_DIR"/*namespace*.yaml 2>/dev/null || true
+                sleep 5
+                kubectl apply -f "$CRD_DIR"/*firewallpolicy*.yaml 2>/dev/null || true
+              fi
+              cd ..
+            done
+          fi
+
+  # ──────────────────────────────────────────────────────────
+  # Destroy (reverse order)
+  # ──────────────────────────────────────────────────────────
+  destroy-nodes:
+    name: "Destroy L3: Nodes"
+    runs-on: ubuntu-latest
+    if: inputs.action == 'destroy' && (inputs.layer == 'all' || inputs.layer == 'nodes')
+    strategy:
+      matrix:
+        node_group: ${{ fromJson(
+          inputs.pattern == 'cluster-aas' && '["team-a","team-b","team-c"]' ||
+          inputs.pattern == 'namespace-aas' && '["shared"]' ||
+          '["prod","nonprod"]'
+        ) }}
+    defaults:
+      run:
+        working-directory: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/nodes/${{ matrix.node_group }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+      - name: Configure AWS credentials
+        if: inputs.csp == 'aws'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - run: terraform init
+      - run: terraform destroy -auto-approve -no-color
+
+  destroy-clusters:
+    name: "Destroy L2: Clusters"
+    runs-on: ubuntu-latest
+    needs: [destroy-nodes]
+    if: inputs.action == 'destroy' && (inputs.layer == 'all' || inputs.layer == 'clusters')
+    strategy:
+      matrix:
+        cluster: ${{ fromJson(
+          inputs.pattern == 'cluster-aas' && '["team-a","team-b","team-c"]' ||
+          inputs.pattern == 'namespace-aas' && '["shared"]' ||
+          '["prod","nonprod"]'
+        ) }}
+    defaults:
+      run:
+        working-directory: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/clusters/${{ matrix.cluster }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+      - name: Configure AWS credentials
+        if: inputs.csp == 'aws'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - run: terraform init
+      - run: terraform destroy -auto-approve -no-color
+
+  destroy-network:
+    name: "Destroy L1: Network"
+    runs-on: ubuntu-latest
+    needs: [destroy-clusters]
+    if: inputs.action == 'destroy' && (inputs.layer == 'all' || inputs.layer == 'network')
+    defaults:
+      run:
+        working-directory: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/network
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+      - name: Configure AWS credentials
+        if: inputs.csp == 'aws'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - run: terraform init
+      - run: terraform destroy -auto-approve -no-color

@@ -1,0 +1,52 @@
+# Pattern A: Cluster-as-a-Service - Azure
+#
+# Copy this file to terraform.tfvars and fill in the values.
+# Deploy layers in order: network -> clusters -> nodes
+
+# Aviatrix Controller credentials (set via environment variables):
+#   export AVIATRIX_CONTROLLER_IP="controller.example.com"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
+
+# Azure credentials:
+#   az login
+#   # or set ARM_* environment variables
+
+#####################
+# Network Layer (network/)
+#####################
+
+name_prefix                 = "caas"
+aviatrix_azure_account_name = "azure-account"
+azure_subscription_id       = "00000000-0000-0000-0000-000000000000"
+azure_region                = "East US 2"
+
+# VNet CIDRs - each team gets a dedicated /20
+team_a_vnet_cidr = "10.30.0.0/20"
+team_b_vnet_cidr = "10.31.0.0/20"
+team_c_vnet_cidr = "10.32.0.0/20"
+db_vnet_cidr     = "10.35.0.0/22"
+transit_cidr     = "10.28.0.0/20"
+pod_cidr         = "100.64.0.0/16"
+
+# DNS
+private_dns_zone_name = "azure.aviatrixdemo.local"
+db_private_ip         = "10.35.0.10"
+
+#####################
+# Cluster Layer (clusters/team-{a,b,c}/)
+#####################
+
+# kubernetes_version = "1.30"
+
+#####################
+# Node Layer (nodes/team-{a,b,c}/)
+#####################
+
+# node_pool_config = {
+#   min_count  = 1
+#   max_count  = 3
+#   node_count = 2
+#   vm_size    = "Standard_D4s_v3"
+#   priority   = "Spot"
+# }

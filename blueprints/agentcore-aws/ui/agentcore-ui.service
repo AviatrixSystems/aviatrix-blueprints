@@ -1,0 +1,20 @@
+[Unit]
+Description=AgentCore VCA AI Attack Simulation UI (FastAPI/uvicorn)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/agentcore-ui
+EnvironmentFile=/etc/agentcore-ui.env
+ExecStart=/opt/agentcore-ui/venv/bin/uvicorn ui.app:app \
+  --host 0.0.0.0 \
+  --port 8501 \
+  --no-server-header \
+  --log-level info
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

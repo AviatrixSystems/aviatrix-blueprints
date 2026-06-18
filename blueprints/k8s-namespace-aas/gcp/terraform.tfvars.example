@@ -1,0 +1,50 @@
+# Pattern B: Namespace-as-a-Service — GCP Example Variables
+#
+# Copy this file to terraform.tfvars and fill in the values.
+# Apply layers in order: network/ -> clusters/shared/ -> nodes/shared/
+
+# --- Network Layer (network/) ---
+name_prefix               = "naas"
+aviatrix_gcp_account_name = "gcp-demo-account"
+gcp_project               = "my-gcp-project-id"
+gcp_region                = "us-central1"
+env                       = "prod"
+
+transit_cidr   = "10.38.0.0/20"
+shared_vpc_cidr = "10.40.0.0/16"
+pod_cidr       = "100.64.0.0/16"
+services_cidr  = "172.40.0.0/20"
+
+master_ipv4_cidr_block = "172.16.0.0/28"
+
+dns_private_zone_name = "gcp-naas.aviatrixdemo.local"
+
+k8s_cluster_suffix = "shared-gke"
+
+geo_block_countries = ["CN", "RU", "KP", "IR"]
+
+approved_web_domains = [
+  "*.googleapis.com",
+  "registry.npmjs.org",
+  "pypi.org",
+  "ghcr.io",
+]
+
+# --- Cluster Layer (clusters/shared/) ---
+# release_channel = "REGULAR"
+# master_authorized_networks = [
+#   {
+#     cidr_block   = "0.0.0.0/0"
+#     display_name = "All (restrict in production)"
+#   }
+# ]
+
+# --- Node Layer (nodes/shared/) ---
+# node_pool_config = {
+#   min_node_count     = 2
+#   max_node_count     = 6
+#   initial_node_count = 3
+#   machine_type       = "e2-standard-4"
+#   spot               = true
+# }
+# external_dns_chart_version = "1.19.0"

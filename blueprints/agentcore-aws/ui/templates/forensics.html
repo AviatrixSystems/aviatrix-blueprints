@@ -1,0 +1,69 @@
+<style>
+  .forensics-card { background: #fff; border: 1px solid #e7e0d4; border-radius: 16px; padding: 22px; margin-bottom: 18px; }
+  .forensics-card h2 { font-family: 'Sora'; font-weight: 700; font-size: 18px; margin: 0 0 4px; }
+  .forensics-card form { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+  .forensics-card textarea, .forensics-card input { padding: 8px 10px; border: 1px solid #e7e0d4; border-radius: 6px; font-family: ui-monospace, monospace; font-size: 12px; }
+  .forensics-card button { align-self: flex-start; padding: 8px 14px; background: #E24402; color: #fff; border: none; border-radius: 6px; font-family: 'Sora'; font-weight: 600; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; min-width: 150px; justify-content: center; }
+  .forensics-card button:disabled { background: #9ca3af; cursor: not-allowed; }
+  .forensics-card form.htmx-request textarea,
+  .forensics-card form.htmx-request input { background: #f9fafb; color: #6b7280; }
+  .forensics-card .btn-spinner { width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff; border-radius: 50%; animation: forspin 0.8s linear infinite; display: none; }
+  .forensics-card form.htmx-request .btn-spinner { display: inline-block; }
+  .forensics-card form.htmx-request .btn-label { display: none; }
+  .forensics-card form.htmx-request .btn-running { display: inline; }
+  .forensics-card .btn-running { display: none; }
+  @keyframes forspin { to { transform: rotate(360deg); } }
+  .forensics-result { background: #030712; color: #d4d4d8; padding: 14px; border-radius: 8px; margin-top: 12px; font-family: ui-monospace, monospace; font-size: 11px; white-space: pre-wrap; }
+  .forensics-running { background: #030712; color: rgba(255,255,255,0.7); padding: 14px; border-radius: 8px; margin-top: 12px; font-family: 'Sora'; font-size: 12px; display: none; align-items: center; gap: 12px; }
+  .forensics-card form.htmx-request ~ .forensics-running { display: flex; }
+  .forensics-running .spin { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.15); border-top-color: #FA6B1E; border-radius: 50%; animation: forspin 0.9s linear infinite; }
+  .forensics-running .sub { font-family: ui-monospace, monospace; font-size: 11px; color: rgba(255,255,255,0.45); }
+</style>
+
+<div class="forensics-card">
+  <h2>Tool use — github_search_issues <span style="font-family: ui-monospace, monospace; font-size: 11px; color: #6b7280;">DCF -31- allowed-tools</span></h2>
+  <p style="color: #6b7280; font-size: 13px;">Claude decides when to call the tool; the call hits <code>api.github.com</code>, which the allowed-tools WebGroup permits.</p>
+  <form hx-post="/api/forensics/tool"
+        hx-target="#tool-result"
+        hx-disabled-elt="find button, find textarea">
+    <textarea name="query" rows="3" placeholder="Find recent GitHub issues about Bedrock AgentCore...">Find recent GitHub issues about Bedrock AgentCore.</textarea>
+    <button type="submit">
+      <span class="btn-spinner" aria-hidden="true"></span>
+      <span class="btn-label">Run tool-use loop</span>
+      <span class="btn-running">Calling agent…</span>
+    </button>
+  </form>
+  <div class="forensics-running">
+    <div class="spin"></div>
+    <div>
+      <div>Agent invoking github_search_issues tool</div>
+      <div class="sub">first call cold-starts the runtime; allow up to 2 min</div>
+    </div>
+  </div>
+  <div id="tool-result"></div>
+</div>
+
+<div class="forensics-card">
+  <h2>MCP — list/call tools on a remote server <span style="font-family: ui-monospace, monospace; font-size: 11px; color: #6b7280;">DCF -33- allowed-mcp-servers</span></h2>
+  <p style="color: #6b7280; font-size: 13px;">Allowlisted MCP sources only. Off-list servers see TLS UNEXPECTED_EOF at the spoke gateway.</p>
+  <form hx-post="/api/forensics/mcp"
+        hx-target="#mcp-result"
+        hx-disabled-elt="find button, find input, find textarea">
+    <input type="url" name="server_url" placeholder="https://mcp.deepwiki.com/mcp" value="https://mcp.deepwiki.com/mcp" required />
+    <input type="text" name="tool" placeholder="Tool to call (optional)" />
+    <textarea name="args" rows="2" placeholder='{"k":"v"}'>{}</textarea>
+    <button type="submit">
+      <span class="btn-spinner" aria-hidden="true"></span>
+      <span class="btn-label">Send MCP request</span>
+      <span class="btn-running">Connecting…</span>
+    </button>
+  </form>
+  <div class="forensics-running">
+    <div class="spin"></div>
+    <div>
+      <div>Agent opening MCP session</div>
+      <div class="sub">first call cold-starts the runtime; allow up to 2 min</div>
+    </div>
+  </div>
+  <div id="mcp-result"></div>
+</div>

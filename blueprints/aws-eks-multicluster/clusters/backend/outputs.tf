@@ -74,6 +74,11 @@ output "external_dns_role_arn" {
   value       = module.backend_eks.external_dns_role_arn
 }
 
+output "ebs_csi_role_arn" {
+  description = "IAM role ARN for the EBS CSI driver (IRSA)"
+  value       = module.backend_eks.ebs_csi_role_arn
+}
+
 # Kubectl configuration
 output "configure_kubectl" {
   description = "Command to configure kubectl"

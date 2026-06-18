@@ -1,0 +1,27 @@
+# Required — fill these in
+name_prefix                 = "aks-demo"
+aviatrix_azure_account_name = "your-azure-account-name"  # Configured in Aviatrix Controller
+azure_region                = "eastus2"
+aviatrix_azure_region       = "East US 2"
+
+# Aviatrix Controller credentials. Leave unset and export AVIATRIX_CONTROLLER_IP /
+# AVIATRIX_USERNAME / AVIATRIX_PASSWORD env vars (recommended), or set here.
+# aviatrix_controller_ip = "1.2.3.4"
+# aviatrix_username      = "admin"
+# aviatrix_password      = "..."
+
+# Optional CIDR overrides (defaults shown)
+# transit_cidr          = "10.2.0.0/20"
+# frontend_vnet_cidr    = "10.10.0.0/23"
+# backend_vnet_cidr     = "10.20.0.0/23"
+# db_vnet_cidr          = "10.5.0.0/22"
+# pod_cidr              = "100.64.0.0/16"   # Cilium overlay (overlapping across clusters)
+# service_cidr          = "172.16.0.0/16"
+# dns_service_ip        = "172.16.0.10"
+# private_dns_zone_name = "azure.aviatrixdemo.local"
+
+# K8s-typed SmartGroups + priority-50 demo DCF rule.
+# Set to false and `terraform apply` BEFORE destroying clusters/{frontend,backend} —
+# the aviatrix_kubernetes_cluster registration cannot be deleted while these
+# SmartGroups reference its cluster_id.
+# enable_k8s_smartgroup_demo = true

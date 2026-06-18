@@ -1,0 +1,216 @@
+# Gatus health dashboard — frontend cluster
+#
+# DNS hostnames assume var.private_dns_zone_name = "gcp.aviatrixdemo.local."
+# in the network layer. If you changed it, update both the configmap and the
+# external-dns hostname annotations below.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gatus
+  labels:
+    app.kubernetes.io/part-of: gke-demo
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend
+  namespace: gatus
+data:
+  config.yaml: |
+    storage:
+      type: memory
+    metrics: true
+    endpoints:
+      # Internal Services — East-West through Aviatrix transit
+      - name: "Prod Database"
+        group: "Internal"
+        url: "http://db.gcp.aviatrixdemo.local"
+        interval: 60s
+        conditions:
+          - "[STATUS] == 200"
+          - "[RESPONSE_TIME] < 300"
+      - name: "Backend Service"
+        group: "Internal"
+        url: "http://backend.gcp.aviatrixdemo.local:8080"
+        interval: 60s
+        conditions:
+          - "[STATUS] == 200"
+          - "[RESPONSE_TIME] < 500"
+
+      # Egress — Allowed Traffic (governed by DCF WebGroups)
+      - name: "kubernetes.io"
+        group: "Egress"
+        url: "https://kubernetes.io"
+        interval: 60s
+        client:
+          insecure: true
+        conditions: ["[STATUS] == 200"]
+
+      - name: "github.com/.../terraform-provider-aviatrix"
+        group: "Egress"
+        url: "https://github.com/AviatrixSystems/terraform-provider-aviatrix"
+        interval: 60s
+        client:
+          insecure: true
+        conditions: ["[STATUS] == 200"]
+
+      - name: "registry.npmjs.org"
+        group: "Egress"
+        url: "https://registry.npmjs.org"
+        interval: 60s
+        client:
+          insecure: true
+        conditions: ["[STATUS] == 200"]
+
+      # Threats — should be BLOCKED by DCF (GeoBlock + ThreatIQ)
+      - name: "GeoBlock - Iran"
+        group: "Threats"
+        url: "icmp://www.irna.ir"
+        interval: 60s
+        conditions: ["[CONNECTED] == true"]
+
+      # NOTE: ThreatIQ pulls from the ET Open compromised-ips feed which rotates
+      # daily. If this shows CONNECTED (not blocked), refresh from:
+      #   curl -s https://rules.emergingthreats.net/blockrules/compromised-ips.txt | grep -vE '^(#|$)' | head -1
+      - name: "Threat Feed - Malicious IP"
+        group: "Threats"
+        url: "icmp://100.19.147.208"
+        interval: 60s
+        conditions: ["[CONNECTED] == true"]
+
+    ui:
+      logo: "https://aviatrix.com/wp-content/uploads/2019/10/cropped-Aviatrix-Logo@2x-1-32x32.png"
+      header: "Frontend Cluster - ${HOSTNAME}"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: frontend
+  namespace: gatus
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: gatus
+  labels:
+    app: frontend
+    cluster: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      name: frontend
+      labels:
+        app: frontend
+        cluster: frontend
+        # Label used by Aviatrix k8s-firewall controller for DCF SmartGroup targeting
+        aviatrix.com/app: frontend
+    spec:
+      serviceAccountName: frontend
+      terminationGracePeriodSeconds: 5
+      containers:
+        - image: twinproduction/gatus:v5.14.0
+          imagePullPolicy: IfNotPresent
+          name: frontend
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 250m
+              memory: 100M
+            requests:
+              cpu: 50m
+              memory: 30M
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 5
+          volumeMounts:
+            - mountPath: /config
+              name: frontend-config
+      volumes:
+        - configMap:
+            name: frontend
+          name: frontend-config
+---
+# Internal regional TCP/UDP load balancer — gives the Service a private IP from
+# the node subnet that's reachable from the backend cluster via Aviatrix
+# transit. ExternalDNS publishes the LB IP to Cloud DNS as
+# frontend.gcp.aviatrixdemo.local.
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: gatus
+  labels:
+    app: frontend
+    service: frontend
+  annotations:
+    networking.gke.io/load-balancer-type: "Internal"
+    external-dns.alpha.kubernetes.io/hostname: frontend.gcp.aviatrixdemo.local
+    external-dns.alpha.kubernetes.io/ttl: "60"
+spec:
+  type: LoadBalancer
+  ports:
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app: frontend
+---
+# GKE Gateway API — provisions a Google Global External ALB on the reserved IP
+# from the network layer. HTTPRoute attaches the Gatus Service as the backend.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: frontend-public
+  namespace: gatus
+  annotations:
+    # Pin to the reserved global address from the network layer. Replace if
+    # your name_prefix differs from the default "gke-demo".
+    networking.gke.io/addresses: gke-demo-frontend-gateway-ip
+spec:
+  gatewayClassName: gke-l7-global-external-managed
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: frontend-public
+  namespace: gatus
+spec:
+  parentRefs:
+    - name: frontend-public
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: frontend
+          port: 8080

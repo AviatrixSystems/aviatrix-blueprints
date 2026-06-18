@@ -12,7 +12,7 @@ Each blueprint's README.md must include the following sections:
 # Blueprint Name
 
 Brief description of what this blueprint deploys and demonstrates.
-One to three sentences covering the use case and key Aviatrix features.
+One to three sentences covering the use case and the Aviatrix Cloud Native Security Fabric capabilities it showcases (e.g., Distributed Cloud Firewall, workload segmentation, Zero Trust enforcement).
 ```
 
 ### 2. Architecture Diagram

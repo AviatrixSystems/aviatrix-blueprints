@@ -1,0 +1,50 @@
+# -----------------------------------------------------------------------------
+# Pattern C: Prod/Non-Prod + Namespace-as-a-Service — AWS
+# RECOMMENDED pattern for most organizations
+# Copy this file to terraform.tfvars and fill in values
+# -----------------------------------------------------------------------------
+
+# Aviatrix Controller credentials come from environment variables:
+#   export AVIATRIX_CONTROLLER_IP="controller.example.com"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="CHANGE_ME"
+
+# AWS
+aws_account_name = "aws-prod-account"
+aws_region       = "us-east-1"
+
+# Naming
+environment_prefix = "patternc"
+
+# CIDRs (defaults shown — override if needed)
+# transit_cidr     = "10.2.0.0/20"
+# prod_vpc_cidr    = "10.10.0.0/20"
+# nonprod_vpc_cidr = "10.20.0.0/20"
+# db_spoke_cidr    = "10.5.0.0/22"
+# pod_cidr         = "100.64.0.0/16"
+
+# Gateway sizing
+# transit_gw_size  = "c5.xlarge"
+# spoke_gw_size    = "c5.xlarge"
+# db_spoke_gw_size = "t3.medium"
+
+# HA
+enable_ha = true
+
+# DNS
+dns_domain = "internal.example.com"
+# route53_zone_id = ""  # Leave empty to create new private zone
+
+# Teams
+teams = {
+  team-a = {
+    prod_namespace    = "team-a-prod"
+    nonprod_namespace = "team-a-dev"
+    contact           = "team-a@example.com"
+  }
+  team-b = {
+    prod_namespace    = "team-b-prod"
+    nonprod_namespace = "team-b-staging"
+    contact           = "team-b@example.com"
+  }
+}

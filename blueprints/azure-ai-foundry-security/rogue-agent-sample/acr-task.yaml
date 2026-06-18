@@ -1,0 +1,6 @@
+version: v1.1.0
+steps:
+- build: -t {{.Run.Registry}}/hotel-rogue-agent:latest .
+  context: .
+- push:
+  - {{.Run.Registry}}/hotel-rogue-agent:latest

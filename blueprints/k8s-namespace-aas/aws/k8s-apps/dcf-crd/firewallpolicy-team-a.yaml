@@ -1,0 +1,26 @@
+# Pattern B: Team A Egress — applied via GitOps into team-a namespace
+---
+kind: FirewallPolicy
+apiVersion: networking.aviatrix.com/v1alpha1
+metadata:
+  name: team-a-egress
+  namespace: team-a
+spec:
+  rules:
+    - name: allow-payment-api
+      logging: true
+      selector:
+        matchLabels:
+          app: api
+      action: permit
+      protocol: tcp
+      port: 443
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"  # Public Internet
+      webGroups:
+        - name: team-a-approved-apis
+  webGroups:
+    - name: team-a-approved-apis
+      domains:
+        - "api.stripe.com"
+        - "api.sendgrid.com"

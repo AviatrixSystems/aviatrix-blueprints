@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{{ page_title }} — Aviatrix Validated Containment Architecture</title>
+<link rel="stylesheet" href="/static/sora.css" />
+<link rel="stylesheet" href="/static/tokens.css" />
+<link rel="stylesheet" href="/static/tailwind.css" />
+<script src="/static/htmx.min.js" defer></script>
+<style>
+  body { font-family: var(--font-body); background: var(--surface-cream); color: var(--text-ink); margin: 0; }
+  .header { background: var(--surface-panel-deep); color: var(--text-on-dark); padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .header .brand { display: flex; align-items: center; gap: 14px; }
+  .header .logo { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 700; font-size: 18px; }
+  .header .logo-mark { width: 26px; height: 26px; background: var(--brand-orange-primary); border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; }
+  .header .eyebrow { font-family: var(--font-display); font-weight: 600; font-size: 11px; letter-spacing: 0.10em; text-transform: uppercase; color: var(--brand-orange-warm); }
+  .header nav { display: flex; gap: 22px; }
+  .header nav a { color: rgba(255,255,255,0.75); text-decoration: none; font-family: var(--font-display); font-weight: 500; font-size: 13px; }
+  .header nav a.active { color: #fff; border-bottom: 2px solid var(--brand-orange-primary); padding-bottom: 2px; }
+  .title-bar { background: var(--surface-panel-deep); color: #fff; padding: 8px 32px 28px; }
+  .title-bar h1 { font-family: var(--font-display); font-weight: 700; font-size: 32px; margin: 0 0 4px; }
+  .title-bar .subtitle { color: rgba(255,255,255,0.7); font-size: 14px; max-width: 760px; }
+  .picker { background: var(--surface-cream); border-bottom: 1px solid var(--surface-border); padding: 16px 32px; display: flex; align-items: center; gap: 12px; overflow-x: auto; }
+  .picker .picker-label { font-family: var(--font-display); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); white-space: nowrap; }
+  .picker .chip { padding: 6px 14px; border-radius: var(--radius-pill); background: #fff; border: 1px solid var(--surface-border); font-family: var(--font-display); font-weight: 500; font-size: 12px; color: #374151; white-space: nowrap; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+  .picker .chip:hover { border-color: var(--brand-orange-warm); }
+  .picker .chip.active { background: var(--brand-orange-primary); color: #fff; border-color: var(--brand-orange-primary); }
+  .picker .chip .id { font-family: var(--font-mono); font-size: 10px; opacity: 0.7; }
+  .status-strip { background: #fff; border-bottom: 1px solid var(--surface-border); padding: 10px 32px; display: flex; gap: 24px; flex-wrap: wrap; font-family: var(--font-mono); font-size: 11px; align-items: center; }
+  .status-strip .item { display: flex; gap: 6px; align-items: baseline; }
+  .status-strip .k { color: #9ca3af; }
+  .status-strip .v { color: #374151; }
+  .ready-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: var(--radius-pill); font-family: var(--font-display); font-weight: 600; font-size: 10px; letter-spacing: 0.08em; cursor: default; user-select: none; border: 1px solid transparent; }
+  .ready-pill .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .ready-pill.ready { background: rgba(34,197,94,0.12); color: #15803d; border-color: rgba(34,197,94,0.35); }
+  .ready-pill.ready .dot { background: var(--severity-green); box-shadow: 0 0 0 2px rgba(34,197,94,0.2); }
+  .ready-pill.degraded { background: rgba(234,179,8,0.12); color: #854d0e; border-color: rgba(234,179,8,0.4); }
+  .ready-pill.degraded .dot { background: var(--severity-yellow); box-shadow: 0 0 0 2px rgba(234,179,8,0.22); }
+  .ready-pill.not-ready { background: rgba(220,38,38,0.12); color: #991b1b; border-color: rgba(220,38,38,0.4); }
+  .ready-pill.not-ready .dot { background: var(--severity-red); box-shadow: 0 0 0 2px rgba(220,38,38,0.22); }
+  .copilot-link { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; border-radius: var(--radius-pill); border: 1px solid var(--surface-border); background: #fff; color: var(--brand-orange-primary); font-family: var(--font-display); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; text-decoration: none; }
+  .copilot-link:hover { border-color: var(--brand-orange-primary); background: rgba(226,68,2,0.06); }
+  .copilot-link .arrow { font-family: ui-monospace, monospace; font-weight: 700; }
+  .footer { background: var(--surface-panel-deep); color: rgba(255,255,255,0.5); padding: 16px 32px; font-size: 11px; font-family: var(--font-mono); display: flex; justify-content: space-between; }
+  .footer a { color: rgba(255,255,255,0.7); text-decoration: none; }
+  .content { padding: 24px 32px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="brand">
+    <span class="logo">
+      <span class="logo-mark">A</span>
+      <span>aviatrix</span>
+    </span>
+    <span class="eyebrow">Validated Containment Architecture &middot; Attack Simulation</span>
+  </div>
+  <nav>
+    <a class="{{ 'active' if active_nav == 'scenarios' else '' }}" href="/">Scenarios</a>
+    <a class="{{ 'active' if active_nav == 'chat' else '' }}" href="/chat">Chat</a>
+    <a class="{{ 'active' if active_nav == 'forensics' else '' }}" href="/forensics/tool">Forensics</a>
+    <a style="color: rgba(255,255,255,0.5);" href="https://github.com/AviatrixSystems/aviatrix-blueprints/blob/main/blueprints/agentcore-aws/architecture.svg" target="_blank" rel="noopener">Architecture</a>
+    <a style="color: rgba(255,255,255,0.5);" href="https://genai.owasp.org/llm-top-10/" target="_blank" rel="noopener" title="OWASP Top 10 for LLM Applications">OWASP LLM Top 10 ↗</a>
+  </nav>
+</div>
+
+<div class="title-bar">
+  <h1>AWS Bedrock AgentCore</h1>
+  <div class="subtitle">Six AI attack paths run against a live Aviatrix-contained agent runtime. Every verdict is what the agent actually saw on the wire; flip the DCF rules in CoPilot to flip the outcome.</div>
+</div>
+
+{% if scenarios %}
+<div class="picker">
+  <span class="picker-label">Scenario</span>
+  {% for s in scenarios %}
+  <a class="chip {{ 'active' if s.id == active_scenario_id else '' }}"
+     href="/s/{{ s.id }}"
+     hx-get="/s/{{ s.id }}/fragment"
+     hx-target="#content"
+     hx-swap="innerHTML"
+     hx-push-url="/s/{{ s.id }}">
+    <span class="id">{{ s.short_id }}</span>
+    {{ s.short_title }}
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="status-strip">
+  <span class="item"><span class="k">region</span><span class="v">{{ status.region }}</span></span>
+  <span class="item"><span class="k">runtime</span><span class="v">{{ status.runtime }}</span></span>
+  <span class="item"><span class="k">data plane</span><span class="v">{{ status.data_plane }}</span></span>
+  <span class="item"><span class="k">controller</span><span class="v">{{ status.controller_version }}</span></span>
+  <span hx-get="/api/readiness/fragment" hx-trigger="load, every 60s" hx-swap="outerHTML" class="ready-pill degraded" title="Probing readiness…"><span class="dot"></span>CHECKING</span>
+  {% if status.copilot_url %}
+  <a class="copilot-link" href="{{ status.copilot_url }}" target="_blank" rel="noopener" title="Edit containment policies in the Aviatrix console">
+    Containment Policies &middot; Aviatrix Console<span class="arrow">↗</span>
+  </a>
+  {% endif %}
+</div>
+
+<div class="content" id="content">
+  {{ body_content | safe }}
+</div>
+
+<script>
+  // HTMX swaps #content for picker chip clicks but the picker .chip.active
+  // marker is server-rendered and never refreshes. Sync chip + document.title
+  // off the URL after every history change.
+  (function () {
+    function syncActiveChip() {
+      var path = window.location.pathname;
+      var match = path.match(/^\/s\/([^\/]+)/);
+      var activeId = match ? match[1] : null;
+      document.querySelectorAll('.picker .chip').forEach(function (chip) {
+        var href = chip.getAttribute('href') || '';
+        var chipId = (href.match(/^\/s\/([^\/]+)/) || [])[1];
+        if (activeId && chipId === activeId) {
+          chip.classList.add('active');
+        } else {
+          chip.classList.remove('active');
+        }
+      });
+    }
+    document.body.addEventListener('htmx:pushedIntoHistory', syncActiveChip);
+    document.body.addEventListener('htmx:afterSettle', syncActiveChip);
+    window.addEventListener('popstate', syncActiveChip);
+  })();
+</script>
+
+<div class="footer">
+  <div>aviatrix · validated containment architecture · AgentCore VCA · controller {{ status.controller_version }}</div>
+  <div>
+    <a href="https://github.com/AviatrixSystems/aviatrix-blueprints/blob/main/blueprints/agentcore-aws/" target="_blank" rel="noopener">terraform source</a>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,79 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: traffic-test
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: traffic-test
+data:
+  default.conf: |
+    server {
+        listen 8080;
+        server_name _;
+        location / {
+            return 200 'team-a OK\n';
+            add_header Content-Type text/plain;
+        }
+        location /health {
+            return 200 'healthy\n';
+            add_header Content-Type text/plain;
+        }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traffic-test-service
+  namespace: traffic-test
+  labels:
+    app: traffic-test-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traffic-test-service
+  template:
+    metadata:
+      labels:
+        app: traffic-test-service
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: nginx-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: traffic-test-service
+  namespace: traffic-test
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: team-a.aws.aviatrixdemo.local
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internal
+spec:
+  type: LoadBalancer
+  selector:
+    app: traffic-test-service
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP

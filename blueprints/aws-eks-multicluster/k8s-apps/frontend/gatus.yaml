@@ -68,8 +68,11 @@ data:
         interval: 60s
         conditions: ["[CONNECTED] == true"]
 
-      # NOTE: This IP must appear in your Aviatrix ThreatGuard feed to be blocked.
-      # Verify against your current threat intelligence feed and replace if needed.
+      # NOTE: This IP must currently be classified (severity major/critical) in the
+      # Aviatrix ThreatIQ feed for DCF to block it. Feeds rotate, so a once-malicious IP
+      # can become reachable (this endpoint then shows green/connected). Before a demo,
+      # confirm/refresh the IP via CoPilot (Security > ThreatIQ) or pick a currently-listed
+      # one. "GeoBlock - Iran" above is the always-on proof that DCF egress enforcement works.
       - name: "Threat Feed - Malicious IP"
         group: "Threats"
         url: "icmp://102.130.117.167"

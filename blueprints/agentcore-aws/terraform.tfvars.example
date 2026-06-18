@@ -1,0 +1,80 @@
+# =============================================================================
+# Example terraform.tfvars for the agentcore-aws blueprint.
+# Copy to terraform.tfvars and fill in your values.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Aviatrix controller
+# -----------------------------------------------------------------------------
+# controller_ip, controller_username, controller_password and
+# aviatrix_aws_account_name are supplied via TF_VAR_* env vars per the README
+# Step 2 block. Do NOT add them here - any value in this file overrides the
+# env var (tfvars beats TF_VAR_*), so a placeholder password like "change-me"
+# silently shadows your real credentials and the controller rejects auth with
+# "username and password do not match".
+
+# CoPilot IP (used to render a deeplink in the UI to DCF policies). Defaults
+# to controller_ip when co-resident (Cloud Fabric / single-VM lab deploys).
+# copilot_ip          = "3.135.75.175"
+
+# -----------------------------------------------------------------------------
+# AWS
+# -----------------------------------------------------------------------------
+aws_region = "us-east-2"
+
+# -----------------------------------------------------------------------------
+# Blueprint
+# -----------------------------------------------------------------------------
+name_prefix          = "agentcore-vca"
+transit_cidr         = "10.40.0.0/23"
+agentcore_spoke_cidr = "10.50.0.0/16"
+client_spoke_cidr    = "10.60.0.0/16"
+gateway_size         = "t3.medium"
+
+# -----------------------------------------------------------------------------
+# DCF policy seeds
+# -----------------------------------------------------------------------------
+allowed_model_domains = [
+  "bedrock-runtime.us-east-2.amazonaws.com",
+  "bedrock.us-east-2.amazonaws.com",
+]
+
+allowed_tool_domains = [
+  "api.github.com",
+]
+
+allowed_mcp_server_domains = [
+  "mcp.deepwiki.com",
+]
+
+# NOTE: the per-account ECR registry hostname
+# (<your-account-id>.dkr.ecr.<region>.amazonaws.com) is appended automatically
+# by Terraform from the current AWS caller identity. Do not add it here.
+aws_control_domains = [
+  # Observability + identity
+  "sts.us-east-2.amazonaws.com",
+  "logs.us-east-2.amazonaws.com",
+  "monitoring.us-east-2.amazonaws.com",
+  "xray.us-east-2.amazonaws.com",
+  "secretsmanager.us-east-2.amazonaws.com",
+  # ECR auth API (required for AgentCore VPC-mode image pull)
+  "api.ecr.us-east-2.amazonaws.com",
+  # S3 layer bucket backing ECR image layers in us-east-2
+  "prod-us-east-2-starport-layer-bucket.s3.us-east-2.amazonaws.com",
+]
+
+# -----------------------------------------------------------------------------
+# Sample agent
+# -----------------------------------------------------------------------------
+# Requires podman machine running. Set to false if you prefer to build/push
+# out-of-band and just want Terraform to wire the runtime up.
+build_agent_image = true
+agent_image_tag   = "v3"
+
+# -----------------------------------------------------------------------------
+# UI ingress
+# -----------------------------------------------------------------------------
+# Public CIDR(s) allowed to reach the ALB-fronted UI. The variable has no
+# default and validation requires at least one entry, so terraform will prompt
+# if you skip the README's `echo >> terraform.tfvars` recipe in Step 2. The ALB
+# SG is the only ingress control; do not leave this open.

@@ -1,0 +1,47 @@
+# Pattern B: Namespace-as-a-Service — Team B Egress CRD (Azure/AKS)
+#
+# This FirewallPolicy is deployed by Team B via GitOps into their namespace.
+# CRD-managed policies fill priority 70-99 (team self-service).
+# Platform team sets baseline via Terraform; app teams extend via CRDs + GitOps.
+---
+kind: FirewallPolicy
+apiVersion: networking.aviatrix.com/v1alpha1
+metadata:
+  name: team-b-egress
+  namespace: team-b
+spec:
+  rules:
+    - name: allow-cdn-egress
+      logging: true
+      selector:
+        matchLabels:
+          app: frontend
+      action: permit
+      protocol: tcp
+      port: 443
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: cdn-domains
+    - name: allow-analytics
+      logging: true
+      selector:
+        matchLabels:
+          app: analytics
+      action: permit
+      protocol: tcp
+      port: 443
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: analytics-domains
+  webGroups:
+    - name: cdn-domains
+      domains:
+        - "cdn.cloudflare.com"
+        - "*.cloudfront.net"
+        - "*.akamaized.net"
+    - name: analytics-domains
+      domains:
+        - "api.segment.io"
+        - "api.mixpanel.com"

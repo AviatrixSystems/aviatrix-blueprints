@@ -1,0 +1,905 @@
+name: Deploy Aviatrix K8s Blueprints
+
+on:
+  workflow_dispatch:
+    inputs:
+      pattern:
+        description: 'Deployment pattern'
+        required: true
+        type: choice
+        options:
+          - cluster-aas
+          - namespace-aas
+          - prod-nonprod-hybrid
+      csp:
+        description: 'Cloud provider'
+        required: true
+        type: choice
+        options:
+          - aws
+          - azure
+          - gcp
+      action:
+        description: 'Terraform action'
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+      layer:
+        description: 'Deploy layer (or "all" for full stack)'
+        required: true
+        type: choice
+        options:
+          - all
+          - network
+          - clusters
+          - nodes
+          - crds
+
+# Prevent concurrent deployments of the same pattern/csp
+concurrency:
+  group: deploy-${{ github.event.inputs.pattern }}-${{ github.event.inputs.csp }}
+  cancel-in-progress: false
+
+# ─────────────────────────────────────────────────────────────
+# Required GitHub configuration:
+#
+# Secrets:
+#   AVIATRIX_CONTROLLER_IP    Aviatrix controller IP
+#   AVIATRIX_USERNAME         Aviatrix admin username
+#   AVIATRIX_PASSWORD         Aviatrix admin password
+#   AWS_ROLE_ARN              IAM role ARN for OIDC auth
+#   AWS_ACCOUNT_ID            AWS account ID (for Aviatrix role ARN)
+#   AVIATRIX_AWS_ACCOUNT      Aviatrix-onboarded AWS account name
+#   AZURE_CREDENTIALS         Azure service principal JSON (optional)
+#   GCP_CREDENTIALS           GCP service account JSON (optional)
+#   AVIATRIX_AZURE_ACCOUNT    Aviatrix-onboarded Azure account (optional)
+#   AVIATRIX_GCP_ACCOUNT      Aviatrix-onboarded GCP account (optional)
+#
+# Variables:
+#   AWS_REGION                Target AWS region (e.g. us-east-2)
+#   TF_STATE_BUCKET           S3 bucket for terraform state
+#
+# Environments:
+#   production                Protection rules for apply (required reviewers)
+#   destroy                   Protection rules for destroy (required reviewers)
+# ─────────────────────────────────────────────────────────────
+
+env:
+  TF_VERSION: '1.7.0'
+  TF_INPUT: 'false'
+  TF_IN_AUTOMATION: 'true'
+  AVIATRIX_CONTROLLER_IP: ${{ secrets.AVIATRIX_CONTROLLER_IP }}
+  AVIATRIX_USERNAME: ${{ secrets.AVIATRIX_USERNAME }}
+  AVIATRIX_PASSWORD: ${{ secrets.AVIATRIX_PASSWORD }}
+  # These cover all patterns — TF_VAR_ for undeclared variables are silently ignored
+  TF_VAR_aviatrix_aws_account_name: ${{ secrets.AVIATRIX_AWS_ACCOUNT }}
+  TF_VAR_aws_account_name: ${{ secrets.AVIATRIX_AWS_ACCOUNT }}
+  TF_VAR_aviatrix_azure_account_name: ${{ secrets.AVIATRIX_AZURE_ACCOUNT }}
+  TF_VAR_aviatrix_gcp_account_name: ${{ secrets.AVIATRIX_GCP_ACCOUNT }}
+
+jobs:
+  # ════════════════════════════════════════════════════════════
+  # Setup: validate inputs, compute matrix
+  # ════════════════════════════════════════════════════════════
+  setup:
+    name: Setup
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.value }}
+      base_dir: ${{ steps.dirs.outputs.base_dir }}
+    steps:
+      - name: Compute matrix targets
+        id: matrix
+        run: |
+          case "${{ inputs.pattern }}" in
+            cluster-aas)         echo 'value=["team-a","team-b","team-c"]' >> "$GITHUB_OUTPUT" ;;
+            namespace-aas)       echo 'value=["shared"]' >> "$GITHUB_OUTPUT" ;;
+            prod-nonprod-hybrid) echo 'value=["prod","nonprod"]' >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Set directory paths
+        id: dirs
+        run: |
+          echo "base_dir=blueprints/${{ inputs.pattern }}/${{ inputs.csp }}" >> "$GITHUB_OUTPUT"
+
+      - name: Print run summary
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Deployment Configuration
+          | Parameter | Value |
+          |-----------|-------|
+          | Pattern | \`${{ inputs.pattern }}\` |
+          | CSP | \`${{ inputs.csp }}\` |
+          | Action | \`${{ inputs.action }}\` |
+          | Layer | \`${{ inputs.layer }}\` |
+          | Triggered by | @${{ github.actor }} |
+          | State bucket | \`${{ vars.TF_STATE_BUCKET }}\` |
+          EOF
+
+  # ════════════════════════════════════════════════════════════
+  # Approval gate (skipped for plan)
+  # ════════════════════════════════════════════════════════════
+  approve:
+    name: "Approve: ${{ inputs.action }}"
+    needs: [setup]
+    runs-on: ubuntu-latest
+    if: inputs.action != 'plan'
+    environment:
+      name: ${{ inputs.action == 'destroy' && 'destroy' || 'production' }}
+    steps:
+      - name: Approved
+        run: |
+          echo "## :white_check_mark: Approved: ${{ inputs.action }} ${{ inputs.pattern }}/${{ inputs.csp }} (layer: ${{ inputs.layer }})" >> "$GITHUB_STEP_SUMMARY"
+
+  # ════════════════════════════════════════════════════════════
+  # Layer 1: Network (plan/apply)
+  # ════════════════════════════════════════════════════════════
+  network:
+    name: "L1: Network"
+    needs: [setup, approve]
+    runs-on: ubuntu-latest
+    if: |
+      !cancelled() &&
+      (needs.approve.result == 'success' || needs.approve.result == 'skipped') &&
+      inputs.action != 'destroy' &&
+      (inputs.layer == 'all' || inputs.layer == 'network')
+    defaults:
+      run:
+        working-directory: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/network
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      # ── Cloud credentials ──
+      - name: Configure AWS credentials
+        if: inputs.csp == 'aws'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Configure Azure credentials
+        if: inputs.csp == 'azure'
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Configure GCP credentials
+        if: inputs.csp == 'gcp'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      # ── AWS service quota check ──
+      - name: Check AWS service quotas
+        if: inputs.csp == 'aws' && inputs.action == 'apply'
+        run: |
+          VPC_LIMIT=$(aws service-quotas get-service-quota \
+            --service-code vpc --quota-code L-F678F1CE \
+            --region "${{ vars.AWS_REGION }}" \
+            --query 'Quota.Value' --output text)
+          EIP_LIMIT=$(aws service-quotas get-service-quota \
+            --service-code ec2 --quota-code L-0263D0A3 \
+            --region "${{ vars.AWS_REGION }}" \
+            --query 'Quota.Value' --output text)
+          echo "VPC limit: $VPC_LIMIT, EIP limit: $EIP_LIMIT"
+          if (( $(echo "$VPC_LIMIT < 10" | bc -l) )); then
+            echo "::warning::VPC limit is $VPC_LIMIT — may need increase for this pattern"
+          fi
+          if (( $(echo "$EIP_LIMIT < 12" | bc -l) )); then
+            echo "::warning::EIP limit is $EIP_LIMIT — may need increase for this pattern"
+          fi
+
+      # ── State management ──
+      - name: Download existing state from S3
+        if: inputs.csp == 'aws'
+        working-directory: .
+        run: |
+          aws s3 cp \
+            "s3://${{ vars.TF_STATE_BUCKET }}/${{ needs.setup.outputs.base_dir }}/network/terraform.tfstate" \
+            "${{ needs.setup.outputs.base_dir }}/network/terraform.tfstate" \
+            2>/dev/null || echo "No existing network state found (first run)"
+
+      # ── Terraform ──
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan -no-color -out=tfplan 2>&1 | tee plan_output.txt
+          {
+            echo "## L1: Network Plan — ${{ inputs.pattern }}/${{ inputs.csp }}"
+            echo '```'
+            tail -30 plan_output.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Terraform Apply
+        if: inputs.action == 'apply'
+        run: terraform apply -auto-approve tfplan
+
+      # ── Upload state ──
+      - name: Upload state to S3
+        if: inputs.action == 'apply' && inputs.csp == 'aws'
+        run: |
+          if [ -f terraform.tfstate ]; then
+            aws s3 cp terraform.tfstate \
+              "s3://${{ vars.TF_STATE_BUCKET }}/${{ needs.setup.outputs.base_dir }}/network/terraform.tfstate"
+          fi
+
+      - name: Upload state as artifact (backup)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: network-state-${{ inputs.pattern }}-${{ inputs.csp }}
+          path: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/network/terraform.tfstate
+          retention-days: 30
+          if-no-files-found: ignore
+
+  # ════════════════════════════════════════════════════════════
+  # Layer 2: Clusters (plan/apply)
+  # ════════════════════════════════════════════════════════════
+  clusters:
+    name: "L2: Cluster (${{ matrix.target }})"
+    needs: [setup, approve, network]
+    runs-on: ubuntu-latest
+    if: |
+      !cancelled() &&
+      (needs.approve.result == 'success' || needs.approve.result == 'skipped') &&
+      (needs.network.result == 'success' || needs.network.result == 'skipped') &&
+      inputs.action != 'destroy' &&
+      (inputs.layer == 'all' || inputs.layer == 'clusters')
+    strategy:
+      matrix:
+        target: ${{ fromJson(needs.setup.outputs.matrix) }}
+      max-parallel: 3
+      fail-fast: false
+    defaults:
+      run:
+        working-directory: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/clusters/${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      # ── Cloud credentials ──
+      - name: Configure AWS credentials
+        if: inputs.csp == 'aws'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Configure Azure credentials
+        if: inputs.csp == 'azure'
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Configure GCP credentials
+        if: inputs.csp == 'gcp'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      # ── State management ──
+      - name: Download upstream network state from S3
+        if: inputs.csp == 'aws'
+        working-directory: .
+        run: |
+          aws s3 cp \
+            "s3://${{ vars.TF_STATE_BUCKET }}/${{ needs.setup.outputs.base_dir }}/network/terraform.tfstate" \
+            "${{ needs.setup.outputs.base_dir }}/network/terraform.tfstate" \
+            2>/dev/null || echo "::error::Network state not found in S3 — run network layer first"
+
+      - name: Download existing cluster state from S3
+        if: inputs.csp == 'aws'
+        working-directory: .
+        run: |
+          aws s3 cp \
+            "s3://${{ vars.TF_STATE_BUCKET }}/${{ needs.setup.outputs.base_dir }}/clusters/${{ matrix.target }}/terraform.tfstate" \
+            "${{ needs.setup.outputs.base_dir }}/clusters/${{ matrix.target }}/terraform.tfstate" \
+            2>/dev/null || echo "No existing cluster state found (first run)"
+
+      # ── Terraform ──
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: |
+          terraform plan -no-color -out=tfplan 2>&1 | tee plan_output.txt
+          {
+            echo "## L2: Cluster Plan — ${{ matrix.target }}"
+            echo '```'
+            tail -30 plan_output.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Terraform Apply
+        if: inputs.action == 'apply'
+        run: terraform apply -auto-approve tfplan
+
+      # ── EKS access for Aviatrix controller ──
+      - name: Add Aviatrix controller access to EKS
+        if: inputs.csp == 'aws' && inputs.action == 'apply'
+        run: |
+          CLUSTER_NAME=$(terraform output -raw cluster_name 2>/dev/null || echo "")
+          if [ -n "$CLUSTER_NAME" ]; then
+            AVX_ROLE="arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/aviatrix-role-app"
+            aws eks create-access-entry \
+              --cluster-name "$CLUSTER_NAME" \
+              --region "${{ vars.AWS_REGION }}" \
+              --principal-arn "$AVX_ROLE" 2>/dev/null || true
+            aws eks associate-access-policy \
+              --cluster-name "$CLUSTER_NAME" \
+              --region "${{ vars.AWS_REGION }}" \
+              --principal-arn "$AVX_ROLE" \
+              --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
+              --access-scope type=cluster 2>/dev/null || true
+            echo "Aviatrix controller access configured for $CLUSTER_NAME"
+          fi
+
+      # ── Upload state ──
+      - name: Upload state to S3
+        if: inputs.action == 'apply' && inputs.csp == 'aws'
+        run: |
+          if [ -f terraform.tfstate ]; then
+            aws s3 cp terraform.tfstate \
+              "s3://${{ vars.TF_STATE_BUCKET }}/${{ needs.setup.outputs.base_dir }}/clusters/${{ matrix.target }}/terraform.tfstate"
+          fi
+
+      - name: Upload state as artifact (backup)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cluster-state-${{ inputs.pattern }}-${{ inputs.csp }}-${{ matrix.target }}
+          path: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/clusters/${{ matrix.target }}/terraform.tfstate
+          retention-days: 30
+          if-no-files-found: ignore
+
+  # ════════════════════════════════════════════════════════════
+  # Layer 3: Nodes (plan/apply)
+  # ════════════════════════════════════════════════════════════
+  nodes:
+    name: "L3: Nodes (${{ matrix.target }})"
+    needs: [setup, approve, clusters]
+    runs-on: ubuntu-latest
+    if: |
+      !cancelled() &&
+      (needs.approve.result == 'success' || needs.approve.result == 'skipped') &&
+      (needs.clusters.result == 'success' || needs.clusters.result == 'skipped') &&
+      inputs.action != 'destroy' &&
+      (inputs.layer == 'all' || inputs.layer == 'nodes')
+    strategy:
+      matrix:
+        target: ${{ fromJson(needs.setup.outputs.matrix) }}
+      max-parallel: 3
+      fail-fast: false
+    defaults:
+      run:
+        working-directory: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/nodes/${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      # ── Cloud credentials ──
+      - name: Configure AWS credentials
+        if: inputs.csp == 'aws'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Configure Azure credentials
+        if: inputs.csp == 'azure'
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Configure GCP credentials
+        if: inputs.csp == 'gcp'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      # ── State management ──
+      - name: Download upstream states from S3
+        if: inputs.csp == 'aws'
+        working-directory: .
+        run: |
+          BASE="${{ needs.setup.outputs.base_dir }}"
+          BUCKET="${{ vars.TF_STATE_BUCKET }}"
+
+          # Network state (required)
+          aws s3 cp \
+            "s3://${BUCKET}/${BASE}/network/terraform.tfstate" \
+            "${BASE}/network/terraform.tfstate" \
+            2>/dev/null || echo "::error::Network state not found — run network layer first"
+
+          # Cluster state (required)
+          aws s3 cp \
+            "s3://${BUCKET}/${BASE}/clusters/${{ matrix.target }}/terraform.tfstate" \
+            "${BASE}/clusters/${{ matrix.target }}/terraform.tfstate" \
+            2>/dev/null || echo "::error::Cluster state for ${{ matrix.target }} not found — run clusters layer first"
+
+      - name: Download existing node state from S3
+        if: inputs.csp == 'aws'
+        working-directory: .
+        run: |
+          aws s3 cp \
+            "s3://${{ vars.TF_STATE_BUCKET }}/${{ needs.setup.outputs.base_dir }}/nodes/${{ matrix.target }}/terraform.tfstate" \
+            "${{ needs.setup.outputs.base_dir }}/nodes/${{ matrix.target }}/terraform.tfstate" \
+            2>/dev/null || echo "No existing node state found (first run)"
+
+      # ── Tool installation ──
+      - name: Install kubectl & Helm
+        run: |
+          curl -sLO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+          curl -s https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      # ── Terraform ──
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: |
+          terraform plan -no-color -out=tfplan 2>&1 | tee plan_output.txt
+          {
+            echo "## L3: Nodes Plan — ${{ matrix.target }}"
+            echo '```'
+            tail -30 plan_output.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Terraform Apply
+        if: inputs.action == 'apply'
+        run: terraform apply -auto-approve tfplan
+
+      # ── Upload state ──
+      - name: Upload state to S3
+        if: inputs.action == 'apply' && inputs.csp == 'aws'
+        run: |
+          if [ -f terraform.tfstate ]; then
+            aws s3 cp terraform.tfstate \
+              "s3://${{ vars.TF_STATE_BUCKET }}/${{ needs.setup.outputs.base_dir }}/nodes/${{ matrix.target }}/terraform.tfstate"
+          fi
+
+      - name: Upload state as artifact (backup)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nodes-state-${{ inputs.pattern }}-${{ inputs.csp }}-${{ matrix.target }}
+          path: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/nodes/${{ matrix.target }}/terraform.tfstate
+          retention-days: 30
+          if-no-files-found: ignore
+
+  # ════════════════════════════════════════════════════════════
+  # Layer 4: CRDs (apply only, patterns B and C)
+  # ════════════════════════════════════════════════════════════
+  crds:
+    name: "L4: CRDs"
+    needs: [setup, approve, nodes]
+    runs-on: ubuntu-latest
+    if: |
+      !cancelled() &&
+      (needs.approve.result == 'success' || needs.approve.result == 'skipped') &&
+      (needs.nodes.result == 'success' || needs.nodes.result == 'skipped') &&
+      inputs.action == 'apply' &&
+      (inputs.layer == 'all' || inputs.layer == 'crds') &&
+      inputs.pattern != 'cluster-aas'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        if: inputs.csp == 'aws'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install kubectl
+        run: |
+          curl -sLO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+
+      - name: Download cluster states from S3
+        if: inputs.csp == 'aws'
+        run: |
+          BASE="${{ needs.setup.outputs.base_dir }}"
+          BUCKET="${{ vars.TF_STATE_BUCKET }}"
+          MATRIX='${{ needs.setup.outputs.matrix }}'
+
+          for target in $(echo "$MATRIX" | jq -r '.[]'); do
+            mkdir -p "${BASE}/clusters/${target}"
+            aws s3 cp \
+              "s3://${BUCKET}/${BASE}/clusters/${target}/terraform.tfstate" \
+              "${BASE}/clusters/${target}/terraform.tfstate" \
+              2>/dev/null || echo "::warning::Cluster state for ${target} not found"
+          done
+
+      - name: Apply CRD manifests
+        if: inputs.csp == 'aws'
+        run: |
+          BASE="${{ needs.setup.outputs.base_dir }}"
+          CRD_DIR="${BASE}/k8s-apps/dcf-crd"
+          MATRIX='${{ needs.setup.outputs.matrix }}'
+
+          if [ ! -d "$CRD_DIR" ]; then
+            echo "::warning::No CRD directory found at ${CRD_DIR}"
+            exit 0
+          fi
+
+          for target in $(echo "$MATRIX" | jq -r '.[]'); do
+            echo "─── Processing cluster: ${target} ───"
+            cd "${BASE}/clusters/${target}"
+            terraform init -backend=local > /dev/null 2>&1
+
+            CLUSTER_NAME=$(terraform output -raw cluster_name 2>/dev/null || echo "")
+            REGION=$(terraform output -raw cluster_region 2>/dev/null || echo "${{ vars.AWS_REGION }}")
+            cd "$GITHUB_WORKSPACE"
+
+            if [ -z "$CLUSTER_NAME" ]; then
+              echo "::warning::Could not determine cluster name for ${target} — skipping"
+              continue
+            fi
+
+            echo "Configuring kubectl for ${CLUSTER_NAME} in ${REGION}"
+            aws eks update-kubeconfig --name "$CLUSTER_NAME" --region "$REGION"
+
+            # Apply namespace manifests first
+            for f in "$CRD_DIR"/*namespace*.yaml; do
+              [ -f "$f" ] && echo "Applying $(basename "$f")" && kubectl apply -f "$f" || true
+            done
+
+            sleep 5
+
+            # Apply firewall policies
+            for f in "$CRD_DIR"/*firewallpolicy*.yaml "$CRD_DIR"/*webgrouppolicy*.yaml; do
+              [ -f "$f" ] && echo "Applying $(basename "$f")" && kubectl apply -f "$f" || true
+            done
+
+            echo "CRDs applied to ${CLUSTER_NAME}"
+          done
+
+          echo "## L4: CRDs Applied" >> "$GITHUB_STEP_SUMMARY"
+
+  # ════════════════════════════════════════════════════════════
+  # Validation (after apply)
+  # ════════════════════════════════════════════════════════════
+  validate:
+    name: "Validate deployment"
+    needs: [setup, crds, nodes]
+    runs-on: ubuntu-latest
+    if: |
+      !cancelled() &&
+      inputs.action == 'apply' &&
+      (needs.nodes.result == 'success' || needs.crds.result == 'success')
+    steps:
+      - name: Configure AWS credentials
+        if: inputs.csp == 'aws'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install kubectl
+        run: |
+          curl -sLO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+
+      - name: Validate EKS clusters
+        if: inputs.csp == 'aws'
+        run: |
+          MATRIX='${{ needs.setup.outputs.matrix }}'
+          PATTERN="${{ inputs.pattern }}"
+          FAILED=0
+
+          {
+            echo "## Validation Results"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Determine cluster name prefix
+          case "$PATTERN" in
+            cluster-aas)         PREFIX="caas" ;;
+            namespace-aas)       PREFIX="naas" ;;
+            prod-nonprod-hybrid) PREFIX="pc2" ;;
+          esac
+
+          for target in $(echo "$MATRIX" | jq -r '.[]'); do
+            # Derive cluster name using pattern conventions
+            case "$PATTERN" in
+              namespace-aas) CLUSTER_NAME="${PREFIX}-${target}-eks" ;;
+              *)             CLUSTER_NAME="${PREFIX}-${target}" ;;
+            esac
+
+            echo "─── Checking ${CLUSTER_NAME} ───"
+
+            # Check cluster status
+            STATUS=$(aws eks describe-cluster \
+              --name "$CLUSTER_NAME" \
+              --region "${{ vars.AWS_REGION }}" \
+              --query 'cluster.status' --output text 2>/dev/null || echo "NOT_FOUND")
+
+            if [ "$STATUS" != "ACTIVE" ]; then
+              echo "::error::Cluster $CLUSTER_NAME status: $STATUS (expected ACTIVE)"
+              FAILED=1
+              echo "| $CLUSTER_NAME | :x: $STATUS |" >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+
+            # Check nodes
+            aws eks update-kubeconfig --name "$CLUSTER_NAME" --region "${{ vars.AWS_REGION }}" 2>/dev/null
+            NODE_COUNT=$(kubectl get nodes --no-headers 2>/dev/null | grep -c " Ready" || echo "0")
+
+            if [ "$NODE_COUNT" -eq 0 ]; then
+              echo "::warning::Cluster $CLUSTER_NAME has no Ready nodes (may still be scaling)"
+              echo "| $CLUSTER_NAME | :warning: ACTIVE, 0 Ready nodes |" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "Cluster $CLUSTER_NAME: ACTIVE, $NODE_COUNT Ready nodes"
+              echo "| $CLUSTER_NAME | :white_check_mark: ACTIVE, $NODE_COUNT nodes |" >> "$GITHUB_STEP_SUMMARY"
+            fi
+
+            # Check helm releases if nodes layer was applied
+            if [ "${{ inputs.layer }}" = "all" ] || [ "${{ inputs.layer }}" = "nodes" ]; then
+              HELM_RELEASES=$(kubectl get pods -A --no-headers 2>/dev/null | grep -cE "k8s-firewall|aws-load-balancer|external-dns" || echo "0")
+              echo "  Helm workload pods: $HELM_RELEASES"
+            fi
+          done
+
+          if [ "$FAILED" -ne 0 ]; then
+            echo "::error::One or more clusters failed validation"
+            exit 1
+          fi
+
+  # ════════════════════════════════════════════════════════════
+  # Destroy path (reverse order)
+  # ════════════════════════════════════════════════════════════
+
+  # ── Destroy L3: Nodes ──
+  destroy-nodes:
+    name: "Destroy L3: Nodes (${{ matrix.target }})"
+    needs: [setup, approve]
+    runs-on: ubuntu-latest
+    if: |
+      !cancelled() &&
+      needs.approve.result == 'success' &&
+      inputs.action == 'destroy' &&
+      (inputs.layer == 'all' || inputs.layer == 'nodes')
+    strategy:
+      matrix:
+        target: ${{ fromJson(needs.setup.outputs.matrix) }}
+      max-parallel: 3
+      fail-fast: false
+    defaults:
+      run:
+        working-directory: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/nodes/${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      # ── Cloud credentials ──
+      - name: Configure AWS credentials
+        if: inputs.csp == 'aws'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Configure Azure credentials
+        if: inputs.csp == 'azure'
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Configure GCP credentials
+        if: inputs.csp == 'gcp'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      # ── State management ──
+      - name: Download all required states from S3
+        if: inputs.csp == 'aws'
+        working-directory: .
+        run: |
+          BASE="${{ needs.setup.outputs.base_dir }}"
+          BUCKET="${{ vars.TF_STATE_BUCKET }}"
+
+          # Node state (what we're destroying)
+          aws s3 cp \
+            "s3://${BUCKET}/${BASE}/nodes/${{ matrix.target }}/terraform.tfstate" \
+            "${BASE}/nodes/${{ matrix.target }}/terraform.tfstate" \
+            2>/dev/null || echo "::warning::No node state found for ${{ matrix.target }}"
+
+          # Upstream states (needed by terraform_remote_state)
+          aws s3 cp \
+            "s3://${BUCKET}/${BASE}/network/terraform.tfstate" \
+            "${BASE}/network/terraform.tfstate" \
+            2>/dev/null || true
+          aws s3 cp \
+            "s3://${BUCKET}/${BASE}/clusters/${{ matrix.target }}/terraform.tfstate" \
+            "${BASE}/clusters/${{ matrix.target }}/terraform.tfstate" \
+            2>/dev/null || true
+
+      - name: Install kubectl & Helm
+        run: |
+          curl -sLO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+          curl -s https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Destroy
+        run: terraform destroy -auto-approve -no-color
+
+      - name: Remove state from S3
+        if: inputs.csp == 'aws'
+        run: |
+          aws s3 rm \
+            "s3://${{ vars.TF_STATE_BUCKET }}/${{ needs.setup.outputs.base_dir }}/nodes/${{ matrix.target }}/terraform.tfstate" \
+            2>/dev/null || true
+
+  # ── Destroy L2: Clusters ──
+  destroy-clusters:
+    name: "Destroy L2: Clusters (${{ matrix.target }})"
+    needs: [setup, approve, destroy-nodes]
+    runs-on: ubuntu-latest
+    if: |
+      !cancelled() &&
+      needs.approve.result == 'success' &&
+      (needs.destroy-nodes.result == 'success' || needs.destroy-nodes.result == 'skipped') &&
+      inputs.action == 'destroy' &&
+      (inputs.layer == 'all' || inputs.layer == 'clusters')
+    strategy:
+      matrix:
+        target: ${{ fromJson(needs.setup.outputs.matrix) }}
+      max-parallel: 3
+      fail-fast: false
+    defaults:
+      run:
+        working-directory: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/clusters/${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      # ── Cloud credentials ──
+      - name: Configure AWS credentials
+        if: inputs.csp == 'aws'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Configure Azure credentials
+        if: inputs.csp == 'azure'
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Configure GCP credentials
+        if: inputs.csp == 'gcp'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      # ── State management ──
+      - name: Download all required states from S3
+        if: inputs.csp == 'aws'
+        working-directory: .
+        run: |
+          BASE="${{ needs.setup.outputs.base_dir }}"
+          BUCKET="${{ vars.TF_STATE_BUCKET }}"
+
+          # Cluster state (what we're destroying)
+          aws s3 cp \
+            "s3://${BUCKET}/${BASE}/clusters/${{ matrix.target }}/terraform.tfstate" \
+            "${BASE}/clusters/${{ matrix.target }}/terraform.tfstate" \
+            2>/dev/null || echo "::warning::No cluster state found for ${{ matrix.target }}"
+
+          # Upstream state
+          aws s3 cp \
+            "s3://${BUCKET}/${BASE}/network/terraform.tfstate" \
+            "${BASE}/network/terraform.tfstate" \
+            2>/dev/null || true
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Destroy
+        run: terraform destroy -auto-approve -no-color
+
+      - name: Remove state from S3
+        if: inputs.csp == 'aws'
+        run: |
+          aws s3 rm \
+            "s3://${{ vars.TF_STATE_BUCKET }}/${{ needs.setup.outputs.base_dir }}/clusters/${{ matrix.target }}/terraform.tfstate" \
+            2>/dev/null || true
+
+  # ── Destroy L1: Network ──
+  destroy-network:
+    name: "Destroy L1: Network"
+    needs: [setup, approve, destroy-clusters]
+    runs-on: ubuntu-latest
+    if: |
+      !cancelled() &&
+      needs.approve.result == 'success' &&
+      (needs.destroy-clusters.result == 'success' || needs.destroy-clusters.result == 'skipped') &&
+      inputs.action == 'destroy' &&
+      (inputs.layer == 'all' || inputs.layer == 'network')
+    defaults:
+      run:
+        working-directory: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/network
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      # ── Cloud credentials ──
+      - name: Configure AWS credentials
+        if: inputs.csp == 'aws'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Configure Azure credentials
+        if: inputs.csp == 'azure'
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Configure GCP credentials
+        if: inputs.csp == 'gcp'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      # ── State management ──
+      - name: Download network state from S3
+        if: inputs.csp == 'aws'
+        working-directory: .
+        run: |
+          aws s3 cp \
+            "s3://${{ vars.TF_STATE_BUCKET }}/${{ needs.setup.outputs.base_dir }}/network/terraform.tfstate" \
+            "${{ needs.setup.outputs.base_dir }}/network/terraform.tfstate" \
+            2>/dev/null || echo "::warning::No network state found"
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Destroy
+        run: terraform destroy -auto-approve -no-color
+
+      - name: Remove state from S3
+        if: inputs.csp == 'aws'
+        run: |
+          aws s3 rm \
+            "s3://${{ vars.TF_STATE_BUCKET }}/${{ needs.setup.outputs.base_dir }}/network/terraform.tfstate" \
+            2>/dev/null || true

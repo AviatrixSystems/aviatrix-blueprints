@@ -1,6 +1,6 @@
-# Multi-Cluster EKS with Aviatrix Transit Architecture
+# Multi-Cluster EKS Secured by the Aviatrix Cloud Native Security Fabric
 
-This repository deploys a multi-cluster Kubernetes environment with Aviatrix transit networking, demonstrating Distributed Cloud Firewall (DCF) for Kubernetes capabilities.
+This repository deploys a multi-cluster Kubernetes environment on AWS, demonstrating the **Aviatrix Cloud Native Security Fabric (CNSF)** for Kubernetes — Distributed Cloud Firewall (DCF), workload segmentation, and Zero Trust enforcement across clusters.
 
 > [!TIP]
 > **🤖 Optimized for Claude Code** — Run `/deploy-blueprint` for AI-guided deployment with prerequisite checks and automated orchestration, or `/analyze-blueprint` for resource and cost details. [Get Claude Code](https://claude.ai/code)
@@ -197,8 +197,8 @@ Layer 2: EKS Clusters (Control Plane Only)
 ├── clusters/backend/           # Control plane, IAM roles, security groups, VPC CNI addon
 
 Layer 3: EKS Node Groups + Kubernetes Resources
-├── nodes/frontend/             # k8s-firewall Helm, ENIConfig, nodes, CoreDNS, Helm charts (ALB Controller, ExternalDNS)
-├── nodes/backend/              # k8s-firewall Helm, ENIConfig, nodes, CoreDNS, Helm charts (ALB Controller, ExternalDNS)
+├── nodes/frontend/             # k8s-firewall Helm, ENIConfig, nodes, CoreDNS, EBS CSI + gp3 SC, Helm charts (ALB Controller, ExternalDNS)
+├── nodes/backend/              # k8s-firewall Helm, ENIConfig, nodes, CoreDNS, EBS CSI + gp3 SC, Helm charts (ALB Controller, ExternalDNS)
 ```
 
 Each layer reads the previous layer's state via `terraform_remote_state` data sources.
@@ -308,10 +308,11 @@ terraform apply
 - EKS managed node groups
 - Node IAM roles with SSM access
 - CoreDNS addon
+- EBS CSI driver addon + default `gp3` StorageClass (per cluster)
 - AWS Load Balancer Controller v1.10.1 (via Helm)
 - ExternalDNS v1.19.0 (via Helm)
 
-**Deployment order:** k8s-firewall Helm chart → ENIConfig → Node Groups → CoreDNS → Helm Charts (ALB Controller, ExternalDNS)
+**Deployment order:** k8s-firewall Helm chart → ENIConfig → Node Groups → CoreDNS → EBS CSI driver + gp3 StorageClass → Helm Charts (ALB Controller, ExternalDNS)
 
 **⚠️ IMPORTANT:** You cannot run kubectl commands until you configure kubectl in Step 5.
 
@@ -516,6 +517,16 @@ kubectl apply -f ../../k8s-apps/backend/gatus.yaml
 ```
 
 ### Step 10: Verify Deployment
+
+> [!NOTE]
+> **Allow 2–5 minutes after Step 9 before cross-cluster service checks turn green.**
+> After deploying Gatus, the cross-cluster endpoints (frontend ↔ backend on port 8080)
+> depend on ExternalDNS publishing the Route53 CNAMEs (1-minute poll interval), any prior
+> negative-DNS cache expiring, and the internal NLB targets passing health checks (~1–3 min).
+> During this window the checks may show red and a `curl` by name can return `HTTP 000` /
+> "could not resolve host" even though the network path is fine. If a check is red, wait a
+> few minutes and re-test. To confirm the path independently of DNS, `curl` the NLB's private
+> IP directly (`aws ec2 describe-network-interfaces --filters "Name=description,Values=ELB net/k8s-gatus-*"`).
 
 **Verify Aviatrix DCF CRDs:**
 
@@ -881,7 +892,7 @@ cd nodes/frontend/
 
 # Add another module block in main.tf:
 # module "gpu_node_group" {
-#   source = "../shared-modules/eks-node-group"
+#   source = "../../../../modules/aws-eks-node-group"
 #   ...
 # }
 
@@ -1062,6 +1073,8 @@ aws-eks-multicluster/
 ├── network/                    # Layer 1: Network infrastructure
 │   ├── main.tf                 # Transit, spokes, VPCs, DB VM
 │   ├── outputs.tf              # Export VPC IDs, subnet IDs, Route53 zone
+│   ├── modules/
+│   │   └── apache-vm/          # Test VM module
 │   └── terraform.tfstate       # Network state
 │
 ├── clusters/
@@ -1085,10 +1098,6 @@ aws-eks-multicluster/
 ├── k8s-apps/                   # Kubernetes application manifests
 │   ├── frontend/               # Frontend apps (Gatus)
 │   └── backend/                # Backend apps (Gatus)
-│
-├── modules/                    # Shared Terraform modules
-│   ├── eks-vpc/                # Custom VPC module
-│   └── apache-vm/              # Test VM module
 │
 └── architecture.svg            # Architecture diagram
 ```

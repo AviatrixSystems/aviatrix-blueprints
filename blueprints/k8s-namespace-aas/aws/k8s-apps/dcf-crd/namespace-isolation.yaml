@@ -1,0 +1,75 @@
+# Namespace Isolation Policies — In-Cluster DCF Enforcement
+#
+# These FirewallPolicy CRDs enforce the same namespace isolation rules
+# defined in the transit-level DCF ruleset (dcf.tf priorities 10, 50-55),
+# but for INTRA-CLUSTER traffic that doesn't traverse the spoke gateway.
+#
+# The k8s-firewall Helm chart (installed in Layer 3) acts as the controller
+# that enforces these policies at the pod level.
+#
+# Priority layout matches the platform baseline:
+#   70: PERMIT team-a -> team-b on TCP/443 (approved API call)
+#   80: DENY team-a <-> team-c (both directions)
+#   81: DENY team-b <-> team-c (both directions)
+#   90: DENY all cross-namespace by default
+
+---
+# team-a: Permit outbound to team-b on 443, deny to team-c
+apiVersion: networking.aviatrix.com/v1alpha1
+kind: FirewallPolicy
+metadata:
+  name: namespace-isolation
+  namespace: team-a
+spec:
+  rules:
+    - name: permit-to-team-b-api
+      action: permit
+      protocol: tcp
+      port: 443
+      logging: true
+      destinationSmartGroups:
+        - name: "${NAME_PREFIX}-team-b-ns"
+    - name: deny-to-team-c
+      action: deny
+      protocol: any
+      logging: true
+      destinationSmartGroups:
+        - name: "${NAME_PREFIX}-team-c-ns"
+
+---
+# team-b: Deny to team-c
+apiVersion: networking.aviatrix.com/v1alpha1
+kind: FirewallPolicy
+metadata:
+  name: namespace-isolation
+  namespace: team-b
+spec:
+  rules:
+    - name: deny-to-team-c
+      action: deny
+      protocol: any
+      logging: true
+      destinationSmartGroups:
+        - name: "${NAME_PREFIX}-team-c-ns"
+
+---
+# team-c: Deny to team-a and team-b
+apiVersion: networking.aviatrix.com/v1alpha1
+kind: FirewallPolicy
+metadata:
+  name: namespace-isolation
+  namespace: team-c
+spec:
+  rules:
+    - name: deny-to-team-a
+      action: deny
+      protocol: any
+      logging: true
+      destinationSmartGroups:
+        - name: "${NAME_PREFIX}-team-a-ns"
+    - name: deny-to-team-b
+      action: deny
+      protocol: any
+      logging: true
+      destinationSmartGroups:
+        - name: "${NAME_PREFIX}-team-b-ns"

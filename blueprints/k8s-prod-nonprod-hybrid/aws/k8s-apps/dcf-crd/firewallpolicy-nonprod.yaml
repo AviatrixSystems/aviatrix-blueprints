@@ -1,0 +1,88 @@
+# Pattern C: Non-Production FirewallPolicy CRDs
+# Relaxed egress for dev/staging. Sandbox has broader access.
+# Prod data protection enforced at Layer 1 (VPC SmartGroups).
+---
+apiVersion: networking.aviatrix.com/v1alpha1
+kind: FirewallPolicy
+metadata:
+  name: team-a-dev-egress
+  namespace: team-a-dev
+spec:
+  rules:
+    - name: allow-dev-egress
+      logging: true
+      selector:
+        matchLabels:
+          team: team-a
+      action: permit
+      protocol: tcp
+      port: 443
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: dev-approved
+  webGroups:
+    - name: dev-approved
+      domains:
+        - "*.npmjs.org"
+        - "*.github.com"
+        - "*.amazonaws.com"
+        - "api.stripe.com"
+---
+apiVersion: networking.aviatrix.com/v1alpha1
+kind: FirewallPolicy
+metadata:
+  name: team-b-staging-egress
+  namespace: team-b-staging
+spec:
+  rules:
+    - name: allow-staging-egress
+      logging: true
+      selector:
+        matchLabels:
+          team: team-b
+      action: permit
+      protocol: tcp
+      port: 443
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: staging-approved
+  webGroups:
+    - name: staging-approved
+      domains:
+        - "*.cloudfront.net"
+        - "*.npmjs.org"
+        - "*.github.com"
+---
+# Sandbox — broader egress for experimentation
+# CRITICAL: Prod data protection is at Layer 1 (nonprod->prod DENIED)
+apiVersion: networking.aviatrix.com/v1alpha1
+kind: FirewallPolicy
+metadata:
+  name: sandbox-relaxed-egress
+  namespace: sandbox
+spec:
+  rules:
+    - name: allow-sandbox-https
+      logging: true
+      action: permit
+      protocol: tcp
+      port: 443
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: sandbox-broad
+    - name: allow-sandbox-http
+      logging: true
+      action: permit
+      protocol: tcp
+      port: 80
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: sandbox-broad
+  webGroups:
+    - name: sandbox-broad
+      domains:
+        - "*"

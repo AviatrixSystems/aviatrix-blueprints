@@ -1,0 +1,17 @@
+<style>
+  .evidence-block { background: rgba(122,93,220,0.06); border: 1px solid rgba(122,93,220,0.25); border-radius: 8px; padding: 14px 16px; }
+  .evidence-block .pane-h { font-family: 'Sora', sans-serif; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #B5A3F2; margin: 0 0 8px; }
+  .evidence-grid { display: grid; grid-template-columns: 140px 1fr; gap: 6px 14px; font-family: ui-monospace, monospace; font-size: 11px; }
+  .evidence-grid .k { color: rgba(255,255,255,0.55); text-transform: lowercase; }
+  .evidence-grid .v { color: #d4d4d8; }
+  .evidence-grid .v code { color: #FA6B1E; }
+</style>
+
+<div class="evidence-block">
+  <div class="pane-h">Control evidence</div>
+  <div class="evidence-grid">
+    {% for k, v in evidence.items() %}
+    <span class="k">{{ k | replace('_', ' ') }}</span><span class="v">{{ v }}</span>
+    {% endfor %}
+  </div>
+</div>

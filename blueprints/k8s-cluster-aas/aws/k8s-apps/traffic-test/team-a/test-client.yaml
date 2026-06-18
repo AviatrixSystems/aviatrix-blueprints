@@ -1,0 +1,15 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: netshoot
+  namespace: traffic-test
+  labels:
+    app: netshoot
+spec:
+  containers:
+    - name: netshoot
+      image: nicolaka/netshoot
+      command:
+        - sleep
+        - infinity

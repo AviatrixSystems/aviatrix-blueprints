@@ -1,0 +1,63 @@
+# Namespace Isolation — Kubernetes NetworkPolicy (Calico enforcement)
+#
+# Ingress-only policies that enforce the same namespace isolation defined
+# in the DCF ruleset (dcf.tf priorities 10, 50-55) but for INTRA-CLUSTER
+# traffic that doesn't traverse the Aviatrix spoke gateway.
+#
+# Calico runs in policy-only mode (VPC CNI handles pod networking).
+# Egress is NOT restricted here — DCF handles egress at the spoke gateway.
+#
+# Two-layer enforcement:
+#   - Cross-VPC: DCF at spoke gateway (SmartGroups, transit-level)
+#   - Intra-cluster: Calico NetworkPolicy (pod-level, namespace isolation)
+
+---
+# team-a: Allow same namespace + no cross-namespace ingress except what's explicit
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: namespace-isolation
+  namespace: team-a
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}
+
+---
+# team-b: Allow same namespace + team-a (mirrors DCF rule 10)
+# NOTE: NetworkPolicy matches on pod port, not service port.
+# If services map 443->80, use the actual pod port here.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: namespace-isolation
+  namespace: team-b
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: team-a
+
+---
+# team-c: Allow same namespace only (fully isolated from team-a and team-b)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: namespace-isolation
+  namespace: team-c
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}

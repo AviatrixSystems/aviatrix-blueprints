@@ -1,0 +1,39 @@
+# =============================================================================
+# Example terraform.tfvars for blueprint: obot-mcp-egress-aws
+# Copy to terraform.tfvars and fill in your values.
+# =============================================================================
+
+# AWS
+aws_region = "us-east-1"
+vpc_cidr   = "10.10.0.0/16"
+
+# EKS
+cluster_version    = "1.32"
+node_instance_type = "m5.large"
+node_desired_size  = 2 # Default. Set to 0 only if you need to delay node startup past spoke gateway provision.
+node_max_size      = 4
+
+# Aviatrix Controller (pre-existing)
+# REQUIRED: controller_ip, aws_access_account, aviatrix_app_role_arn
+# controller_password: set via env var — do not put in this file:
+#   export TF_VAR_controller_password="your-password"
+controller_ip         = "20.1.2.3"                                         # REQUIRED
+controller_username   = "admin"
+aws_access_account    = "aws-account"                                      # REQUIRED: Aviatrix access account name for AWS
+copilot_private_ip    = "10.200.0.5"                                       # REQUIRED
+copilot_public_ip     = "20.1.2.4"                                         # REQUIRED
+aviatrix_app_role_arn = "arn:aws:iam::123456789012:role/aviatrix-role-app" # REQUIRED: Aviatrix app IAM role ARN (find in IAM > Roles > aviatrix-role-app)
+
+# Obot
+# obot_admin_password: set via env var — do not put in this file:
+#   export TF_VAR_obot_admin_password="your-password"
+obot_version      = "0.21.0"
+npc_chart_version = "v0.0.1"
+
+# OPTIONAL: Explicit V1 DENY SmartGroup for obot-mcp pods. Default Action deny-all
+# handles enforcement without this. Populate if explicit DENY rule is preferred:
+#   kubectl get pods -n obot-mcp -o wide
+obot_mcp_pod_cidrs = []
+
+# Naming
+name_prefix = "obot-mcp"

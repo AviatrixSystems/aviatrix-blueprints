@@ -1,0 +1,49 @@
+# =============================================================================
+# Example terraform.tfvars for blueprint: obot-mcp-egress-azure
+# Copy to terraform.tfvars and fill in your values.
+# =============================================================================
+
+# Aviatrix Controller (pre-existing)
+# REQUIRED: controller_ip, arm_account_name
+# controller_password: set via env var — do not put in this file:
+#   export TF_VAR_controller_password="your-password"
+controller_ip       = "20.1.2.3"      # REQUIRED
+controller_username = "admin"
+arm_account_name         = "azure-account"              # REQUIRED: Aviatrix access account name for Azure
+arm_account_principal_id = "00000000-0000-0000-0000-000000000000"  # REQUIRED: Object ID of the Aviatrix ARM service principal
+# Get with: az ad sp show --id <arm_ad_client_id_from_controller> --query id -o tsv
+copilot_private_ip  = "10.200.0.5"    # REQUIRED
+copilot_public_ip   = "20.1.2.4"      # REQUIRED
+
+# Azure: REQUIRED: azure_subscription_id, azure_location
+azure_subscription_id = "00000000-0000-0000-0000-000000000000"  # REQUIRED
+azure_location        = "UK South"                               # REQUIRED
+resource_group_name   = "obot-mcp-rg"
+
+# VNet + AKS (created by this blueprint)
+vnet_address_space = "10.1.0.0/16"
+aks_subnet_cidr    = "10.1.0.0/20"
+aks_vm_size        = "Standard_D4s_v3"
+aks_node_count     = 2
+
+# Aviatrix spoke gateway
+spoke_gateway_subnet_cidr = "10.1.200.0/26"
+spoke_gateway_size        = "Standard_B2ms"
+
+# Obot
+# obot_admin_password: set via env var — do not put in this file:
+#   export TF_VAR_obot_admin_password="your-password"
+obot_version      = "0.21.0"
+npc_chart_version = "v0.0.1"
+
+# Naming
+name_prefix = "obot-mcp"
+
+# AKS admin kubeconfig for K8S_POLICY_LIST enforcement (optional).
+# Required for per-pod egressDomains enforcement via FirewallPolicy CRDs.
+# IMPORTANT: The kubeconfig must include 'preferences: {}' (az aks get-credentials omits it).
+# Generate with:
+#   az aks get-credentials --name <cluster> --resource-group <rg> --admin --file /tmp/aks-admin.yaml
+#   # Then add 'preferences: {}' after 'kind: Config' line
+# Set via env var (do not put sensitive content in this file):
+#   export TF_VAR_aks_kube_config=$(cat /tmp/aks-admin-fixed.yaml)

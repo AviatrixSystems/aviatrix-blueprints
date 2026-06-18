@@ -1,0 +1,41 @@
+#####################
+# WebgroupPolicy CRD Example - Dev Namespace
+#
+# Permits pods labeled environment=development to reach a curated set of
+# package-registry and code-host domains over HTTPS. The Aviatrix k8s-firewall
+# controller compiles this into a WebGroup on the Aviatrix Controller and
+# applies it to the spoke gateway data plane.
+#
+# Apply:
+#   kubectl create namespace dev
+#   kubectl apply -f webgrouppolicy-dev.yaml
+#
+# Verify:
+#   kubectl get webgrouppolicies -n dev
+#   kubectl describe webgrouppolicy dev-external-apis -n dev
+#####################
+
+apiVersion: networking.aviatrix.com/v1alpha1
+kind: WebgroupPolicy
+metadata:
+  name: dev-external-apis
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      environment: development
+
+  allowedDomains:
+    # Package registries
+    - "pypi.org"
+    - "*.pypi.org"
+    - "files.pythonhosted.org"
+    # Docker Hub
+    - "hub.docker.com"
+    - "registry-1.docker.io"
+    - "*.docker.io"
+    # GitHub (broader access for dev)
+    - "github.com"
+    - "*.github.com"
+    - "raw.githubusercontent.com"
+    - "api.github.com"

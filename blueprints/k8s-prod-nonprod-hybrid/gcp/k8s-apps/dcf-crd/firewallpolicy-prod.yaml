@@ -1,0 +1,99 @@
+# -----------------------------------------------------------------------------
+# Pattern C: Production FirewallPolicy CRDs — GCP GKE
+# Strict egress — approved APIs only
+# Team self-service rules via spec.rules[] format
+# Applied to the production GKE cluster
+# -----------------------------------------------------------------------------
+
+# Team A production — strict egress to approved APIs only
+apiVersion: networking.aviatrix.com/v1alpha1
+kind: FirewallPolicy
+metadata:
+  name: team-a-prod-egress
+  namespace: team-a-prod
+spec:
+  rules:
+    - name: allow-approved-apis
+      logging: true
+      selector:
+        matchLabels:
+          app: api
+      action: permit
+      protocol: tcp
+      port: 443
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: prod-approved-apis
+    - name: deny-other-egress
+      logging: true
+      action: deny
+      protocol: any
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+  webGroups:
+    - name: prod-approved-apis
+      domains:
+        - "api.stripe.com"
+        - "api.sendgrid.com"
+---
+# Team B production — strict egress to approved APIs only
+apiVersion: networking.aviatrix.com/v1alpha1
+kind: FirewallPolicy
+metadata:
+  name: team-b-prod-egress
+  namespace: team-b-prod
+spec:
+  rules:
+    - name: allow-approved-apis
+      logging: true
+      selector:
+        matchLabels:
+          app: api
+      action: permit
+      protocol: tcp
+      port: 443
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+      webGroups:
+        - name: prod-approved-apis
+    - name: deny-other-egress
+      logging: true
+      action: deny
+      protocol: any
+      destinationSmartGroups:
+        - uuid: "def000ad-0000-0000-0000-000000000001"
+  webGroups:
+    - name: prod-approved-apis
+      domains:
+        - "api.stripe.com"
+        - "api.sendgrid.com"
+---
+# Allow inter-team communication for shared services on specific ports
+apiVersion: networking.aviatrix.com/v1alpha1
+kind: FirewallPolicy
+metadata:
+  name: prod-shared-services
+  namespace: team-a-prod
+spec:
+  rules:
+    - name: allow-shared-services
+      logging: true
+      selector:
+        matchLabels:
+          app: shared-services
+      action: permit
+      protocol: tcp
+      port: 8080
+      destinationSmartGroups:
+        - name: patternc-team-b-prod
+    - name: allow-shared-services-https
+      logging: true
+      selector:
+        matchLabels:
+          app: shared-services
+      action: permit
+      protocol: tcp
+      port: 443
+      destinationSmartGroups:
+        - name: patternc-team-b-prod

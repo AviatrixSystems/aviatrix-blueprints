@@ -1,0 +1,31 @@
+# -----------------------------------------------------------------------------
+# Pattern C: Production Namespace Setup — GCP GKE
+# Applied to the production GKE cluster
+# Teams get dedicated namespaces with environment + team labels
+# -----------------------------------------------------------------------------
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-a-prod
+  labels:
+    environment: production
+    team: team-a
+    aviatrix.io/enforced: "true"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-b-prod
+  labels:
+    environment: production
+    team: team-b
+    aviatrix.io/enforced: "true"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    environment: production
+    purpose: observability
+    aviatrix.io/enforced: "true"

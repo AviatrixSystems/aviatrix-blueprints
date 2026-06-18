@@ -1,0 +1,42 @@
+# Pattern B: Namespace-as-a-Service — AWS Example Variables
+#
+# Copy this file to terraform.tfvars and fill in the values.
+# Apply layers in order: network/ -> clusters/shared/ -> nodes/shared/
+
+# --- Network Layer (network/) ---
+name_prefix               = "naas"
+aviatrix_aws_account_name = "aws-demo-account"
+aws_region                = "us-east-1"
+env                       = "prod"
+
+transit_cidr    = "10.2.0.0/20"
+shared_vpc_cidr = "10.10.0.0/16"
+pod_cidr        = "100.64.0.0/16"
+
+private_dns_zone_name = "aws-naas.aviatrixdemo.local"
+
+k8s_cluster_suffix = "shared-eks"
+
+geo_block_countries = ["CN", "RU", "KP", "IR"]
+
+approved_web_domains = [
+  "*.amazonaws.com",
+  "registry.npmjs.org",
+  "pypi.org",
+  "ghcr.io",
+]
+
+# --- Cluster Layer (clusters/shared/) ---
+# kubernetes_version             = "1.30"
+# cluster_endpoint_public_access = true
+
+# --- Node Layer (nodes/shared/) ---
+# node_group_config = {
+#   min_size      = 2
+#   max_size      = 6
+#   desired_size  = 3
+#   instance_type = "m5.xlarge"
+#   capacity_type = "SPOT"
+# }
+# alb_controller_chart_version = "1.8.0"
+# external_dns_chart_version   = "1.15.0"

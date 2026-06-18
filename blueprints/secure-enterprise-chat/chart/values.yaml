@@ -1,0 +1,92 @@
+# values.yaml — overlay for the OFFICIAL LibreChat Helm chart
+# Chart: oci://ghcr.io/danny-avila/librechat-chart/librechat
+#
+# This file contains ONLY overrides. It pulls the official LibreChat container
+# (registry.librechat.ai/danny-avila/librechat) — no custom image build, no
+# vendored application source.
+#
+# Apply with raw Helm:
+#   helm install librechat oci://ghcr.io/danny-avila/librechat-chart/librechat \
+#     --namespace librechat --create-namespace \
+#     -f chart/values.yaml \
+#     --set-file librechat.configYamlContent=chart/librechat.yaml
+#
+# librechat.yaml is kept as a STANDALONE file and injected via --set-file
+# (Helm) / fileParameters (ArgoCD) / yamlencode (Terraform) so the same config
+# drives both the running app and the egress-policy generator.
+
+# Deterministic resource naming so the pod selector label is predictable:
+#   app.kubernetes.io/name: librechat
+# The egress-policy generator MUST target this label:
+#   --pod-label app.kubernetes.io/name=librechat
+fullnameOverride: librechat
+
+replicaCount: 1
+
+# Official LibreChat image. Pin the tag for reproducibility.
+image:
+  registry: registry.librechat.ai
+  repository: danny-avila/librechat
+  tag: "v0.8.4"
+  pullPolicy: IfNotPresent
+
+# Front the app via the cluster's existing ingress controller (the base
+# Kubernetes blueprint deploys ingress-nginx). Set the host to taste.
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: chat.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+service:
+  type: ClusterIP
+  port: 3080
+
+# ServiceAccount for the LibreChat pod.
+# On EKS, prefer IRSA (or Pod Identity) for AWS Bedrock instead of static keys:
+# annotate this SA with the IAM role ARN below and leave BEDROCK_AWS_ACCESS_KEY_ID
+# / BEDROCK_AWS_SECRET_ACCESS_KEY UNSET in the secret — LibreChat then resolves
+# credentials via the AWS default provider chain (the web-identity token IRSA
+# injects). The IAM role's trust policy must allow this SA:
+#   system:serviceaccount:<namespace>:librechat
+serviceAccount:
+  create: true
+  name: librechat # fixed name so the IAM trust policy is stable
+  annotations: {}
+  # annotations:
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::<ACCOUNT_ID>:role/librechat-bedrock
+
+# LibreChat config + credentials.
+librechat:
+  # librechat.yaml is injected at install time (see header). Leave empty here.
+  configYamlContent: ""
+  # All secret env (AI backend creds, JWT/CREDS keys, MEILI master key) come
+  # from a Secret you create from chart/.env.example — NOT from this file:
+  #   kubectl -n librechat create secret generic librechat-credentials-env \
+  #     --from-env-file=chart/.env
+  existingSecretName: librechat-credentials-env
+
+# In-cluster dependencies (no external egress; safe under DCF default-deny).
+mongodb:
+  enabled: true
+  auth:
+    enabled: false
+meilisearch:
+  enabled: true
+  auth:
+    existingMasterKeySecret: librechat-credentials-env
+  persistence:
+    enabled: true
+
+# Disabled to keep one egress source (the LibreChat API pod). Enabling the RAG
+# API introduces a SECOND pod with its own egress (embeddings provider); if you
+# enable it, generate a separate FirewallPolicy for the rag pod
+# (app.kubernetes.io/name: librechat-rag).
+redis:
+  enabled: false
+librechat-rag-api:
+  enabled: false

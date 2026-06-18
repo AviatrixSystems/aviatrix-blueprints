@@ -1,0 +1,23 @@
+# Network layer variables
+# Copy this file to var.tfvars and adjust values, then:
+#   terraform apply -var-file=var.tfvars
+
+# REQUIRED: AWS account name exactly as registered in the Aviatrix Controller.
+# (This is the only variable without a default.)
+aviatrix_aws_account_name = "AWS"
+
+# Prefix for all resource names; enables multiple deployments in one account.
+# name_prefix = "k8s-demo"
+
+# AWS region for all resources.
+# aws_region = "us-east-2"
+
+# Route53 private hosted zone for internal DNS (shared across all VPCs).
+# route53_private_zone_name = "aws.aviatrixdemo.local"
+
+# CIDRs — override only if they conflict with your environment.
+# transit_cidr      = "10.2.0.0/20"
+# frontend_vpc_cidr = "10.10.0.0/23"
+# backend_vpc_cidr  = "10.20.0.0/23"
+# db_vpc_cidr       = "10.5.0.0/22"
+# pod_cidr          = "100.64.0.0/16"   # secondary CIDR, overlapping (RFC6598)

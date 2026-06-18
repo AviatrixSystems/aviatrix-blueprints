@@ -1,0 +1,76 @@
+name: Bootstrap State Bucket
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region for the state bucket"
+        required: true
+        default: "us-east-2"
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: bootstrap
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    name: Create S3 State Bucket
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        working-directory: .github/bootstrap
+        run: terraform init -input=false
+
+      - name: Terraform Apply
+        working-directory: .github/bootstrap
+        run: |
+          terraform apply -auto-approve -input=false \
+            -var="aws_region=${{ inputs.aws_region }}"
+
+      - name: Get bucket name
+        id: output
+        working-directory: .github/bootstrap
+        run: |
+          BUCKET=$(terraform output -raw bucket_name)
+          echo "bucket_name=$BUCKET" >> "$GITHUB_OUTPUT"
+          echo "## Bootstrap Complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**State Bucket:** \`$BUCKET\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Set this as a GitHub variable:" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "gh variable set TF_STATE_BUCKET --body \"$BUCKET\"" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Set TF_STATE_BUCKET variable
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh variable set TF_STATE_BUCKET --body "${{ steps.output.outputs.bucket_name }}"
+          echo "::notice::TF_STATE_BUCKET set to ${{ steps.output.outputs.bucket_name }}"
+
+      - name: Upload state backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootstrap-tfstate
+          path: .github/bootstrap/terraform.tfstate
+          retention-days: 90
