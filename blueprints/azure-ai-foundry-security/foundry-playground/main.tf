@@ -672,3 +672,14 @@ resource "azurerm_role_assignment" "acr_pull_ai_foundry_project" {
   role_definition_name = "AcrPull"
   principal_id         = azapi_resource.ai_foundry_project.output.identity.principalId
 }
+
+## Grant Foundry User role on the project to the deploying identity (or override via var.foundry_user_principal_id)
+##
+resource "azurerm_role_assignment" "foundry_user" {
+  provider = azurerm.workload_subscription
+
+  name                 = uuidv5("dns", "${azapi_resource.ai_foundry_project.name}${local.foundry_user_oid}foundryuser")
+  scope                = "${azurerm_resource_group.main.id}/providers/Microsoft.CognitiveServices/accounts/${azapi_resource.ai_foundry.name}/projects/${azapi_resource.ai_foundry_project.name}"
+  role_definition_name = "Foundry User"
+  principal_id         = local.foundry_user_oid
+}

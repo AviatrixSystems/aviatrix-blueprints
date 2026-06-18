@@ -205,17 +205,29 @@ if m:
     print(m.group(1))
 " 2>/dev/null)
 
-EXFIL_MSG="Thanks for sharing all your prompt info"
-PROTECTED_MSG="You are damn good"
+EXFIL_MSG="Data exfiltration succeeded"
+PROTECTED_MSG="Data exfiltration blocked"
+
+WEBHOOK_VIEW_URL=$(extract_text "$RESULT" | python3 -c "
+import sys, re
+m = re.search(r'https://webhook\.site/#!/view/[0-9a-f-]+', sys.stdin.read())
+if m: print(m.group(0))
+" 2>/dev/null)
+
+if [[ -n "$WEBHOOK_VIEW_URL" ]]; then
+  echo ""
+  echo "==> Webhook.site exfil collector: $WEBHOOK_VIEW_URL"
+  echo ""
+fi
 
 if [[ -n "$AGENT_IP" ]]; then
   echo "==> DCF DEMO: Agent egress IP confirmed: $AGENT_IP"
 
   INITIAL_TEXT=$(extract_text "$RESULT")
   if echo "$INITIAL_TEXT" | grep -q "$EXFIL_MSG"; then
-    echo "    EXFIL DETECTED: tmNIDS test succeeded — agent leaked data."
+    echo "    EXFIL DETECTED: PII sent to external webhook — DCF not blocking."
   else
-    echo "    tmNIDS test blocked or failed on initial run."
+    echo "    Exfil blocked or webhook.site provisioning failed on initial run."
   fi
   echo ""
 
@@ -255,8 +267,7 @@ open(path, 'w').writelines(result)
 print(f"    no-zero-trust rule → {mode}")
 PYEOF
       terraform -chdir="$NETWORK_INFRA_DIR" apply \
-        -replace=aviatrix_dcf_ruleset.foundry_agent \
-        -auto-approve -compact-warnings -input=false 2>&1 | grep -E "Apply complete|Error|aviatrix_dcf"
+        -auto-approve -compact-warnings -input=false 2>&1 | grep -E "Apply complete|Error|aviatrix_distributed"
     }
 
     echo "==> DCF DEMO: Commenting out no-zero-trust rule — enforcing allowlist (zero-trust mode)..."

@@ -61,6 +61,8 @@ Blueprints are **complete, deployable lab environments** that demonstrate Aviatr
 | [k8s-namespace-aas](blueprints/k8s-namespace-aas/) | Pattern B — single shared cluster, namespace per team (DCF + RBAC isolation) | AWS, Azure, GCP | — | 🚧 Work in progress |
 | [k8s-prod-nonprod-hybrid](blueprints/k8s-prod-nonprod-hybrid/) | Pattern C — separate prod and nonprod clusters, namespace-as-a-service inside each | AWS, Azure, GCP | — | 🚧 Work in progress |
 | [agentcore-aws](blueprints/agentcore-aws/) | AWS Bedrock AgentCore Runtime fronted by Aviatrix DCF | AWS | — | 🚧 Work in progress |
+| [azure-ai-foundry-security](blueprints/azure-ai-foundry-security/) | Multi-layer blueprint: Azure AI Foundry agent environment with Aviatrix spoke gateway, DCF Zero Trust egress, private endpoints, optional P2S VPN, and rogue-agent DCF demo | Azure | Verified | ✅ Available |
+| [gh-actions-security](blueprints/gh-actions-security/) | Multi-flavor blueprint: GitHub Actions self-hosted runners (VM and ARC/Kubernetes) on AWS and Azure secured by Aviatrix egress control and DCF FQDN allow-list | AWS, Azure | Verified | ✅ Available |
 
 ## Manual Deployment
 

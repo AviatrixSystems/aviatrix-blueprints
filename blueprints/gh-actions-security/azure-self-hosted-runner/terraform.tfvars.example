@@ -2,9 +2,9 @@
 #
 # Aviatrix controller credentials are NOT set here — export them as environment
 # variables before invoking terraform:
-#   export TF_VAR_aviatrix_controller_ip=your-controller.example.com
-#   export TF_VAR_aviatrix_username=admin
-#   export TF_VAR_aviatrix_password=your-password
+#   export AVIATRIX_CONTROLLER_IP=your-controller.example.com
+#   export AVIATRIX_USERNAME=admin
+#   export AVIATRIX_PASSWORD=your-password
 
 # Azure subscription and matching Aviatrix-side account name
 azure_subscription_id = "00000000-0000-0000-0000-000000000000"
@@ -17,11 +17,7 @@ location = "westeurope"
 github_repo_url = "https://github.com/your-org/your-repo"
 github_pat      = "ghp_..."
 
-# VM admin password — set via env var, do NOT commit to tfvars:
-#   export TF_VAR_admin_password=your-password
-
-# SSH public key for runner VM (required — no default)
-admin_ssh_public_key = "ssh-rsa AAAA..."    # replace with your actual public key
+admin_password = "changeme"
 
 # Optional overrides (defaults shown)
 # name_prefix         = "gh-runner"            # 6-digit suffix auto-appended per deployment
@@ -29,6 +25,7 @@ admin_ssh_public_key = "ssh-rsa AAAA..."    # replace with your actual public ke
 
 # runner_vm_size      = "Standard_B2s_v2"
 # admin_username      = "azureuser"
+# admin_ssh_public_key = "ssh-rsa AAAA..."
 # vnet_cidr           = "10.10.10.0/24"
 # gw_subnet_cidr      = "10.10.10.0/26"
 # runner_subnet_cidr  = "10.10.10.64/26"

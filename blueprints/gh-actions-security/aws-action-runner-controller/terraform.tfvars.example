@@ -1,0 +1,45 @@
+# Copy to terraform.tfvars and fill in values before running terraform apply.
+#
+# Aviatrix controller credentials are NOT set here — export them as TF_VAR_* env vars:
+#   export TF_VAR_aviatrix_controller_ip=your-controller.example.com
+#   export TF_VAR_aviatrix_username=admin
+#   export TF_VAR_aviatrix_password=...
+
+aws_region            = "eu-west-2"
+aviatrix_account_name = "aws-myaccount"
+
+# GitHub runner registration
+github_repo_url = "https://github.com/your-org/your-repo"
+github_pat      = "ghp_..."
+
+# ARC scale set name — becomes the runs-on label in workflow YAML.
+# Must be unique per runner registration target (org/repo).
+# arc_runner_name = "aws-arc"
+
+# Optional overrides (defaults shown)
+# name_prefix              = "gh-eks-runner"    # 6-digit suffix auto-appended
+# spoke_gateway_name       = null               # null → derived from name_prefix
+# vpc_cidr                 = "10.20.30.0/24"
+# gw_subnet_cidr           = "10.20.30.0/26"
+# eks_primary_subnet_cidr  = "10.20.30.64/26"
+# eks_secondary_subnet_cidr = "10.20.30.128/26"
+# spoke_gw_size            = "t3.medium"
+# eks_node_count           = 1
+# eks_node_instance_type   = "t3.medium"
+
+# FQDNs runner pods may reach for tool/agent calls (HTTP 80 + HTTPS 443).
+tool_call_fqdns = [
+  "www.example.com",
+]
+
+# Aviatrix MITM CA certificate (PEM). Used by the TLS-decrypt probe pod.
+# Fetch once from the controller:
+#   TOKEN=$(curl -sk -X POST "https://<controller>/v1/api" \
+#     -d "action=login&username=admin&password=..." \
+#     | python3 -c "import sys,json; print(json.load(sys.stdin)['CID'])")
+#   curl -sk "https://<controller>/v2.5/api/mitm/ca" -H "Authorization: cid $TOKEN"
+aviatrix_mitm_ca_pem = <<-EOT
+  -----BEGIN CERTIFICATE-----
+  ...
+  -----END CERTIFICATE-----
+EOT
