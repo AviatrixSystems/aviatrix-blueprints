@@ -8,61 +8,70 @@ Please be respectful and constructive in all interactions. We're building a comm
 
 ## Recommended Development Environment
 
-We strongly recommend using **[Claude Code](https://claude.ai/code)** for blueprint development. Claude Code understands Terraform, Aviatrix patterns, and can help ensure your blueprints meet repository standards.
+We strongly recommend an AI coding agent for blueprint development. Both **[Claude Code](https://claude.ai/code)** and **[Cursor](https://cursor.com)** work well — they understand Terraform, Aviatrix patterns, and can help ensure your blueprints meet repository standards. The repo ships ready-to-use config for both (see [Setting Up Your Agent](#setting-up-your-agent) below).
 
-### Required MCP Servers
+### Recommended MCP Servers
 
-Configure Claude Code with the following MCP servers for the best development experience:
+Configure these MCP servers for the best development experience. The first three are recommended; the last is optional.
 
 | MCP Server | Purpose | Configuration |
 |------------|---------|---------------|
-| **GitHub** | Access to Aviatrix Terraform provider docs, modules, and repository management | Point to [AviatrixSystems/terraform-provider-aviatrix](https://github.com/AviatrixSystems/terraform-provider-aviatrix) |
-| **Terraform** | Registry lookups for provider/module versions and documentation | Default configuration |
-| **Playwright** | Automated browser testing for validating deployments against a real Aviatrix Control Plane | Required for self-testing blueprints |
-| **Serena** | LSP-based code intelligence for semantic understanding of Terraform configurations | Enables accurate refactoring and analysis |
+| **GitHub** | Access to Aviatrix Terraform provider docs, modules, and repository management | Official remote server (`https://api.githubcopilot.com/mcp/`) — browser OAuth on first use, no token to paste |
+| **Terraform** | Registry lookups for provider/module versions and documentation | HashiCorp `terraform-mcp-server` (runs via Docker) |
+| **Serena** | LSP-based code intelligence for semantic understanding of Terraform configurations | [oraios/serena](https://github.com/oraios/serena), runs via `uvx` |
+| **Playwright** *(optional)* | Browser automation against a real Aviatrix Control Plane | `@playwright/mcp` — usually unnecessary; prefer the `agent-browser` skill (below) |
 
-### Why Use Claude Code?
+> **Browser-based self-testing:** For driving the Aviatrix CoPilot/Controller UI (verifying deployments, capturing screenshots), prefer the bundled **`agent-browser`** skill. It needs no MCP configuration and works out of the box. The Playwright MCP server is an optional alternative.
 
-- **Standards Compliance**: Claude Code reads the repository's `CLAUDE.md` and automatically follows blueprint standards
-- **Self-Testing**: With Playwright MCP, Claude can deploy blueprints and verify they work against a real Aviatrix environment
+### Why Use an AI Agent?
+
+- **Standards Compliance**: The agent reads the repository's `CLAUDE.md` / `AGENTS.md` and automatically follows blueprint standards
+- **Self-Testing**: With the `agent-browser` skill (or Playwright MCP), the agent can deploy blueprints and verify they work against a real Aviatrix environment
 - **Accurate Documentation**: Automatically generates comprehensive resource lists and prerequisites
 - **Provider Awareness**: Direct access to Aviatrix Terraform provider documentation ensures correct resource usage
 
-### Setting Up Claude Code
+### Setting Up Your Agent
 
-1. Install [Claude Code CLI](https://claude.ai/code)
-2. Configure MCP servers in your global Claude Code settings (`~/.claude.json`):
+The MCP servers need a couple of local tools available on your PATH:
+
+- **Docker** (for the Terraform server) — [install](https://docs.docker.com/get-docker/)
+- **uv / uvx** (for Serena) — [install](https://docs.astral.sh/uv/getting-started/installation/)
+- **Node.js / npx** (only if you enable the optional Playwright server) — [install](https://nodejs.org)
+
+#### Claude Code
+
+1. Install the [Claude Code CLI](https://claude.ai/code).
+2. Copy the `mcpServers` block from **[.claude/mcp-servers.example.json](.claude/mcp-servers.example.json)** into your Claude Code config (`~/.claude/settings.json`, or a project-level `.mcp.json`):
 
 ```json
 {
   "mcpServers": {
     "github": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "<your-token>"
-      }
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/"
     },
     "terraform": {
-      "command": "npx",
-      "args": ["-y", "@anthropics/terraform-mcp-server"]
-    },
-    "playwright": {
-      "command": "npx",
-      "args": ["-y", "@anthropics/mcp-server-playwright"]
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "hashicorp/terraform-mcp-server"]
     },
     "serena": {
-      "command": "npx",
-      "args": ["-y", "serena-mcp-server"]
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/oraios/serena", "serena", "start-mcp-server", "--context", "ide-assistant"]
     }
   }
 }
 ```
 
-   See [.claude/mcp-servers.example.json](.claude/mcp-servers.example.json) for a copy-paste ready configuration.
+3. Clone this repository and open it in Claude Code.
+4. Claude automatically reads `CLAUDE.md` for project-specific instructions.
 
-3. Clone this repository and open it in Claude Code
-4. Claude will automatically read `CLAUDE.md` for project-specific instructions
+#### Cursor
+
+1. Install [Cursor](https://cursor.com).
+2. The repo already includes **[.cursor/mcp.json](.cursor/mcp.json)** with the same servers — Cursor picks it up automatically when you open the project. Enable the servers in **Cursor Settings → MCP** on first launch.
+3. Cursor reads the root **`AGENTS.md`** (and, by extension, `CLAUDE.md`) for repository conventions.
+
+> Both setups use the same three core servers. The optional Playwright server is in `.claude/mcp-servers.example.json` if you want it; otherwise use the `agent-browser` skill for browser work.
 
 ## Ways to Contribute
 

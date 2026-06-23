@@ -1,24 +1,29 @@
 {
-  "_comment": "Copy this MCP server configuration to your Claude Code settings (~/.claude/settings.json)",
+  "_comment": "Copy the mcpServers block into your Claude Code config (~/.claude/settings.json) or a project .mcp.json. The 'github' server uses the official remote endpoint (browser OAuth on first use, no token to paste). 'terraform' needs Docker; 'serena' needs uv/uvx (https://docs.astral.sh/uv/). 'playwright' is OPTIONAL - the bundled agent-browser skill covers most browser self-testing without any MCP config.",
   "mcpServers": {
     "github": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "<your-github-token>"
-      }
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/"
     },
     "terraform": {
-      "command": "npx",
-      "args": ["-y", "@anthropics/terraform-mcp-server"]
-    },
-    "playwright": {
-      "command": "npx",
-      "args": ["-y", "@anthropics/mcp-server-playwright"]
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "hashicorp/terraform-mcp-server"]
     },
     "serena": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/oraios/serena",
+        "serena",
+        "start-mcp-server",
+        "--context",
+        "ide-assistant"
+      ]
+    },
+    "playwright": {
+      "_comment": "Optional. Prefer the agent-browser skill for browser-based blueprint verification.",
       "command": "npx",
-      "args": ["-y", "serena-mcp-server"]
+      "args": ["-y", "@playwright/mcp@latest"]
     }
   }
 }
