@@ -440,9 +440,9 @@ Once approved, PRs are merged using **squash merge** to keep the main branch his
 
 ## Getting Help
 
-- **Questions**: Open a [Discussion](https://github.com/aviatrix/aviatrix-blueprints/discussions)
-- **Bugs**: Open an [Issue](https://github.com/aviatrix/aviatrix-blueprints/issues)
-- **Feature ideas**: Open an [Issue](https://github.com/aviatrix/aviatrix-blueprints/issues) with the "enhancement" label
+- **Questions**: Open a [Discussion](https://github.com/AviatrixSystems/aviatrix-blueprints/discussions)
+- **Bugs**: Open an [Issue](https://github.com/AviatrixSystems/aviatrix-blueprints/issues)
+- **Feature ideas**: Open an [Issue](https://github.com/AviatrixSystems/aviatrix-blueprints/issues) with the "enhancement" label
 
 ## Recognition
 
