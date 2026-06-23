@@ -5,31 +5,33 @@ Production-ready Terraform lab environments — Infrastructure as Code for learn
 ![Aviatrix Blueprints](aviatrix_blueprints_logo.svg)
 
 > [!TIP]
-> **🤖 Aviatrix Blueprints are Optimized for Claude Code**
+> **🤖 Aviatrix Blueprints are Optimized for AI Coding Agents**
 >
-> Get AI-assisted deployment with prerequisite checks, cost estimates, and automated orchestration.
+> Works great with **[Claude Code](https://claude.ai/code)** and **[Cursor](https://cursor.com)** — get AI-assisted deployment with prerequisite checks, cost estimates, and automated orchestration. The repo ships ready-to-use config for both (`.claude/` and `.cursor/`), and every agent reads `AGENTS.md` / `CLAUDE.md` for project conventions.
+>
+> Claude Code adds these guided skills:
 >
 > | Skill | Description |
 > |-------|-------------|
 > | `/deploy-blueprint` | Guided deployment with prerequisite validation |
 > | `/analyze-blueprint` | Resource inventory and cost estimates |
 > | `/validate-blueprint` | Pre-QA quality gate (Tier 1/2/3 checks) |
->
-> [Get Claude Code](https://claude.ai/code)
 
-## Quick Start with Claude Code
+## Quick Start
 
 ```bash
-# Clone and open with Claude Code
 git clone https://github.com/AviatrixSystems/aviatrix-blueprints.git
 cd aviatrix-blueprints
-claude
 ```
 
-Inside Claude Code:
+**With [Claude Code](https://claude.ai/code):** run `claude` in the repo, then use the guided skills:
 - `/deploy-blueprint aws-eks-multicluster` — Deploy with guided assistance
 - `/analyze-blueprint aws-eks-multicluster` — Preview resources and costs before deploying
 - `/validate-blueprint aws-eks-multicluster` — Run the pre-QA validation gate locally
+
+**With [Cursor](https://cursor.com):** open the folder in Cursor. It picks up `.cursor/mcp.json` and `AGENTS.md` automatically — just ask the agent to deploy, analyze, or validate a blueprint.
+
+New contributor? See **[CONTRIBUTING.md](CONTRIBUTING.md)** for agent setup (MCP servers) and the clone-vs-fork workflow.
 
 ## What are Blueprints?
 
