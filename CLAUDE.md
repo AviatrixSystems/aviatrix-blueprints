@@ -154,6 +154,27 @@ The skill handles:
 - Output collection and validation
 - Post-deployment instructions
 
+### /destroy-blueprint
+
+Tear down a blueprint and remove all cloud resources:
+```bash
+# Destroy entire blueprint (correct reverse order)
+/destroy-blueprint dcf-eks
+
+# Destroy specific layer only
+/destroy-blueprint dcf-eks --layer nodes
+
+# Skip confirmation prompts
+/destroy-blueprint dcf-eks --force
+```
+
+The skill handles:
+- State inventory (which layers have active resources)
+- Kubernetes workload removal before Terraform (prevents finalizer deadlocks)
+- Reverse-order multi-layer orchestration with parallel destruction
+- Common error recovery (state drift, DCF ruleset conflicts, Azure delegation issues)
+- Post-destroy verification and local artifact cleanup
+
 ### /analyze-blueprint
 
 Analyze a blueprint without deploying:
