@@ -13,7 +13,7 @@ Deploy an AWS private VM for OpenClaw/Hermes/NemoClaw terminal workflows. Route 
 5. Run `terraform init`, `terraform plan`, `terraform apply`.
 6. Use the `ssm_start_session` output to access the private VM.
 7. Run `/opt/openclaw-vca/install-nemoclaw-openclaw.sh` or `/opt/openclaw-vca/install-openclaw.sh` after reviewing the script.
-8. Observe normal destinations in CoPilot FlowIQ filtered by SmartGroup `<name_prefix>-sg-agent-vm-subnet`.
+8. Observe normal destinations in CoPilot FlowIQ filtered by SmartGroup `<name_prefix>-sg-agent-workload`.
 9. Add only approved FQDNs to the relevant variables by pull request.
 10. Change `policy_mode = "enforce"` and apply again.
 11. Run `POLICY_MODE=enforce /opt/openclaw-vca/verify-egress.sh`.

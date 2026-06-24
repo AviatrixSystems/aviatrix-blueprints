@@ -7,8 +7,8 @@ aws_access_account = "aws-account-on-aviatrix-controller"
 
 controller_ip       = "203.0.113.10"
 controller_username = "admin"
-# Prefer: export TF_VAR_controller_password='...'
-controller_password = "REPLACE_ME"
+# Do NOT set controller_password here. Pass it as an environment variable instead:
+#   export TF_VAR_controller_password='your-controller-password'
 
 # Optional, enables CoPilot association and remote syslog.
 copilot_private_ip    = ""

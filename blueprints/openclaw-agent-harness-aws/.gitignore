@@ -17,7 +17,5 @@ plan-output.txt
 terraform.tfvars
 *.auto.tfvars
 
-# NOTE: .terraform.lock.hcl is intentionally NOT ignored — commit it.
-
 # macOS
 .DS_Store

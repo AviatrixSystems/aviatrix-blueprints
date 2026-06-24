@@ -22,7 +22,7 @@ The trusted enforcement boundary is the Aviatrix Spoke Gateway and Distributed C
 
 ## Incident workflow
 
-1. Filter CoPilot FlowIQ by `<name_prefix>-sg-agent-vm-subnet`.
+1. Filter CoPilot FlowIQ by `<name_prefix>-sg-agent-workload`.
 2. Identify the named deny/default rule that fired.
 3. Confirm whether the destination was expected, malicious, or an attempted bypass.
 4. If legitimate, add the exact FQDN to the narrowest WebGroup variable by pull request.

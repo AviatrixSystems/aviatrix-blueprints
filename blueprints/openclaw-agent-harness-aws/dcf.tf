@@ -238,7 +238,7 @@ resource "aviatrix_distributed_firewalling_policy_list" "openclaw" {
   dynamic "policies" {
     for_each = local.create_shadow_model_webgroup ? [1] : []
     content {
-      name     = "vca-openclaw-shadow-model-deny"
+      name     = "${local.name}-shadow-model-deny"
       action   = local.deny_like_action
       priority = 10
       protocol = "TCP"
@@ -257,7 +257,7 @@ resource "aviatrix_distributed_firewalling_policy_list" "openclaw" {
   }
 
   policies {
-    name     = "vca-openclaw-allow-vpc-dns-udp"
+    name     = "${local.name}-allow-vpc-dns-udp"
     action   = "PERMIT"
     priority = 18
     protocol = "UDP"
@@ -274,7 +274,7 @@ resource "aviatrix_distributed_firewalling_policy_list" "openclaw" {
   }
 
   policies {
-    name     = "vca-openclaw-allow-vpc-dns-tcp"
+    name     = "${local.name}-allow-vpc-dns-tcp"
     action   = "PERMIT"
     priority = 19
     protocol = "TCP"
@@ -291,7 +291,7 @@ resource "aviatrix_distributed_firewalling_policy_list" "openclaw" {
   }
 
   policies {
-    name     = "vca-openclaw-deny-dns-exfil-udp"
+    name     = "${local.name}-deny-dns-exfil-udp"
     action   = local.deny_like_action
     priority = 20
     protocol = "UDP"
@@ -308,7 +308,7 @@ resource "aviatrix_distributed_firewalling_policy_list" "openclaw" {
   }
 
   policies {
-    name     = "vca-openclaw-deny-dns-exfil-tcp"
+    name     = "${local.name}-deny-dns-exfil-tcp"
     action   = local.deny_like_action
     priority = 21
     protocol = "TCP"
@@ -325,7 +325,7 @@ resource "aviatrix_distributed_firewalling_policy_list" "openclaw" {
   }
 
   policies {
-    name     = "vca-openclaw-allow-aws-infra"
+    name     = "${local.name}-allow-aws-infra"
     action   = "PERMIT"
     priority = 30
     protocol = "TCP"
@@ -345,7 +345,7 @@ resource "aviatrix_distributed_firewalling_policy_list" "openclaw" {
   dynamic "policies" {
     for_each = local.create_os_update_webgroup ? [1] : []
     content {
-      name     = "vca-openclaw-allow-os-updates-https"
+      name     = "${local.name}-allow-os-updates-https"
       action   = "PERMIT"
       priority = 31
       protocol = "TCP"
@@ -366,7 +366,7 @@ resource "aviatrix_distributed_firewalling_policy_list" "openclaw" {
   dynamic "policies" {
     for_each = local.create_model_webgroup ? [1] : []
     content {
-      name     = "vca-openclaw-allow-model-gateways"
+      name     = "${local.name}-allow-model-gateways"
       action   = "PERMIT"
       priority = 40
       protocol = "TCP"
@@ -387,7 +387,7 @@ resource "aviatrix_distributed_firewalling_policy_list" "openclaw" {
   dynamic "policies" {
     for_each = length(var.approved_model_gateway_cidrs) > 0 ? [1] : []
     content {
-      name     = "vca-openclaw-allow-model-gateway-cidrs"
+      name     = "${local.name}-allow-model-gateway-cidrs"
       action   = "PERMIT"
       priority = 41
       protocol = "TCP"
@@ -405,7 +405,7 @@ resource "aviatrix_distributed_firewalling_policy_list" "openclaw" {
   }
 
   policies {
-    name     = "vca-openclaw-allow-core"
+    name     = "${local.name}-allow-core"
     action   = "PERMIT"
     priority = 50
     protocol = "TCP"
@@ -425,7 +425,7 @@ resource "aviatrix_distributed_firewalling_policy_list" "openclaw" {
   dynamic "policies" {
     for_each = local.create_package_webgroup ? [1] : []
     content {
-      name     = "vca-openclaw-allow-packages"
+      name     = "${local.name}-allow-packages"
       action   = "PERMIT"
       priority = 60
       protocol = "TCP"
@@ -446,7 +446,7 @@ resource "aviatrix_distributed_firewalling_policy_list" "openclaw" {
   dynamic "policies" {
     for_each = local.create_saas_webgroup ? [1] : []
     content {
-      name     = "vca-openclaw-allow-saas-apis"
+      name     = "${local.name}-allow-saas-apis"
       action   = "PERMIT"
       priority = 70
       protocol = "TCP"
@@ -467,7 +467,7 @@ resource "aviatrix_distributed_firewalling_policy_list" "openclaw" {
   dynamic "policies" {
     for_each = local.create_mcp_webgroup ? [1] : []
     content {
-      name     = "vca-openclaw-allow-mcp-gateways"
+      name     = "${local.name}-allow-mcp-gateways"
       action   = "PERMIT"
       priority = 80
       protocol = "TCP"
@@ -488,7 +488,7 @@ resource "aviatrix_distributed_firewalling_policy_list" "openclaw" {
   dynamic "policies" {
     for_each = local.create_identity_webgroup ? [1] : []
     content {
-      name     = "vca-openclaw-allow-identity-telemetry"
+      name     = "${local.name}-allow-identity-telemetry"
       action   = "PERMIT"
       priority = 90
       protocol = "TCP"
@@ -509,7 +509,7 @@ resource "aviatrix_distributed_firewalling_policy_list" "openclaw" {
   dynamic "policies" {
     for_each = local.create_public_ref_webgroup ? [1] : []
     content {
-      name     = "vca-openclaw-allow-public-reference"
+      name     = "${local.name}-allow-public-reference"
       action   = "PERMIT"
       priority = 95
       protocol = "TCP"
@@ -528,7 +528,7 @@ resource "aviatrix_distributed_firewalling_policy_list" "openclaw" {
   }
 
   policies {
-    name     = "vca-openclaw-deny-eastwest"
+    name     = "${local.name}-deny-eastwest"
     action   = local.deny_like_action
     priority = 100
     protocol = "ANY"
@@ -557,7 +557,7 @@ resource "null_resource" "copilot_association" {
   }
 
   provisioner "local-exec" {
-    command = <<-EOT
+    command     = <<-EOT
       set -euo pipefail
       CID=$(curl -sk "https://$${CONTROLLER}/v2/api" \
         -d "action=login&username=$${USERNAME}&password=$${PASSWORD}" \

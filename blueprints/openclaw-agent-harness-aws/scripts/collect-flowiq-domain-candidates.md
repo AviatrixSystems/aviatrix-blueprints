@@ -2,7 +2,7 @@
 
 1. Deploy with `policy_mode = "monitor"`.
 2. Run the OpenClaw/NemoClaw terminal workflow from the private VM.
-3. In CoPilot FlowIQ, filter source SmartGroup to `<name_prefix>-sg-agent-vm-subnet`.
+3. In CoPilot FlowIQ, filter source SmartGroup to `<name_prefix>-sg-agent-workload`.
 4. Export destinations that match expected business function.
 5. Add approved FQDNs to one of:
    - `approved_model_gateway_domains`

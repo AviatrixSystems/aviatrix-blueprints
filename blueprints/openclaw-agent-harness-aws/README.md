@@ -28,6 +28,8 @@ A running Aviatrix Controller and (optionally) CoPilot are already available, an
 
 ## Architecture
 
+![Architecture: private agent VM egressing through an Aviatrix Spoke Gateway with Distributed Cloud Firewall and CoPilot FlowIQ logging](architecture.svg)
+
 ```text
 Practitioner
    |
@@ -35,7 +37,7 @@ Practitioner
    v
 Private OpenClaw/Hermes/NemoClaw VM  ---- default route ---->  Aviatrix Spoke Gateway  ----> Internet / SaaS / Model Gateway
    |                                                        |
-   | Source SmartGroup: sg-agent-vm-subnet                  | DCF WebGroups + named rules
+   | Source SmartGroup: sg-agent-workload (CSP-tag match)   | DCF WebGroups + named rules
    |                                                        v
    +-----------------------------------------------> CoPilot FlowIQ + VPC Flow Logs
 ```
@@ -55,23 +57,40 @@ Private OpenClaw/Hermes/NemoClaw VM  ---- default route ---->  Aviatrix Spoke Ga
 - Ordered DCF policy list plus POST_RULES default action.
 - Optional CoPilot association and remote syslog.
 
+### Estimated cost
+
+Rough on-demand AWS cost for the default single-AZ lab in `us-east-1`, excluding data transfer and any Aviatrix licensing. Prices vary by region — confirm with the [AWS Pricing Calculator](https://calculator.aws).
+
+| Component | Default | Approx. cost |
+|---|---|---|
+| Aviatrix Spoke Gateway EC2 | `t3.medium` | ~$30/mo |
+| Agent VM EC2 | `t3.large` | ~$60/mo |
+| SSM/STS/Logs interface VPC endpoints | 5 endpoints | ~$36/mo (~$7.20 each) |
+| S3 gateway endpoint | 1 | no hourly charge |
+| VPC Flow Logs to CloudWatch | optional | usage-based |
+| **Total** | | **~$125–135/mo** if left running |
+
+Destroy the stack when not in use (`terraform destroy`) to avoid ongoing charges. Setting `create_ssm_vpc_endpoints=false` removes the largest fixed cost if your account already has private SSM connectivity.
+
 ## Policy evaluation order
+
+All rule names are prefixed with your `name_prefix` (e.g. `openclaw-vca-shadow-model-deny`) so multiple deployments never collide on a shared controller.
 
 | Priority | Rule | Mode | Purpose |
 |---:|---|---|---|
-| 10 | `vca-openclaw-shadow-model-deny` | monitor=`PERMIT+LOG`, enforce=`DENY+LOG` | Blocks unapproved model providers before broader allows. |
-| 18/19 | `allow-vpc-dns-udp/tcp` | `PERMIT` | Keeps normal AWS VPC resolver DNS working. |
-| 20/21 | `deny-dns-exfil-udp/tcp` | monitor=`PERMIT+LOG`, enforce=`DENY+LOG` | Blocks external DNS resolver paths. |
-| 30 | `allow-aws-infra` | `PERMIT` | SSM, EC2, STS, Logs, ECR/S3 bootstrap/API access. |
-| 31 | `allow-os-updates-https` | optional `PERMIT` | HTTPS package/update endpoints only. |
-| 40/41 | `allow-model-gateways` | `PERMIT` | Sanctioned NVIDIA or enterprise model gateway destinations. |
-| 50 | `allow-core` | `PERMIT` | OpenClaw/Hermes/NemoClaw core domains. |
-| 60 | `allow-packages` | optional `PERMIT` | Terminal/coding workflows: npm, PyPI, GitHub, Hugging Face, Docker. |
-| 70 | `allow-saas-apis` | optional `PERMIT` | Business APIs approved for this agent class. |
-| 80 | `allow-mcp-gateways` | optional `PERMIT` | Enterprise MCP/tool gateways without flat internal reachability. |
-| 90 | `allow-identity-telemetry` | optional `PERMIT` | Approved IdP and monitoring endpoints. |
-| 95 | `allow-public-reference` | optional `PERMIT` | Search/weather/reference endpoints for demos only. |
-| 100 | `deny-eastwest` | monitor=`PERMIT+LOG`, enforce=`DENY+LOG` | Limits lateral movement to adjacent/internal CIDRs. |
+| 10 | `<name_prefix>-shadow-model-deny` | monitor=`PERMIT+LOG`, enforce=`DENY+LOG` | Blocks unapproved model providers before broader allows. |
+| 18/19 | `<name_prefix>-allow-vpc-dns-udp/tcp` | `PERMIT` | Keeps normal AWS VPC resolver DNS working. |
+| 20/21 | `<name_prefix>-deny-dns-exfil-udp/tcp` | monitor=`PERMIT+LOG`, enforce=`DENY+LOG` | Blocks external DNS resolver paths. |
+| 30 | `<name_prefix>-allow-aws-infra` | `PERMIT` | SSM, EC2, STS, Logs, ECR/S3 bootstrap/API access. |
+| 31 | `<name_prefix>-allow-os-updates-https` | optional `PERMIT` | HTTPS package/update endpoints only. |
+| 40/41 | `<name_prefix>-allow-model-gateways` | `PERMIT` | Sanctioned NVIDIA or enterprise model gateway destinations. |
+| 50 | `<name_prefix>-allow-core` | `PERMIT` | OpenClaw/Hermes/NemoClaw core domains. |
+| 60 | `<name_prefix>-allow-packages` | optional `PERMIT` | Terminal/coding workflows: npm, PyPI, GitHub, Hugging Face, Docker. |
+| 70 | `<name_prefix>-allow-saas-apis` | optional `PERMIT` | Business APIs approved for this agent class. |
+| 80 | `<name_prefix>-allow-mcp-gateways` | optional `PERMIT` | Enterprise MCP/tool gateways without flat internal reachability. |
+| 90 | `<name_prefix>-allow-identity-telemetry` | optional `PERMIT` | Approved IdP and monitoring endpoints. |
+| 95 | `<name_prefix>-allow-public-reference` | optional `PERMIT` | Search/weather/reference endpoints for demos only. |
+| 100 | `<name_prefix>-deny-eastwest` | monitor=`PERMIT+LOG`, enforce=`DENY+LOG` | Limits lateral movement to adjacent/internal CIDRs. |
 | POST_RULES | default action | monitor=`PERMIT+LOG`, enforce=`DENY+LOG` | Catches anything not explicitly allowed. |
 
 ## Default terminal workflow posture
@@ -99,12 +118,24 @@ Move any direct model provider from `unapproved_model_provider_domains` to `appr
 - Aviatrix Controller/provider 8.2+ for the POST_RULES default action resource.
 - Optional CoPilot for FlowIQ and remote syslog ingestion.
 
+## Tested With
+
+| Component | Version |
+|---|---|
+| Aviatrix Controller | 8.2.x |
+| Aviatrix Terraform Provider | 8.2.20 |
+| `mc-spoke` module | 8.2.3 |
+| Terraform | 1.9.x (>= 1.5) |
+| AWS Provider | 5.100.0 (~> 5.0) |
+
+The Aviatrix Controller/provider 8.2+ floor is required for the `aviatrix_distributed_firewalling_default_action_rule` (POST_RULES default action) resource.
+
 ## Deploy
 
 ```bash
 cp terraform.tfvars.example terraform.tfvars
 # edit terraform.tfvars
-export TF_VAR_controller_password='REPLACE_ME'
+export TF_VAR_controller_password='your-controller-password'
 make preflight
 terraform plan
 terraform apply
@@ -131,7 +162,7 @@ sudo /opt/openclaw-vca/install-openclaw.sh
 
 1. Start with `policy_mode = "monitor"`.
 2. Run representative terminal agent tasks.
-3. In CoPilot FlowIQ, filter on SmartGroup `<name_prefix>-sg-agent-vm-subnet`.
+3. In CoPilot FlowIQ, filter on SmartGroup `<name_prefix>-sg-agent-workload`.
 4. Convert observed legitimate destinations into WebGroup variables by pull request.
 5. Change `policy_mode = "enforce"`.
 6. Run `POLICY_MODE=enforce /opt/openclaw-vca/verify-egress.sh`.
@@ -147,6 +178,81 @@ Use `examples/agent-classes/*.tfvars` as copy points:
 - `open-demo.tfvars` — workshop only.
 
 For a viral internal rollout, expose these as an “agent egress vending machine”: developers request an agent class, platform creates a private SSM-accessible VM and monitor-mode policy, then FlowIQ evidence becomes a pull request to promote destinations.
+
+## Variables
+
+Required variables have no default and must be supplied. The full set with inline documentation is in [`variables.tf`](variables.tf); the most commonly used are below.
+
+| Variable | Type | Default | Description |
+|---|---|---|---|
+| `aws_access_account` | string | _required_ | Aviatrix access account name for the AWS account. |
+| `controller_ip` | string | _required_ | Aviatrix Controller IP or DNS name. |
+| `controller_password` | string | _required_ | Controller password. Pass via `TF_VAR_controller_password`; never commit it. |
+| `controller_username` | string | `admin` | Aviatrix Controller username. |
+| `name_prefix` | string | `openclaw-vca` | Prefix for all AWS and Aviatrix object names. |
+| `agent_class` | string | `coding` | Harness class: coding, research, support, healthcare-phi, hermes, custom. |
+| `aws_region` | string | `us-east-1` | AWS region for the VPC, gateway, and VM. |
+| `vpc_cidr` | string | `10.42.0.0/16` | CIDR for the agent VPC. |
+| `availability_zone_count` | number | `1` | Number of private agent subnets (1–3). |
+| `spoke_gateway_size` | string | `t3.medium` | Aviatrix Spoke Gateway instance size. |
+| `agent_instance_type` | string | `t3.large` | EC2 instance type for the agent VM. |
+| `single_ip_snat` | bool | `true` | Single-IP SNAT on the gateway; programs the private default route to its ENI. |
+| `program_private_default_route` | bool | `false` | Keep false with SNAT (controller rejects both — AVXERR-TRANSIT-EDIT-0056). |
+| `manage_controller_policy` | bool | `true` | When true, this blueprint owns the controller DCF policy list + default action. Set false on a shared controller. |
+| `policy_mode` | string | `monitor` | `monitor` permits+logs would-be denies; `enforce` blocks them. |
+| `log_permit_rules` | bool | `true` | Log named permit rules in CoPilot. |
+| `enable_vpc_flow_logs` | bool | `true` | AWS-native VPC Flow Logs. Set false where SCPs block `ec2:DeleteFlowLogs`. |
+| `create_ssm_vpc_endpoints` | bool | `true` | Private interface endpoints for reliable SSM access. |
+| `create_s3_gateway_endpoint` | bool | `true` | S3 gateway endpoint for AWS-private artifact paths. |
+| `agent_workload_tag_key` / `agent_workload_tag_value` | string | `Role` / `openclaw-agent-harness` | CSP tag the source SmartGroup matches on. |
+| `install_mode` | string | `nemoclaw` | Installer staged on the VM: none, openclaw, nemoclaw, hermes. |
+| `auto_run_installer` | bool | `false` | Run the installer on first boot (otherwise stage only). |
+| `enable_package_installs` | bool | `true` | Allow package/source-control destinations for coding agents. |
+| `enable_public_reference` | bool | `false` | Allow broad public-reference presets (demo only). |
+| `approved_model_gateway_domains` | list(string) | NVIDIA endpoints | Approved model gateway/provider FQDNs. |
+| `package_registry_domains` | list(string) | npm/PyPI/GitHub/HF/Docker | Package & source-control destinations. |
+| `approved_saas_api_domains` / `approved_mcp_gateway_domains` / `identity_and_telemetry_domains` | list(string) | `[]` | Optional allow lists; no rule created when empty. |
+| `unapproved_model_provider_domains` | list(string) | major SaaS LLM APIs | Shadow-model deny list, evaluated before allows. |
+| `east_west_deny_cidrs` | list(string) | RFC1918 ranges | CIDRs denied after explicit allows (lateral-movement containment). |
+
+## Outputs
+
+| Output | Description |
+|---|---|
+| `vpc_id` | AWS VPC ID. |
+| `agent_instance_id` | Private agent VM instance ID (use with SSM). |
+| `agent_private_ip` | Private IP of the agent VM. |
+| `agent_private_subnet_ids` | Private subnets protected by the Spoke Gateway path. |
+| `agent_private_route_table_id` | Private route table receiving the gateway default route. |
+| `agent_private_cidrs` | Private CIDRs of the agent subnets. |
+| `vpc_dns_resolver_ip` | VPC DNS resolver IP allowed before the external-DNS deny. |
+| `agent_source_smart_group` | Tag-based source SmartGroup name used in agent policies. |
+| `aviatrix_spoke_gateway` | Spoke Gateway object from the mc-spoke module (sensitive). |
+| `policy_mode` | Current DCF mode (monitor/enforce). |
+| `managed_controller_policy` | Whether this deployment owns the controller policy list. |
+| `ssm_start_session` | Ready-to-run `aws ssm start-session` command for the VM. |
+| `ssm_interface_endpoint_ids` | Interface VPC endpoint IDs used for SSM access. |
+| `s3_gateway_endpoint_id` | S3 gateway endpoint ID (null when disabled). |
+| `vpc_flow_log_group` | CloudWatch log group for VPC Flow Logs (null when disabled). |
+| `agent_class` | Agent class tag for this deployment. |
+| `next_steps` | Ordered operator next steps after apply. |
+
+## Test scenarios
+
+After `terraform apply`, validate enforcement from the private VM. The full, copy-pasteable suite is in [`tests/test-scenarios.md`](tests/test-scenarios.md); it covers:
+
+1. Permit passes — OpenClaw/NemoClaw core domains.
+2. Permit passes — approved model gateway.
+3. Optional permit — HTTPS OS/update path.
+4. Terminal package workflow permit (npm, PyPI, GitHub).
+5. Shadow-model provider blocked (`<name_prefix>-shadow-model-deny`).
+6. DNS exfiltration blocked while VPC resolver still works.
+7. Default-deny catches unknown destinations (POST_RULES).
+8. East-west isolation to adjacent RFC1918 addresses.
+9. Live policy update — deny, add FQDN, apply, re-test permit.
+10. Guardrail validation — same domain in approve+deny lists fails `terraform plan`.
+
+In monitor mode, "blocked" tests still connect but produce named log events; in enforce mode they fail. This is the evidence you use to promote destinations before switching to enforce.
 
 ## Cleanup
 
