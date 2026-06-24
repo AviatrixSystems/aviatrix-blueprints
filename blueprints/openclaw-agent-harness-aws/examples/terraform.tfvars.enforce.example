@@ -1,0 +1,10 @@
+# Apply only after representative OpenClaw/NemoClaw/Hermes workflows are observed in monitor mode.
+
+policy_mode      = "enforce"
+log_permit_rules = false
+
+# Keep first-boot package manager activity disabled in enforce unless using a baked AMI/private mirror.
+install_bootstrap_packages = false
+
+# Production default: no broad search/weather/reference unless explicitly approved for this agent class.
+enable_public_reference = false

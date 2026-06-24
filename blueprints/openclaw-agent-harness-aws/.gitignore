@@ -1,0 +1,23 @@
+# Terraform state — never commit (contains resource data and can hold secrets)
+*.tfstate
+*.tfstate.*
+
+# Working directory and crash logs
+.terraform/
+crash.log
+crash.*.log
+
+# Saved plans — MAY CONTAIN SECRETS (variable values, including passwords). Never commit.
+*.tfplan
+tfplan*
+*.bin
+plan-output.txt
+
+# Local variable files — environment-specific, may contain secrets
+terraform.tfvars
+*.auto.tfvars
+
+# NOTE: .terraform.lock.hcl is intentionally NOT ignored — commit it.
+
+# macOS
+.DS_Store
