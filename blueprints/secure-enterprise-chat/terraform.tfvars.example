@@ -1,15 +1,35 @@
-# Copy to terraform.tfvars and edit. The wrapper installs onto an EXISTING
-# Aviatrix-protected cluster via your kubeconfig — no cloud credentials needed.
+# Copy to terraform.tfvars and edit. `terraform apply` installs LibreChat onto an
+# EXISTING Aviatrix-protected cluster via your kubeconfig, generates all app
+# secrets, creates the Bedrock IRSA role, auto-detects ingress, and applies the
+# egress FirewallPolicy CRD. On EKS the only value you typically set is
+# eks_cluster_name — everything below has a working default.
 
+# --- The one value to set on EKS ---
+# EKS cluster name. TF looks up its OIDC issuer to build the Bedrock IRSA role's
+# trust policy. Leave empty on non-AWS clusters (e.g. AKS) to skip IRSA and bring
+# your own model auth. Requires AWS credentials in your environment when set.
+eks_cluster_name = "" # e.g. "eks-singlecluster"
+# Region of the EKS cluster (cluster lookup is region-scoped; independent of
+# bedrock_region). Empty falls back to AWS_REGION / shared config.
+aws_region = "" # e.g. "us-east-2"
+
+# --- Bedrock (used when eks_cluster_name is set) ---
+# Enable Anthropic MODEL ACCESS for this region in the Bedrock console once;
+# that account-level step cannot be Terraform'd.
+bedrock_region = "us-east-1"
+# bedrock_models = "us.anthropic.claude-haiku-4-5-20251001-v1:0,us.anthropic.claude-sonnet-4-6"
+
+# --- Ingress (auto-detected by default) ---
+# Empty = auto-detect the cluster's IngressClass (alb -> nginx -> disabled).
+# Override to force a class, e.g. "alb" or "nginx".
+ingress_class_name = ""
+# Empty = host-less rule (open the LB address from the chat_url output). Set to
+# use a real hostname instead.
+ingress_host = ""
+
+# --- Cluster targeting / chart (defaults are fine) ---
 kubeconfig_path = "~/.kube/config"
-kube_context    = "" # e.g. the context for your aks/eks singlecluster blueprint; empty = current context
-
-namespace    = "librechat"
-release_name = "librechat" # keep as "librechat" so the pod label stays app.kubernetes.io/name=librechat
-
-chart_version = "2.0.2"
-ingress_host  = "chat.example.com"
-
-# AWS Bedrock via IRSA (EKS). Set to your role ARN to annotate the SA; leave the
-# BEDROCK_AWS_* static keys out of chart/.env when using this. Empty = no IRSA.
-irsa_role_arn = "" # e.g. "arn:aws:iam::123456789012:role/librechat-bedrock"
+kube_context    = "" # empty = current context
+namespace       = "librechat"
+release_name    = "librechat" # keep so the pod label stays app.kubernetes.io/name=librechat
+chart_version   = "2.0.2"
