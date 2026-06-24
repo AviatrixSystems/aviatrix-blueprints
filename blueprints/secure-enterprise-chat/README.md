@@ -6,15 +6,23 @@ Firewall (DCF). This blueprint is **not** a cluster builder — it layers a chat
 app onto a cluster you already stood up with one of the Kubernetes blueprints
 (e.g. `azure-aks-singlecluster`, `aws-eks-singlecluster`).
 
-It is, deliberately, **really just a Helm chart**:
+**One command — `terraform apply` — does everything.** It generates the app
+secrets, creates the AWS IAM role for Bedrock (IRSA) from your cluster's OIDC
+issuer, auto-detects the cluster's ingress class, installs the **official**
+LibreChat chart, and applies the Aviatrix `FirewallPolicy` CRD that scopes the
+pod's egress. On EKS you supply **one** value — your cluster name; everything
+else is defaulted, so a first apply brings up a working, DCF-protected chat.
+
+Underneath, it is **deliberately still just standalone files** — Terraform only
+orchestrates them, so you can run each by hand (raw Helm + the policy generator)
+or drive them with ArgoCD/GitOps if you prefer:
 
 - a **values overlay** for the **official** LibreChat chart (official container
   images, no custom build, no vendored application source),
-- the app config (`librechat.yaml`) and a secret template (`.env.example`),
+- the app config (`librechat.yaml`) as the single source of truth for the egress
+  allowlist (with `.env.example` documenting the secret keys TF generates for you),
 - a **translator shim** that turns `librechat.yaml` into an Aviatrix
-  `FirewallPolicy` CRD so egress is allowed only to the backends you configured,
-- and three ways to apply it: raw Helm, an optional thin Terraform wrapper, or
-  ArgoCD/GitOps.
+  `FirewallPolicy` CRD so egress is allowed only to the backends you configured.
 
 ## Architecture
 
@@ -53,7 +61,7 @@ pod. Nothing here is permitted to egress until it appears in that policy.
 | `egress-policy/` | The translator shim: `generate.py` + `egress-catalog.yaml`. Produces the `FirewallPolicy` CRD. |
 | `argocd/application.yaml` | Example ArgoCD Application (multi-source) for GitOps deploys. |
 | `examples/with-mcp/` | Worked example: MCP servers (remote + subprocess + internal) and the resulting allowlist. See its README. |
-| `main.tf`, `variables.tf`, `versions.tf`, `outputs.tf` | **Optional** thin Terraform `helm_release` wrapper. |
+| `main.tf`, `variables.tf`, `versions.tf`, `outputs.tf` | The Terraform conductor: generates secrets, creates the Bedrock IRSA role, auto-detects ingress, installs the chart, and applies the egress CRD. |
 
 > No LibreChat application source is vendored here. The chart pulls
 > `registry.librechat.ai/danny-avila/librechat`.
@@ -83,11 +91,29 @@ pod. Nothing here is permitted to egress until it appears in that policy.
   `kubernetes.io/aws-ebs`, does **not** provision). For an ephemeral lab you can
   instead set `*.persistence.enabled=false`.
 
+### What you supply (EKS)
+- **`eks_cluster_name`** — the only required input on AWS. Terraform looks up the
+  cluster's OIDC issuer to build the Bedrock IRSA role's trust policy. On a
+  non-AWS cluster (e.g. AKS) leave it empty to skip role creation and bring your
+  own model auth.
+
+### One un-automatable prerequisite (AWS Bedrock)
+- **Account-level Bedrock model access.** Enabling Anthropic models is a per
+  account/region console toggle (Bedrock → Model access) that Terraform cannot
+  set. Do it once for `bedrock_region` before (or just after) apply, or chats
+  fail with `AccessDeniedException`/`could not load model`. Everything else
+  Bedrock-related — the IAM role, region, model list, and egress allowlist — is
+  handled for you.
+
 ### Required tools
-- `kubectl`, configured for the target cluster
-- `helm` >= 3.8 (OCI support) — for the raw-Helm path
-- `python3` + `pip` — for the egress-policy shim (`pip install -r egress-policy/requirements.txt`)
-- `terraform` >= 1.5 — only for the optional TF wrapper
+- `terraform` >= 1.5 — the golden path (`terraform apply`)
+- `kubectl`, configured for the target cluster — TF uses your current kube
+  context (or `kube_context`) and shells out to apply the generated CRD
+- `python3` + `pip` — TF runs the egress-policy shim during apply
+  (`pip install -r egress-policy/requirements.txt`)
+- `helm` >= 3.8 (OCI support) — only if you run the à-la-carte raw-Helm path
+- AWS credentials in your environment (for the IRSA role + EKS lookups) when
+  `eks_cluster_name` is set
 
 ## Resources Created
 
@@ -101,10 +127,10 @@ chart consumes on the existing cluster.
 | `librechat` Helm release (LibreChat API pod) | existing cluster | Helm / TF wrapper | Rides existing node capacity; ~no new spend |
 | `mongodb` (Deployment + PVC) | existing cluster | LibreChat chart dep | ~1 small PVC on the default StorageClass (e.g. `gp3` ~$0.08/GB-mo) |
 | `meilisearch` (StatefulSet + PVC) | existing cluster | LibreChat chart dep | ~1 small PVC on the default StorageClass |
-| `librechat-credentials-env` Secret | existing cluster | you (kubectl) | none |
-| `FirewallPolicy` CRD (+ reconciled DCF ruleset/attachmentPoint/SmartGroups/WebGroup) | Aviatrix Controller | egress generator + CRD controller | none (rules on the existing spoke) |
-| Ingress record / LB (if your ingress controller provisions one) | cloud | existing ingress controller | Standard ALB/LB hourly + LCU if exposed |
-| **Optional** IAM role for Bedrock via IRSA | AWS | you (`eksctl`/console) | IAM is free; Bedrock usage billed per token |
+| `librechat-credentials-env` Secret (auto-generated randoms) | existing cluster | Terraform (`random_*` + `kubernetes_secret`) | none |
+| `FirewallPolicy` CRD (+ reconciled DCF ruleset/attachmentPoint/SmartGroups/WebGroup) | Aviatrix Controller | egress generator + CRD controller (run by TF) | none (rules on the existing spoke) |
+| Ingress record / LB (if an ingress class is detected) | cloud | existing ingress controller | Standard ALB/LB hourly + LCU if exposed |
+| IAM role + policy for Bedrock via IRSA (when `eks_cluster_name` set) | AWS | Terraform (`aws_iam_role`) | IAM is free; Bedrock usage billed per token |
 
 **Estimated cost:** **~$0 incremental** for the lab itself (PVC storage is a few
 cents/day). Bedrock/Azure OpenAI token usage and any internet-facing
@@ -112,10 +138,61 @@ load balancer are billed normally by the cloud provider.
 
 ## Deploy
 
-### Step 1 — Create the credentials Secret
+### Golden path — `terraform apply`
 
 ```bash
 cd blueprints/secure-enterprise-chat
+cp terraform.tfvars.example terraform.tfvars
+# EKS: set eks_cluster_name (the one required value). Everything else is defaulted.
+terraform init
+terraform apply
+```
+
+That single apply:
+
+1. **Generates** the five LibreChat secrets (`CREDS_KEY`, `CREDS_IV`,
+   `JWT_SECRET`, `JWT_REFRESH_SECRET`, `MEILI_MASTER_KEY`) and writes the
+   `librechat-credentials-env` Secret with `ALLOW_EMAIL_LOGIN/REGISTRATION=true`
+   and the Bedrock region + model list. You type none of these.
+2. **Creates the Bedrock IRSA role** from the cluster's OIDC issuer (when
+   `eks_cluster_name` is set) and annotates the `librechat` ServiceAccount with
+   it — no static AWS keys in the cluster.
+3. **Auto-detects the ingress class** (`alb` → `nginx` → none) and installs the
+   official LibreChat chart with a host-less ingress rule (or ingress disabled +
+   port-forward when no class is found).
+4. **Generates and applies** the egress `FirewallPolicy` CRD from
+   `chart/librechat.yaml`, scoped to `app.kubernetes.io/name=librechat`.
+
+When it finishes, open the address from the **`chat_url`** output (the ALB/LB
+hostname, or a `kubectl port-forward` command if ingress was disabled), create an
+account, and start chatting. The DCF policy permits only Bedrock + STS (plus
+anything else you configured in `librechat.yaml`); everything else from the pod
+is denied.
+
+> [!NOTE]
+> Secrets are generated by Terraform and therefore live in **local** state
+> (`terraform.tfstate`). That is intentional for a lab on the local backend — do
+> not commit the state file. To rotate them, `terraform taint` the relevant
+> `random_*` resources (or `-replace`) and re-apply.
+
+> [!IMPORTANT]
+> **Ingress is auto-detected, not assumed.** TF queries the cluster's
+> `IngressClass` objects and picks `alb` (EKS, AWS Load Balancer Controller) or
+> `nginx` (AKS, ingress-nginx). If neither exists it installs with ingress
+> disabled and `chat_url` returns a `kubectl port-forward` command. Override with
+> `ingress_class_name` to force a specific class, or set `ingress_host` to use a
+> real hostname instead of the host-less rule.
+
+### À la carte (run the same files by hand)
+
+The Terraform above only orchestrates standalone files — nothing stops you from
+running them yourself (or doing so to understand what TF does). The equivalent
+manual steps:
+
+**1 — Create the credentials Secret** (TF generates these for you; here you set
+them by hand)
+
+```bash
 cp chart/.env.example chart/.env
 # edit chart/.env: set CREDS_KEY/CREDS_IV/JWT_*/MEILI_MASTER_KEY and your AI creds
 kubectl create namespace librechat 2>/dev/null || true
@@ -123,10 +200,9 @@ kubectl -n librechat create secret generic librechat-credentials-env \
   --from-env-file=chart/.env
 ```
 
-### Step 2 — Generate and apply the egress FirewallPolicy
-
-The policy is derived from `chart/librechat.yaml`. Note the `--pod-label`: the
-chart labels the pod `app.kubernetes.io/name=librechat`.
+**2 — Generate and apply the egress FirewallPolicy.** Derived from
+`chart/librechat.yaml`. Note the `--pod-label`: the chart labels the pod
+`app.kubernetes.io/name=librechat`.
 
 ```bash
 pip install -r egress-policy/requirements.txt
@@ -143,9 +219,8 @@ kubectl apply -f egress-policy/firewall-policy.yaml
 Review the generated file first — it lists exactly which domains will be
 permitted. Anything not listed stays denied by the base cluster's DCF.
 
-### Step 3 — Install the chart (pick ONE)
-
-**A) Raw Helm**
+**3 — Install the chart** (raw Helm; set `ingress.className` to match your
+cluster, since this path does not auto-detect):
 
 ```bash
 helm install librechat oci://ghcr.io/danny-avila/librechat-chart/librechat \
@@ -153,31 +228,12 @@ helm install librechat oci://ghcr.io/danny-avila/librechat-chart/librechat \
   --namespace librechat --create-namespace \
   -f chart/values.yaml \
   --set-file librechat.configYamlContent=chart/librechat.yaml \
-  --set ingress.hosts[0].host=chat.example.com
+  --set ingress.className=alb
 ```
 
-**B) Terraform wrapper**
-
-```bash
-cp terraform.tfvars.example terraform.tfvars   # set kube_context, ingress_host
-terraform init
-terraform apply
-```
-
-**C) ArgoCD / GitOps** — see [`argocd/application.yaml`](argocd/application.yaml)
-and the GitOps section below.
-
-All three consume the **same** `chart/values.yaml` + `chart/librechat.yaml`.
-
-> [!IMPORTANT]
-> **Ingress class must match your base cluster.** `chart/values.yaml` ships
-> `ingress.className: nginx`, which assumes the base cluster runs ingress-nginx
-> (the AKS singlecluster path). This repo's EKS blueprints (`aws-eks-*`) instead
-> ship the **AWS Load Balancer Controller** (`className: alb`). On those, set
-> `--set ingress.className=alb`, or skip ingress for a quick test with
-> `--set ingress.enabled=false` and `kubectl port-forward`. Otherwise the install
-> fails with `admission webhook ... denied the request: invalid ingress class:
-> IngressClass "nginx" not found`.
+Or drive everything with **ArgoCD / GitOps** — see
+[`argocd/application.yaml`](argocd/application.yaml) and the GitOps section below.
+All paths consume the **same** `chart/values.yaml` + `chart/librechat.yaml`.
 
 ## CI/CD integration
 
@@ -241,68 +297,72 @@ their own app repo and let ArgoCD/Flux drive everything:
 4. The loop becomes: edit `librechat.yaml` → CI regenerates the CRD → Argo syncs
    both the chart and the policy. Config and its firewall posture move together.
 
-## AWS Bedrock auth via IRSA (recommended on EKS)
+## AWS Bedrock auth via IRSA
 
-LibreChat passes **no explicit credentials** to the Bedrock client when
-`BEDROCK_AWS_ACCESS_KEY_ID`/`BEDROCK_AWS_SECRET_ACCESS_KEY` are unset, so the AWS
-SDK default provider chain resolves the **IRSA** web-identity token (or EKS Pod
-Identity). No long-lived keys in the cluster.
+**Terraform handles this end to end when `eks_cluster_name` is set** — you do not
+create any IAM by hand. On apply it:
 
-1. **IAM role + trust policy** (IRSA) — allow the cluster's OIDC provider to
-   assume the role for the `librechat` SA in your namespace:
-   ```json
-   {
-     "Version": "2012-10-17",
-     "Statement": [{
-       "Effect": "Allow",
-       "Principal": { "Federated": "arn:aws:iam::<ACCOUNT_ID>:oidc-provider/oidc.eks.<region>.amazonaws.com/id/<OIDC_ID>" },
-       "Action": "sts:AssumeRoleWithWebIdentity",
-       "Condition": { "StringEquals": {
-         "oidc.eks.<region>.amazonaws.com/id/<OIDC_ID>:sub": "system:serviceaccount:librechat:librechat",
-         "oidc.eks.<region>.amazonaws.com/id/<OIDC_ID>:aud": "sts.amazonaws.com"
-       }}
-     }]
-   }
-   ```
-   ```bash
-   # one-liner alternative (handles the trust policy for you):
-   eksctl create iamserviceaccount --cluster <cluster> --namespace librechat \
-     --name librechat --attach-policy-arn arn:aws:iam::aws:policy/AmazonBedrockFullAccess \
-     --approve --override-existing-serviceaccounts
-   ```
-   Attach a permissions policy allowing `bedrock:InvokeModel*` (scope to the
-   model ARNs you use; `AmazonBedrockFullAccess` is the broad option).
+1. Data-sources the EKS cluster's OIDC issuer and the matching IAM OIDC provider.
+2. Creates an `aws_iam_role` whose trust policy allows
+   `sts:AssumeRoleWithWebIdentity` for exactly
+   `system:serviceaccount:<namespace>:librechat` (aud `sts.amazonaws.com`).
+3. Attaches an inline policy allowing `bedrock:InvokeModel*` on the
+   `inference-profile/*` and `foundation-model/anthropic.*` ARNs.
+4. Annotates the `librechat` ServiceAccount with the role ARN and leaves
+   `BEDROCK_AWS_ACCESS_KEY_ID`/`SECRET` **unset**, so LibreChat resolves the IRSA
+   web-identity token via the AWS default provider chain — no long-lived keys in
+   the cluster. The role ARN is surfaced as the `irsa_role_arn` output.
 
-2. **Wire the role to the SA** (pick one):
-   - Helm: `--set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=<role-arn>` (or set it in `chart/values.yaml`).
-   - Terraform: `irsa_role_arn = "<role-arn>"`.
+Egress is already covered: `sts.amazonaws.com` (token exchange) is in the catalog
+and emitted whenever Bedrock is enabled, and `bedrock-runtime.<region>` comes from
+`librechat.yaml`.
 
-3. **Keep the BEDROCK_AWS_* keys out of `chart/.env`**, but still set
-   `BEDROCK_AWS_DEFAULT_REGION` (LibreChat reads region from it).
+> Reminder: the IAM role grants *permission* to call Bedrock; it does **not**
+> grant *model access*. Enable the Anthropic models in the Bedrock console for
+> `bedrock_region` (see Prerequisites) — that step is account-level and cannot be
+> Terraform'd.
 
-Egress is already covered: `sts.amazonaws.com` (token exchange) is in the
-catalog and is emitted whenever Bedrock is enabled, and `bedrock-runtime.<region>`
-comes from `librechat.yaml`.
-**Pod Identity** alternative: create a Pod Identity association (SA→role) + the
-pod-identity-agent addon; no SA annotation needed (LibreChat uses the same
-default chain).
+**À la carte / non-EKS.** If you run the manual path or are on AKS (no IRSA),
+either create the role yourself and wire it to the SA, or use static keys:
 
-## Variables (Terraform wrapper)
+```bash
+# manual IRSA, the easy way:
+eksctl create iamserviceaccount --cluster <cluster> --namespace librechat \
+  --name librechat --attach-policy-arn arn:aws:iam::aws:policy/AmazonBedrockFullAccess \
+  --approve --override-existing-serviceaccounts
+# then: helm --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=<role-arn>
+```
+
+For non-AWS clusters, set static `BEDROCK_AWS_ACCESS_KEY_ID`/`SECRET` in the
+secret instead (see `chart/.env.example`). **Pod Identity** is also an option
+(SA→role association + the pod-identity-agent addon, no annotation needed).
+
+## Variables
+
+Only `eks_cluster_name` typically needs setting (on EKS). Everything else has a
+working default.
 
 | Variable | Default | Description |
 |---|---|---|
+| `eks_cluster_name` | `""` | EKS cluster name. Set on AWS to auto-create the Bedrock IRSA role from the cluster's OIDC issuer. Empty = skip IRSA (non-AWS / bring-your-own auth) |
+| `aws_region` | `""` | Region of the EKS cluster (the cluster lookup is region-scoped; independent of `bedrock_region`). Empty = fall back to `AWS_REGION` / shared config. Only used when `eks_cluster_name` is set |
+| `bedrock_region` | `us-east-1` | Bedrock region; also sets `BEDROCK_AWS_DEFAULT_REGION` and the `bedrock-runtime.<region>` egress permit. Enable model access here |
+| `bedrock_models` | `us.anthropic.claude-haiku-4-5-…,us.anthropic.claude-sonnet-4-6` | Inference-profile model ids shown in the UI (comma-separated) |
+| `ingress_class_name` | `""` | `""` = auto-detect (`alb`→`nginx`→disabled). Set to force a class |
+| `ingress_host` | `""` | `""` = host-less ingress rule (open the LB address). Set to use a hostname |
 | `kubeconfig_path` | `~/.kube/config` | kubeconfig for the existing cluster |
 | `kube_context` | `""` | context for the target cluster (empty = current) |
-| `namespace` | `librechat` | install namespace (match the policy `--namespace`) |
+| `namespace` | `librechat` | install namespace (also used in the IRSA trust policy + CRD) |
 | `release_name` | `librechat` | keep as `librechat` to preserve the pod label |
 | `chart_version` | `2.0.2` | official LibreChat chart version |
-| `ingress_host` | `chat.example.com` | ingress hostname |
-| `irsa_role_arn` | `""` | IAM role ARN for Bedrock via IRSA; annotates the SA. Empty = none |
 
-## Outputs (Terraform wrapper)
+## Outputs
 
 | Output | Description |
 |---|---|
+| `chat_url` | Address to open LibreChat: the detected ALB/LB hostname, or a `kubectl port-forward` command if ingress was disabled |
+| `irsa_role_arn` | ARN of the Bedrock IAM role created for the SA (`""` when `eks_cluster_name` unset) |
+| `detected_ingress_class` | The ingress class TF auto-detected and installed with |
 | `release_name` | Installed Helm release name |
 | `namespace` | Install namespace |
 | `chart_version` | Installed chart version |
@@ -337,19 +397,21 @@ clear **both** sources to remove it.
 
 ## Cleanup
 
+`terraform destroy` removes everything this blueprint created: the Helm release,
+the generated Secret, the Bedrock IAM role, and the egress `FirewallPolicy` CRD.
+
 ```bash
-# Chart
-helm uninstall librechat -n librechat        # or: terraform destroy
-# Egress policy
-kubectl delete -f egress-policy/firewall-policy.yaml
-# Secret + namespace
-kubectl -n librechat delete secret librechat-credentials-env
-kubectl delete namespace librechat
+terraform destroy
 ```
 
-If you created an IRSA role for Bedrock via `eksctl create iamserviceaccount`,
-it is **not** managed by this blueprint — delete it so it doesn't orphan:
+À-la-carte cleanup (if you deployed by hand instead):
+
 ```bash
+helm uninstall librechat -n librechat
+kubectl delete -f egress-policy/firewall-policy.yaml
+kubectl -n librechat delete secret librechat-credentials-env
+kubectl delete namespace librechat
+# If you created an IRSA role via eksctl, it is not managed here — delete it:
 eksctl delete iamserviceaccount --cluster <cluster> --namespace librechat --name librechat
 ```
 
@@ -440,5 +502,5 @@ covers both).
 | LibreChat chart | 2.0.2 (appVersion v0.8.4) |
 | Aviatrix Controller | 8.1+ (FQDN SmartGroups); 9.0+ for path-level filtering |
 | Helm | 3.8+ |
-| Terraform (wrapper) | >= 1.5, hashicorp/helm ~> 2.17 |
-| Base blueprint | azure-aks-singlecluster (dev target); any singlecluster |
+| Terraform | >= 1.5; providers: `hashicorp/helm` ~> 2.17, `hashicorp/kubernetes` ~> 2.30, `hashicorp/aws` ~> 5.0, `hashicorp/random` ~> 3.6 |
+| Base blueprint | aws-eks-singlecluster (EKS/IRSA target); azure-aks-singlecluster (non-IRSA); any singlecluster |
