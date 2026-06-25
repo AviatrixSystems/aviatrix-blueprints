@@ -29,7 +29,7 @@ The agent subnet is delegated to `Microsoft.App/environments` (ACA). All agent e
 
 | Tool | Min version | Used by | Install |
 |------|-------------|---------|---------|
-| [Terraform](https://developer.hashicorp.com/terraform/install) | 1.10+ | all modules | `brew install terraform` / package manager |
+| [Terraform](https://developer.hashicorp.com/terraform/install) | 1.7+ | all modules | `brew install terraform` / package manager |
 | [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) | any recent | `agent-deploy`, `deploy-agent.sh` | `brew install azure-cli` |
 | [Python 3](https://www.python.org/downloads/) | 3.9+ | `deploy-agent.sh` (JSON parsing, DCF demo script) | pre-installed on most systems |
 | [curl](https://curl.se/) | any | `deploy-agent.sh` (Foundry REST API calls) | pre-installed on Linux/macOS |
@@ -38,7 +38,7 @@ The agent subnet is delegated to `Microsoft.App/environments` (ACA). All agent e
 Verify before running:
 
 ```bash
-terraform version          # >= 1.10.0
+terraform version          # >= 1.7.0
 az version                 # any
 python3 --version          # >= 3.9
 curl --version             # any
@@ -601,7 +601,7 @@ The VNet, `foundry-agent` subnet, and resource group remain orphaned in Azure. T
 
 | Component | Version constraint | Modules |
 |-----------|--------------------|---------|
-| Terraform | `>= 1.10.0` | all |
+| Terraform | `>= 1.7.0` | all |
 | Aviatrix Controller | 9.0.10 | network-infra, vpn-access |
 | Aviatrix Provider (`AviatrixSystems/aviatrix`) | `~> 9.0` | network-infra, vpn-access |
 | Azure Provider (`hashicorp/azurerm`) | `~> 4.37` | foundry-playground |
