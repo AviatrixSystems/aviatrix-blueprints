@@ -8,7 +8,7 @@ terraform {
     }
     aviatrix = {
       source  = "AviatrixSystems/aviatrix"
-      version = "~> 8.2"
+      version = "~> 9.0"
     }
     random = {
       source  = "hashicorp/random"
