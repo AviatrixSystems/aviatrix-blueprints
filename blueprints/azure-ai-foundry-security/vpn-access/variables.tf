@@ -1,8 +1,8 @@
 # ── Locals ───────────────────────────────────────────────────────────────────
 
 locals {
-  suffix            = data.terraform_remote_state.network.outputs.suffix
-  vnet_name         = data.terraform_remote_state.network.outputs.vnet_name
+  suffix              = data.terraform_remote_state.network.outputs.suffix
+  vnet_name           = data.terraform_remote_state.network.outputs.vnet_name
   vnet_resource_group = data.terraform_remote_state.network.outputs.resource_group_name
 
   tags = {

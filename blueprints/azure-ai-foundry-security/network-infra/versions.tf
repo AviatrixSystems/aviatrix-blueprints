@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.10.0"
+  required_version = ">= 1.7.0"
 
   required_providers {
     azurerm = {
@@ -8,7 +8,7 @@ terraform {
     }
     aviatrix = {
       source  = "AviatrixSystems/aviatrix"
-      version = "~> 8.2"
+      version = "~> 9.0"
     }
     random = {
       source  = "hashicorp/random"

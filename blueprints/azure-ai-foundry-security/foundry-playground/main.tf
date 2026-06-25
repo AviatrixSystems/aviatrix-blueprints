@@ -125,12 +125,31 @@ resource "azapi_resource" "ai_search" {
 ########## Create AI Foundry resource
 ##########
 
+## Register the resource providers the AI Foundry capability host requires.
+## Without Microsoft.App registered, capability host creation fails with
+## "Subscription is not registered with the required resource providers", which
+## then puts the account into a Failed state and triggers a soft-delete cascade.
+## az provider register is idempotent and has no destroy action (never unregisters,
+## so it is safe on a shared subscription).
+##
+resource "terraform_data" "register_resource_providers" {
+  provisioner "local-exec" {
+    command = <<-EOT
+      az provider register --namespace Microsoft.App --wait --subscription "${var.subscription_id_resources}"
+      az provider register --namespace Microsoft.ContainerService --wait --subscription "${var.subscription_id_resources}"
+    EOT
+  }
+}
+
 ## Create the AI Foundry resource
 ##
 resource "azapi_resource" "ai_foundry" {
   provider = azapi.workload_subscription
 
-  depends_on = [terraform_data.purge_ai_foundry_account]
+  depends_on = [
+    terraform_data.purge_ai_foundry_account,
+    terraform_data.register_resource_providers,
+  ]
 
   type                      = "Microsoft.CognitiveServices/accounts@2025-06-01"
   name                      = "aifoundry${local.suffix}"
@@ -196,8 +215,8 @@ resource "azurerm_cognitive_deployment" "aifoundry_deployment_gpt_4o" {
 
   model {
     format  = "OpenAI"
-    name    = "gpt-4o"
-    version = "2024-11-20"
+    name    = "gpt-4.1"
+    version = "2025-04-14"
   }
 }
 
@@ -297,12 +316,22 @@ resource "azurerm_private_endpoint" "pe_aisearch" {
   }
 }
 
+## Wait for the AI Foundry account to settle to a terminal provisioning state.
+## Creating the account's private endpoint while the account is still in
+## "Accepted" fails with AccountProvisioningStateInvalid. azapi returns before
+## the account fully settles (most visible on a purge-then-reapply recovery).
+resource "time_sleep" "wait_ai_foundry_ready" {
+  depends_on      = [azapi_resource.ai_foundry]
+  create_duration = "60s"
+}
+
 resource "azurerm_private_endpoint" "pe_aifoundry" {
   provider = azurerm.workload_subscription
 
   depends_on = [
     azurerm_private_endpoint.pe_aisearch,
-    azapi_resource.ai_foundry
+    azapi_resource.ai_foundry,
+    time_sleep.wait_ai_foundry_ready,
   ]
 
   name                = "${azapi_resource.ai_foundry.name}-private-endpoint"

@@ -10,12 +10,12 @@ End-to-end Terraform blueprint for deploying a production-ready, network-isolate
 
 | Folder | Purpose | Required |
 |--------|---------|----------|
-| [`network-infra/`](network-infra/) | Azure VNet, subnets, Aviatrix spoke gateway, DCF ruleset | yes |
+| [`network-infra/`](network-infra/) | Azure VNet, subnets, Aviatrix spoke gateway, DCF policy list | yes |
 | [`foundry-playground/`](foundry-playground/) | Azure AI Foundry hub, project, private endpoints, supporting services | yes |
 | [`vpn-access/`](vpn-access/) | Aviatrix P2S VPN gateway for private access to Foundry endpoints | optional |
 | [`agent-deploy/`](agent-deploy/) | Builds and pushes the rogue-agent-sample container to ACR via ACR Tasks | optional |
 
-**VPN access**: the `vpn-access` module is optional but strongly recommended for testing and validation if the Aviatrix spoke gateway deployed by `network-infra` is not yet connected to a transit gateway. Without a transit connection, there is no path from your local machine into the foundry VNet to reach the private endpoints directly. The VPN module provides that path without requiring any hub or transit setup — deploy it, connect, and you can immediately reach Foundry services privately for testing. If the spoke is already attached to a transit that extends to your network, the VPN is not needed.
+**VPN access**: the Foundry account is created with `publicNetworkAccess = Disabled` (private endpoints only). The agent deploy + demo (`agent-deploy/deploy-agent.sh`) drives the Foundry agent API **from your local machine**, so that machine must have a private path into the foundry VNet — otherwise the API calls fail with `403 Public access is disabled`. That path is either a transit attachment that extends to your network, or the `vpn-access` module. If the spoke is set to `donotattach` (the default), **the VPN is required**, not optional: deploy `vpn-access`, add the `/etc/hosts` entries (Step 4), connect, and you can reach Foundry services privately. The agent's own runtime (in ACA, inside the VNet) reaches the Foundry project over the private endpoint regardless — only the operator-driven API calls need this path. To run the demo without a VPN, temporarily set the account to `publicNetworkAccess = Enabled`; the agent's egress still flows through the spoke gateway and DCF, so the exfil-block demo is unaffected.
 
 ## Architecture
 
@@ -29,16 +29,16 @@ The agent subnet is delegated to `Microsoft.App/environments` (ACA). All agent e
 
 | Tool | Min version | Used by | Install |
 |------|-------------|---------|---------|
-| [Terraform](https://developer.hashicorp.com/terraform/install) | 1.10+ | all modules | `brew install terraform` / package manager |
+| [Terraform](https://developer.hashicorp.com/terraform/install) | 1.7+ | all modules | `brew install terraform` / package manager |
 | [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) | any recent | `agent-deploy`, `deploy-agent.sh` | `brew install azure-cli` |
 | [Python 3](https://www.python.org/downloads/) | 3.9+ | `deploy-agent.sh` (JSON parsing, DCF demo script) | pre-installed on most systems |
 | [curl](https://curl.se/) | any | `deploy-agent.sh` (Foundry REST API calls) | pre-installed on Linux/macOS |
-| [Aviatrix Controller + CoPilot](https://docs.aviatrix.com/) | 8.2+ | `network-infra`, `vpn-access` | Use [launch.aviatrix.com](https://launch.aviatrix.com) to spin up a new instance |
+| [Aviatrix Controller + CoPilot](https://docs.aviatrix.com/) | 9.0+ | `network-infra`, `vpn-access` | Use [launch.aviatrix.com](https://launch.aviatrix.com) to spin up a new instance |
 
 Verify before running:
 
 ```bash
-terraform version          # >= 1.10.0
+terraform version          # >= 1.7.0
 az version                 # any
 python3 --version          # >= 3.9
 curl --version             # any
@@ -50,6 +50,15 @@ Authenticate the Azure CLI before running any module:
 az login
 az account set --subscription <subscription-id>
 ```
+
+**Resource providers**: the Foundry capability host requires the `Microsoft.App` and `Microsoft.ContainerService` resource providers to be registered on the target subscription. The `foundry-playground` module registers them automatically (idempotent, via a preflight `terraform_data` resource that never unregisters), but if you prefer to register them ahead of time:
+
+```bash
+az provider register --namespace Microsoft.App --wait
+az provider register --namespace Microsoft.ContainerService --wait
+```
+
+If `Microsoft.App` is not registered, capability host creation fails, which cascades the AI Foundry account into a `Failed` state and a soft-delete that must be purged before re-applying.
 
 ### Required Access
 
@@ -167,6 +176,9 @@ export TF_VAR_subscription_id="<azure-subscription-id>"
 export TF_VAR_subscription_id_infra="<azure-subscription-id>"
 export TF_VAR_subscription_id_resources="<azure-subscription-id>"
 export TF_VAR_deployer_object_id="<your-aad-object-id>"  # grants Foundry User role on project
+# Required by the foundry-playground default azurerm provider (no subscription_id set in HCL).
+# Set to the same value as TF_VAR_subscription_id_resources.
+export ARM_SUBSCRIPTION_ID="<azure-subscription-id>"
 
 # Aviatrix
 export TF_VAR_avx_controller_ip="<controller-fqdn-or-ip>"
@@ -384,11 +396,13 @@ Values for `acr_name` and `subscription_id` are sourced automatically from `foun
 
 ## Test Scenarios
 
-### Scenario 1: Verify DCF Ruleset
+### Scenario 1: Verify DCF Policies
+
+The blueprint manages the global Distributed Firewalling policy list directly via `aviatrix_distributed_firewalling_policy_list.foundry_agent` (no ruleset or attachment point).
 
 1. Open CoPilot → Security → Distributed Cloud Firewall
-2. Confirm ruleset `rs-foundry-agent-egress-XXXX` is attached to `TERRAFORM_BEFORE_UI_MANAGED`
-3. Verify 6 rules present in priority order
+2. Confirm the 7 `foundry-*` / `aca-*` policies are present in priority order 1–7, sourced from smart group `sg-foundry-agents-XXXX`
+3. Verify rule 1 is the ThreatGroup DENY and rules 6–7 are the default-deny-internet / default-deny-east-west
 
 ### Scenario 2: Verify Tool-Call Inspection
 
@@ -407,7 +421,7 @@ This demo shows Aviatrix DCF blocking the exfiltration at the gateway level, wit
 
 **Phase 1 — permissive egress (no zero trust):**
 
-The DCF ruleset ships with Rule 5 (`no-zero-trust`) that permits `AllWeb` on ports 80/443. With this rule in place, the agent can reach any FQDN, including `raw.githubusercontent.com`. The smoke test in `deploy-agent.sh` runs in this mode and confirms:
+The DCF policy list ships with Rule 5 (`no-zero-trust`) that permits `AllWeb` on ports 80/443. With this rule in place, the agent can reach any FQDN, including `raw.githubusercontent.com`. The smoke test in `deploy-agent.sh` runs in this mode and confirms:
 
 ```
 EXFIL DETECTED: tmNIDS test succeeded — agent leaked data.
@@ -415,12 +429,12 @@ EXFIL DETECTED: tmNIDS test succeeded — agent leaked data.
 
 **Phase 2 — enforce zero-trust allowlist:**
 
-`deploy-agent.sh` automatically comments out Rule 5 in `network-infra/main.tf` and replaces the DCF ruleset:
+`deploy-agent.sh` automatically comments out Rule 5 in `network-infra/main.tf` and re-applies the DCF policy list:
 
 ```bash
 # done automatically by deploy-agent.sh — or manually:
-# comment out the no-zero-trust rules block in network-infra/main.tf
-terraform -chdir=network-infra apply -replace=aviatrix_dcf_ruleset.foundry_agent -auto-approve
+# comment out the no-zero-trust rules block in network-infra/main.tf, then:
+terraform -chdir=network-infra apply -auto-approve
 ```
 
 With Rule 5 removed, `raw.githubusercontent.com` is not in the `wg-foundry-tool-calls` web group and is caught by Rule 6 (default deny internet). The same query returns:
@@ -445,7 +459,7 @@ The script always runs Phase 1 (smoke test with exfil check), Phase 2 (enforce +
 
 This scenario validates that the DCF deny-by-default posture is enforced end-to-end — any FQDN removed from the allowlist is immediately blocked at the gateway, visible in the monitor before traffic reaches the internet.
 
-> **Note:** Rules deployed inside a Terraform-managed ruleset cannot be modified via the CoPilot UI — the ruleset is owned by Terraform and UI edits will be rejected or overwritten on the next apply. To block tool-call traffic for testing, use one of the two options below.
+> **Note:** Policies in the Terraform-managed policy list cannot be reliably modified via the CoPilot UI — the list is owned by Terraform and UI edits to those policies will be overwritten on the next apply. To block tool-call traffic for testing, use one of the two options below.
 
 **Step 1 — remove the approved FQDNs (choose one option):**
 
@@ -587,9 +601,9 @@ The VNet, `foundry-agent` subnet, and resource group remain orphaned in Azure. T
 
 | Component | Version constraint | Modules |
 |-----------|--------------------|---------|
-| Terraform | `>= 1.10.0` | all |
-| Aviatrix Controller | 8.2.0 | network-infra, vpn-access |
-| Aviatrix Provider (`AviatrixSystems/aviatrix`) | `~> 8.2` | network-infra, vpn-access |
+| Terraform | `>= 1.7.0` | all |
+| Aviatrix Controller | 9.0.10 | network-infra, vpn-access |
+| Aviatrix Provider (`AviatrixSystems/aviatrix`) | `~> 9.0` | network-infra, vpn-access |
 | Azure Provider (`hashicorp/azurerm`) | `~> 4.37` | foundry-playground |
 | Azure Provider (`hashicorp/azurerm`) | `~> 4.0` | network-infra, vpn-access |
 | AzAPI Provider (`azure/azapi`) | `~> 2.5` | foundry-playground |
