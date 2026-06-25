@@ -320,3 +320,55 @@ resource "kubernetes_cluster_role_binding" "view_nodes" {
 
   depends_on = [kubernetes_cluster_role.view_nodes]
 }
+
+# ClusterRole + binding granting the Controller read access to the DCF CRDs
+# (networking.aviatrix.com: firewallpolicies / webgrouppolicies).
+#
+# The k8s-firewall Helm chart also creates an "avx-controller" ClusterRole/binding,
+# but the chart is installed in the LATER nodes layer. In a clean multi-layer
+# deploy the cluster layer onboards the cluster (aviatrix_kubernetes_cluster) and
+# the Controller's first CRD-read poll fires BEFORE the chart's binding exists,
+# so that poll returns "forbidden" and CoPilot shows the cluster as partial.
+#
+# Managing the grant here (Terraform, cluster layer) makes it live at onboarding
+# time, independent of chart timing. RBAC rules may reference CRD kinds before the
+# CRDs are registered, so this is safe to create ahead of the chart. Named distinctly
+# from the chart's "avx-controller" objects to avoid Helm ownership collisions; the
+# duplicate grant to the same group is harmless.
+resource "kubernetes_cluster_role" "avx_controller_crd_reader" {
+  count = var.enable_aviatrix_onboarding && var.aviatrix_controller_role_arn != "" ? 1 : 0
+
+  metadata {
+    name = "avx-controller-crd-reader"
+  }
+
+  rule {
+    verbs      = ["get", "list", "watch"]
+    api_groups = ["networking.aviatrix.com"]
+    resources  = ["*"]
+  }
+
+  depends_on = [module.eks]
+}
+
+resource "kubernetes_cluster_role_binding" "avx_controller_crd_reader" {
+  count = var.enable_aviatrix_onboarding && var.aviatrix_controller_role_arn != "" ? 1 : 0
+
+  metadata {
+    name = "avx-controller-crd-reader"
+  }
+
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = kubernetes_cluster_role.avx_controller_crd_reader[0].metadata[0].name
+  }
+
+  subject {
+    kind      = "Group"
+    name      = "avx-controller"
+    api_group = "rbac.authorization.k8s.io"
+  }
+
+  depends_on = [kubernetes_cluster_role.avx_controller_crd_reader]
+}

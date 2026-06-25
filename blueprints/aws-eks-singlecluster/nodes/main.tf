@@ -42,6 +42,7 @@ resource "helm_release" "k8s_firewall" {
   name       = "k8s-firewall"
   repository = "https://aviatrixsystems.github.io/k8s-firewall-charts"
   chart      = "k8s-firewall"
+  version    = var.k8s_firewall_chart_version
   namespace  = "default"
 
   # Skip waiting for resources - CRDs don't have traditional ready status
