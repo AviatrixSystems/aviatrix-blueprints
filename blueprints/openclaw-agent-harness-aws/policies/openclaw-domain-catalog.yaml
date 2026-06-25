@@ -1,0 +1,93 @@
+# OpenClaw / NemoClaw domain catalog for Aviatrix WebGroups.
+# Treat this as a starting point, not a universal allow-list.
+# Promote domains from CoPilot FlowIQ observation through pull request review.
+
+openclaw_core:
+  - openclaw.ai
+  - www.openclaw.ai
+  - docs.openclaw.ai
+  - clawhub.ai
+  - www.nvidia.com
+
+approved_model_gateways_default:
+  - integrate.api.nvidia.com
+  - inference-api.nvidia.com
+
+terminal_package_workflow:
+  - registry.npmjs.org
+  - npmjs.com
+  - nodejs.org
+  - deb.nodesource.com
+  - pypi.org
+  - files.pythonhosted.org
+  - github.com
+  - "*.github.com"
+  - api.github.com
+  - raw.githubusercontent.com
+  - objects.githubusercontent.com
+  - "*.githubusercontent.com"
+  - huggingface.co
+  - cdn-lfs.huggingface.co
+  - download.docker.com
+  - get.docker.com
+  - registry-1.docker.io
+  - auth.docker.io
+  - production.cloudflare.docker.com
+  - "*.docker.io"
+
+aws_infra_for_private_vm:
+  note: "Region-specific AWS endpoints are generated in locals.tf from aws_region."
+  generated_examples:
+    - ec2.<region>.amazonaws.com
+    - ssm.<region>.amazonaws.com
+    - ssmmessages.<region>.amazonaws.com
+    - ec2messages.<region>.amazonaws.com
+    - logs.<region>.amazonaws.com
+    - sts.<region>.amazonaws.com
+    - s3.<region>.amazonaws.com
+    - "*.s3.<region>.amazonaws.com"
+    - ecr.<region>.amazonaws.com
+    - api.ecr.<region>.amazonaws.com
+    - "*.dkr.ecr.<region>.amazonaws.com"
+
+os_update_https_optional:
+  - archive.ubuntu.com
+  - security.ubuntu.com
+  - "*.archive.ubuntu.com"
+  - "*.ec2.archive.ubuntu.com"
+  - changelogs.ubuntu.com
+  note: "Many Ubuntu apt mirrors use HTTP, not TLS/SNI. For enforce mode, prefer baked AMIs or private HTTPS mirrors."
+
+optional_public_reference:
+  - brave.com
+  - api.search.brave.com
+  - api.open-meteo.com
+  - geocoding-api.open-meteo.com
+  - api.weather.gov
+
+shadow_model_deny_examples:
+  - api.openai.com
+  - api.anthropic.com
+  - generativelanguage.googleapis.com
+  - api.mistral.ai
+  - api.cohere.ai
+  - api.together.xyz
+  - api.fireworks.ai
+  - openrouter.ai
+  - api.openrouter.ai
+  - api.deepseek.com
+  - api.x.ai
+
+policy_tiers:
+  restricted:
+    enable_package_installs: false
+    enable_public_reference: false
+    intended_for: "regulated or data-sensitive agents"
+  balanced:
+    enable_package_installs: true
+    enable_public_reference: false
+    intended_for: "coding or terminal agents that need package/source-control workflows"
+  open_demo:
+    enable_package_installs: true
+    enable_public_reference: true
+    intended_for: "demo and non-production exploration only"

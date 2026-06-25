@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec > >(tee -a /var/log/${name_prefix}-cloud-init.log) 2>&1
+
+echo "[${name_prefix}] starting cloud-init"
+export DEBIAN_FRONTEND=noninteractive
+
+# Avoid first-boot package-manager dependency by default. Strict enforce mode can
+# block HTTP-based apt mirrors, so convenience packages are optional and should be
+# enabled only during monitor mode or when using a private package mirror.
+if [ "${install_bootstrap_packages}" = "true" ]; then
+  apt-get update -y
+  apt-get install -y ca-certificates curl gnupg jq git unzip python3 python3-pip dnsutils lsb-release
+fi
+
+# Ubuntu EC2 images commonly include amazon-ssm-agent. Keep the host SSH-less and
+# private; if SSM is missing, operators can use a baked AMI or enable bootstrap packages.
+if systemctl list-unit-files | grep -q '^amazon-ssm-agent.service'; then
+  systemctl enable --now amazon-ssm-agent || true
+fi
+
+if [ "${install_docker}" = "true" ]; then
+  if ! command -v docker >/dev/null 2>&1; then
+    apt-get update -y
+    apt-get install -y docker.io
+  fi
+  systemctl enable --now docker
+  usermod -aG docker ubuntu || true
+fi
+
+install -d -m 0755 /opt/openclaw-vca /var/log/openclaw-vca
+cat >/opt/openclaw-vca/README.txt <<'EOT'
+This host is intentionally private and has no public IP.
+Access it with AWS Systems Manager Session Manager, then run one of the staged installers:
+
+  sudo /opt/openclaw-vca/install-openclaw.sh
+  sudo /opt/openclaw-vca/install-nemoclaw-openclaw.sh
+  sudo /opt/openclaw-vca/install-nemohermes.sh
+
+The network path is enforced by Aviatrix Distributed Cloud Firewall. Do not add NAT gateways,
+public IPs, or host-level proxy bypasses unless the containment policy is updated first.
+
+Recommended rollout:
+1. Deploy with policy_mode=monitor.
+2. Run the installer and representative agent workflows.
+3. Promote required destinations into approved WebGroups via terraform.tfvars.
+4. Switch policy_mode=enforce.
+
+For unattended NemoClaw/Hermes installation, set the documented NEMOCLAW_* variables explicitly.
+EOT
+
+cat >/opt/openclaw-vca/ensure-curl.sh <<'EOT'
+#!/usr/bin/env bash
+set -euo pipefail
+if ! command -v curl >/dev/null 2>&1; then
+  echo "curl is not installed. Install it during monitor mode, or use a baked AMI/private package mirror before enforce mode." >&2
+  exit 1
+fi
+EOT
+chmod 0755 /opt/openclaw-vca/ensure-curl.sh
+
+cat >/opt/openclaw-vca/install-openclaw.sh <<'EOT'
+#!/usr/bin/env bash
+set -euo pipefail
+/opt/openclaw-vca/ensure-curl.sh
+# --no-onboard installs the CLI without running an interactive onboarding wizard.
+# After install, run: openclaw onboard --install-daemon
+curl -fsSL https://openclaw.ai/install.sh -o /tmp/openclaw-install.sh
+bash /tmp/openclaw-install.sh --no-onboard
+EOT
+chmod 0755 /opt/openclaw-vca/install-openclaw.sh
+
+cat >/opt/openclaw-vca/install-nemoclaw-openclaw.sh <<'EOT'
+#!/usr/bin/env bash
+set -euo pipefail
+/opt/openclaw-vca/ensure-curl.sh
+cat <<'HELP'
+Running the NemoClaw installer for OpenClaw.
+For non-interactive/CI use, export at least:
+  NEMOCLAW_ACCEPT_THIRD_PARTY_SOFTWARE=1
+  NEMOCLAW_NON_INTERACTIVE=1
+  NEMOCLAW_PROVIDER=nvidia|openai|anthropic|gemini|model-router|ollama
+  NEMOCLAW_API_KEY=<secret>   # when required by provider
+HELP
+curl -fsSL https://www.nvidia.com/nemoclaw.sh -o /tmp/nemoclaw.sh
+bash /tmp/nemoclaw.sh
+EOT
+chmod 0755 /opt/openclaw-vca/install-nemoclaw-openclaw.sh
+
+cat >/opt/openclaw-vca/install-nemohermes.sh <<'EOT'
+#!/usr/bin/env bash
+set -euo pipefail
+/opt/openclaw-vca/ensure-curl.sh
+cat <<'HELP'
+Running the NemoClaw installer for Hermes.
+For non-interactive/CI use, export at least:
+  NEMOCLAW_ACCEPT_THIRD_PARTY_SOFTWARE=1
+  NEMOCLAW_NON_INTERACTIVE=1
+  NEMOCLAW_PROVIDER=nvidia|openai|anthropic|gemini|model-router|ollama
+  NEMOCLAW_API_KEY=<secret>   # when required by provider
+HELP
+export NEMOCLAW_AGENT=hermes
+curl -fsSL https://www.nvidia.com/nemoclaw.sh -o /tmp/nemoclaw.sh
+bash /tmp/nemoclaw.sh
+EOT
+chmod 0755 /opt/openclaw-vca/install-nemohermes.sh
+
+cat >/opt/openclaw-vca/verify-egress.sh <<'EOT'
+#!/usr/bin/env bash
+set -euo pipefail
+mode="$${POLICY_MODE:-monitor}"
+cat <<INFO
+Policy mode assumption: $mode
+- monitor: denied destinations should connect but appear as PERMIT+LOG under deny/default rules.
+- enforce: denied destinations should fail and appear as DENY+LOG.
+INFO
+urls=(
+  "https://openclaw.ai"
+  "https://docs.openclaw.ai"
+  "https://clawhub.ai"
+  "https://integrate.api.nvidia.com"
+  "https://registry.npmjs.org"
+  "https://api.openai.com"
+  "https://example.invalid"
+)
+for u in "$${urls[@]}"; do
+  echo
+  echo "==> $u"
+  if command -v curl >/dev/null 2>&1; then
+    timeout 12 curl -sSIL "$u" | sed -n '1,6p' || echo "result=blocked-or-unreachable"
+  else
+    echo "curl not installed; install it in monitor mode or use a baked AMI."
+  fi
+done
+
+echo
+echo "Testing VPC DNS resolver path"
+getent hosts openclaw.ai || true
+
+echo
+echo "Testing external DNS resolver path. Expected: monitor permits+logs; enforce denies/logs."
+if command -v dig >/dev/null 2>&1; then
+  timeout 6 dig @1.1.1.1 openclaw.ai A +short || true
+else
+  echo "dig not installed; install dnsutils in monitor mode to test UDP/53 explicitly."
+fi
+EOT
+chmod 0755 /opt/openclaw-vca/verify-egress.sh
+
+if [ "${auto_run_installer}" = "true" ]; then
+  case "${install_mode}" in
+    openclaw)
+      /opt/openclaw-vca/install-openclaw.sh | tee -a /var/log/openclaw-vca/install-openclaw.log
+      ;;
+    nemoclaw)
+      if [ "${auto_accept_third_party_software}" != "true" ]; then
+        echo "auto_run_installer=true with install_mode=nemoclaw requires auto_accept_third_party_software=true" >&2
+        exit 1
+      fi
+      export NEMOCLAW_ACCEPT_THIRD_PARTY_SOFTWARE=1
+      /opt/openclaw-vca/install-nemoclaw-openclaw.sh | tee -a /var/log/openclaw-vca/install-nemoclaw-openclaw.log
+      ;;
+    hermes)
+      if [ "${auto_accept_third_party_software}" != "true" ]; then
+        echo "auto_run_installer=true with install_mode=hermes requires auto_accept_third_party_software=true" >&2
+        exit 1
+      fi
+      export NEMOCLAW_ACCEPT_THIRD_PARTY_SOFTWARE=1
+      /opt/openclaw-vca/install-nemohermes.sh | tee -a /var/log/openclaw-vca/install-nemohermes.log
+      ;;
+    none)
+      echo "install_mode=none; skipping installer"
+      ;;
+    *)
+      echo "unknown install_mode=${install_mode}" >&2
+      exit 1
+      ;;
+  esac
+fi
+
+echo "[${name_prefix}] cloud-init complete"

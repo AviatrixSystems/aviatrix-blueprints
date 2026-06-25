@@ -1,0 +1,101 @@
+# Copy to terraform.tfvars and edit.
+
+name_prefix        = "openclaw-vca"
+agent_class        = "coding"
+aws_region         = "us-east-1"
+aws_access_account = "aws-account-on-aviatrix-controller"
+
+controller_ip       = "203.0.113.10"
+controller_username = "admin"
+# Do NOT set controller_password here. Pass it as an environment variable instead:
+#   export TF_VAR_controller_password='your-controller-password'
+
+# Optional, enables CoPilot association and remote syslog.
+copilot_private_ip    = ""
+copilot_public_ip     = ""
+copilot_syslog_index  = 9
+
+vpc_cidr                = "10.42.0.0/16"
+availability_zone_count = 1
+controller_sync_wait    = "45s"
+
+# Keep false: with single_ip_snat=true the egress Spoke Gateway already programs the
+# private subnet default route to its own ENI. Enabling both is rejected by the
+# controller (AVXERR-TRANSIT-EDIT-0056).
+program_private_default_route = false
+single_ip_snat                = true
+
+# Controller-level DCF ownership. Default true makes this blueprint own the entire
+# controller policy list + POST_RULES default action (use ONLY on a dedicated controller).
+# On a SHARED controller that already has DCF policy, set false to avoid overwriting it,
+# and add the OpenClaw rules (scoped to the agent SmartGroup) into the existing list.
+manage_controller_policy = true
+
+# Rollout sequence:
+# 1. monitor: permit+log would-be denies while you learn normal OpenClaw destinations.
+# 2. enforce: block shadow models, external DNS, east-west, and all unlisted egress.
+policy_mode      = "monitor"
+log_permit_rules = true
+
+# Secure-by-default VM bootstrap: scripts are staged under /opt/openclaw-vca, but not run.
+install_mode                 = "nemoclaw"
+auto_run_installer           = false
+auto_accept_third_party_software = false
+install_bootstrap_packages   = false
+install_docker               = false
+
+# Balanced terminal-developer posture. For regulated/sensitive agents, set false.
+enable_package_installs = true
+enable_public_reference = false
+
+# Default model traffic: NVIDIA-hosted endpoints. Prefer enterprise/OpenShell gateways here.
+approved_model_gateway_domains = [
+  "integrate.api.nvidia.com",
+  "inference-api.nvidia.com"
+]
+
+# Optional internal model gateway CIDR destinations. Restricted to TCP/443 in this blueprint.
+approved_model_gateway_cidrs = [
+  # "10.100.20.10/32"
+]
+
+# Add only the business APIs this agent class needs.
+approved_saas_api_domains = [
+  # "api.salesforce.com",
+  # "company.zendesk.com"
+]
+
+# Add only enterprise MCP/tool gateways, not a flat internal CIDR.
+approved_mcp_gateway_domains = [
+  # "mcp-tools.example.com"
+]
+
+identity_and_telemetry_domains = [
+  # "login.microsoftonline.com",
+  # "company.okta.com",
+  # "telemetry.example.com"
+]
+
+# Keep broad public-reference presets off unless you are running a demo/lab.
+public_reference_domains = [
+  "brave.com",
+  "api.search.brave.com",
+  "api.open-meteo.com",
+  "geocoding-api.open-meteo.com",
+  "api.weather.gov"
+]
+
+# This deny list is evaluated before allow rules. Remove a domain here before approving it above.
+unapproved_model_provider_domains = [
+  "api.openai.com",
+  "api.anthropic.com",
+  "generativelanguage.googleapis.com",
+  "api.mistral.ai",
+  "api.cohere.ai",
+  "api.together.xyz",
+  "api.fireworks.ai",
+  "openrouter.ai",
+  "api.openrouter.ai",
+  "api.deepseek.com",
+  "api.x.ai"
+]

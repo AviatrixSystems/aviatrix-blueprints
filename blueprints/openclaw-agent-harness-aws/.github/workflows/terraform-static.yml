@@ -1,0 +1,21 @@
+name: terraform-static
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+      - name: fmt
+        run: terraform fmt -check -recursive
+      - name: init backendless
+        run: terraform init -backend=false
+      - name: validate
+        run: terraform validate
