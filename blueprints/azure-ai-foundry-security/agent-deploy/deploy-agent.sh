@@ -44,22 +44,8 @@ DELETE_FIRST=false
 #   grep -E "null_resource|complete|Error|az acr build" | tail -5
 # echo ""
 
-# ── Auth — use SP to avoid ipaddr claim in JWT (PE policy rejects user tokens) ──
-# SP creds stored in .env.sp alongside deploy-agent.sh (never committed)
-SP_ENV="$SCRIPT_DIR/.env.sp"
-if [[ -f "$SP_ENV" ]]; then
-  set -a && source "$SP_ENV" && set +a
-  echo "==> Logging in as service principal..."
-  az login --service-principal \
-    --username "$AZURE_CLIENT_ID" \
-    --password "$AZURE_CLIENT_SECRET" \
-    --tenant "$AZURE_TENANT_ID" \
-    --output none
-  az account set --subscription "$SUBSCRIPTION_ID" --output none 2>/dev/null || true
-  echo "==> Getting SP token..."
-else
-  echo "==> Getting token (user session)..."
-fi
+# ── Auth ─────────────────────────────────────────────────────────────────────
+echo "==> Getting token..."
 TOKEN=$(az account get-access-token --resource "https://ai.azure.com" --query accessToken -o tsv)
 
 auth_header() { echo "Authorization: Bearer $TOKEN"; }
