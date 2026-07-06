@@ -594,38 +594,8 @@ resource "time_sleep" "wait_rbac" {
   create_duration = "60s"
 }
 
-## Create the AI Foundry project capability host
-## Note: deletion takes 20+ minutes — expected, not a hang.
-##
-resource "azapi_resource" "ai_foundry_project_capability_host" {
-  provider = azapi.workload_subscription
-
-  depends_on = [
-    azapi_resource.conn_aisearch,
-    azapi_resource.conn_cosmosdb,
-    azapi_resource.conn_storage,
-    time_sleep.wait_rbac
-  ]
-  type                      = "Microsoft.CognitiveServices/accounts/projects/capabilityHosts@2025-04-01-preview"
-  name                      = "caphostproj"
-  parent_id                 = azapi_resource.ai_foundry_project.id
-  schema_validation_enabled = false
-
-  body = {
-    properties = {
-      capabilityHostKind = "Agents"
-      vectorStoreConnections = [
-        azapi_resource.ai_search.name
-      ]
-      storageConnections = [
-        azurerm_storage_account.storage_account.name
-      ]
-      threadStorageConnections = [
-        azurerm_cosmosdb_account.cosmosdb.name
-      ]
-    }
-  }
-}
+## Capability host creation removed — new hosted agents backend (Standard Agents)
+## provisions infrastructure automatically via networkInjections on the account.
 
 ## Create the necessary data plane role assignments to the CosmosDb account created by the AI Foundry Project
 ##
@@ -633,7 +603,7 @@ resource "azurerm_cosmosdb_sql_role_assignment" "cosmosdb_db_sql_role_aifp" {
   provider = azurerm.workload_subscription
 
   depends_on = [
-    azapi_resource.ai_foundry_project_capability_host
+    azapi_resource.ai_foundry_project
   ]
   name                = uuidv5("dns", "${azapi_resource.ai_foundry_project.name}${azapi_resource.ai_foundry_project.output.identity.principalId}cosmosdb_dbsqlrole")
   resource_group_name = azurerm_resource_group.main.name
@@ -649,7 +619,7 @@ resource "azurerm_role_assignment" "storage_blob_data_owner_ai_foundry_project" 
   provider = azurerm.workload_subscription
 
   depends_on = [
-    azapi_resource.ai_foundry_project_capability_host
+    azapi_resource.ai_foundry_project
   ]
   name                 = uuidv5("dns", "${azapi_resource.ai_foundry_project.name}${azapi_resource.ai_foundry_project.output.identity.principalId}${azurerm_storage_account.storage_account.name}storageblobdataowner")
   scope                = azurerm_storage_account.storage_account.id

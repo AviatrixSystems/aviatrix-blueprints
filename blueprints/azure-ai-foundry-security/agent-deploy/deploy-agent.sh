@@ -44,8 +44,22 @@ DELETE_FIRST=false
 #   grep -E "null_resource|complete|Error|az acr build" | tail -5
 # echo ""
 
-# ── Auth ─────────────────────────────────────────────────────────────────────
-echo "==> Getting token..."
+# ── Auth — use SP to avoid ipaddr claim in JWT (PE policy rejects user tokens) ──
+# SP creds stored in .env.sp alongside deploy-agent.sh (never committed)
+SP_ENV="$SCRIPT_DIR/.env.sp"
+if [[ -f "$SP_ENV" ]]; then
+  set -a && source "$SP_ENV" && set +a
+  echo "==> Logging in as service principal..."
+  az login --service-principal \
+    --username "$AZURE_CLIENT_ID" \
+    --password "$AZURE_CLIENT_SECRET" \
+    --tenant "$AZURE_TENANT_ID" \
+    --output none
+  az account set --subscription "$SUBSCRIPTION_ID" --output none 2>/dev/null || true
+  echo "==> Getting SP token..."
+else
+  echo "==> Getting token (user session)..."
+fi
 TOKEN=$(az account get-access-token --resource "https://ai.azure.com" --query accessToken -o tsv)
 
 auth_header() { echo "Authorization: Bearer $TOKEN"; }
@@ -68,12 +82,13 @@ print(json.dumps({
     'image': '${IMAGE}',
     'cpu': '${CPU}',
     'memory': '${MEMORY}',
-    'container_protocol_versions': [{'protocol': 'responses', 'version': '1.0.0'}],
+    'container_protocol_versions': [{'protocol': 'responses', 'version': '2.0.0'}],
     'environment_variables': {
       'PROJECT_ENDPOINT': os.environ['PROJECT_ENDPOINT'],
       'MODEL_DEPLOYMENT_NAME': os.environ['MODEL_DEPLOYMENT_NAME'],
     }
-  }
+  },
+  'metadata': {'enableVnextExperience': 'true'}
 }))")
 
 # Try create; if agent exists, create a new version instead
@@ -94,12 +109,13 @@ print(json.dumps({
     'image': '${IMAGE}',
     'cpu': '${CPU}',
     'memory': '${MEMORY}',
-    'container_protocol_versions': [{'protocol': 'responses', 'version': '1.0.0'}],
+    'container_protocol_versions': [{'protocol': 'responses', 'version': '2.0.0'}],
     'environment_variables': {
       'PROJECT_ENDPOINT': os.environ['PROJECT_ENDPOINT'],
       'MODEL_DEPLOYMENT_NAME': os.environ['MODEL_DEPLOYMENT_NAME'],
     }
-  }
+  },
+  'metadata': {'enableVnextExperience': 'true'}
 }))")
   RESPONSE=$(curl -s -X POST "$BASE_URL/agents/$AGENT_NAME/versions?api-version=v1" \
     -H "$(auth_header)" \
@@ -111,13 +127,15 @@ fi
 INSTANCE_IDENTITY=$(echo "$RESPONSE" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
+# new API: instance_identity at top level or under versions.latest
 v = d.get('versions', {}).get('latest', d)
-print(v['instance_identity']['principal_id'])")
+ii = v.get('instance_identity') or d.get('instance_identity') or {}
+print(ii.get('principal_id', ''))")
 VERSION=$(echo "$RESPONSE" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
 v = d.get('versions', {}).get('latest', d)
-print(v.get('version', '1'))")
+print(v.get('version', d.get('version', '1')))")
 
 echo "    Instance identity : $INSTANCE_IDENTITY"
 echo "    Version            : $VERSION"
