@@ -29,6 +29,10 @@ CPU="0.5"
 MEMORY="1.0Gi"
 BASE_URL="https://${ACCOUNT}.services.ai.azure.com/api/projects/${PROJECT}"
 ACCOUNT_SCOPE="/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${ACCOUNT_RG}/providers/Microsoft.CognitiveServices/accounts/${ACCOUNT}"
+
+# Derive PROJECT_ENDPOINT from live Terraform state — overrides any stale value
+# in .env so the agent always targets the current deploy suffix.
+export PROJECT_ENDPOINT="$BASE_URL"
 TEST_INPUT="find me an hotel in seattle from the 05-12-2026 to the 05-20-2026 for less than \$200"
 
 DELETE_FIRST=false
