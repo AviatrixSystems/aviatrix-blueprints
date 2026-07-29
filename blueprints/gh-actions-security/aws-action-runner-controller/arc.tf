@@ -36,9 +36,19 @@ resource "helm_release" "arc_runner_scaleset" {
     value = var.github_repo_url
   }
 
-  set_sensitive {
-    name  = "githubConfigSecret.github_token"
-    value = var.github_pat
+  set {
+  name  = "githubConfigSecret.github_app_id"
+  value = var.github_app_id
+  }
+
+  set {
+  name  = "githubConfigSecret.github_app_installation_id"
+  value = var.github_app_installation_id
+  }
+
+set_sensitive {
+  name  = "githubConfigSecret.github_app_private_key"
+  value = var.github_app_private_key
   }
 
   set {
