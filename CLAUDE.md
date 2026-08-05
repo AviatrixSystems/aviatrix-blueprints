@@ -215,7 +215,7 @@ End-to-end testing with Playwright:
 
 **Always ask these questions before deploying any blueprint:**
 
-1. **Controller** — FQDN or IP? (e.g. `controller-prd.ananableu.fr` or `4.233.114.95`)
+1. **Controller** — FQDN or IP?
 2. **Controller credentials** — username and password?
 3. **Subscription / Account ID** — Azure subscription ID or AWS account ID for the target cloud?
 4. **VPN gateway** — deploy VPN gateway in the spoke VNet/VPC? (yes/no — affects cost and deploy time)
