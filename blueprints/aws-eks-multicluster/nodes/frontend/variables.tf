@@ -16,6 +16,12 @@ variable "external_dns_chart_version" {
   default     = "1.19.0"
 }
 
+variable "k8s_firewall_chart_version" {
+  description = "Helm chart version for the Aviatrix k8s-firewall DCF CRDs"
+  type        = string
+  default     = "9.0.0"
+}
+
 variable "node_group_config" {
   description = "Configuration for EKS managed node groups"
   type = object({
