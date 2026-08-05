@@ -29,6 +29,10 @@ CPU="0.5"
 MEMORY="1.0Gi"
 BASE_URL="https://${ACCOUNT}.services.ai.azure.com/api/projects/${PROJECT}"
 ACCOUNT_SCOPE="/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${ACCOUNT_RG}/providers/Microsoft.CognitiveServices/accounts/${ACCOUNT}"
+
+# Derive PROJECT_ENDPOINT from live Terraform state — overrides any stale value
+# in .env so the agent always targets the current deploy suffix.
+export PROJECT_ENDPOINT="$BASE_URL"
 TEST_INPUT="find me an hotel in seattle from the 05-12-2026 to the 05-20-2026 for less than \$200"
 
 DELETE_FIRST=false
@@ -68,12 +72,13 @@ print(json.dumps({
     'image': '${IMAGE}',
     'cpu': '${CPU}',
     'memory': '${MEMORY}',
-    'container_protocol_versions': [{'protocol': 'responses', 'version': '1.0.0'}],
+    'container_protocol_versions': [{'protocol': 'responses', 'version': '2.0.0'}],
     'environment_variables': {
       'PROJECT_ENDPOINT': os.environ['PROJECT_ENDPOINT'],
       'MODEL_DEPLOYMENT_NAME': os.environ['MODEL_DEPLOYMENT_NAME'],
     }
-  }
+  },
+  'metadata': {'enableVnextExperience': 'true'}
 }))")
 
 # Try create; if agent exists, create a new version instead
@@ -94,12 +99,13 @@ print(json.dumps({
     'image': '${IMAGE}',
     'cpu': '${CPU}',
     'memory': '${MEMORY}',
-    'container_protocol_versions': [{'protocol': 'responses', 'version': '1.0.0'}],
+    'container_protocol_versions': [{'protocol': 'responses', 'version': '2.0.0'}],
     'environment_variables': {
       'PROJECT_ENDPOINT': os.environ['PROJECT_ENDPOINT'],
       'MODEL_DEPLOYMENT_NAME': os.environ['MODEL_DEPLOYMENT_NAME'],
     }
-  }
+  },
+  'metadata': {'enableVnextExperience': 'true'}
 }))")
   RESPONSE=$(curl -s -X POST "$BASE_URL/agents/$AGENT_NAME/versions?api-version=v1" \
     -H "$(auth_header)" \
@@ -111,13 +117,15 @@ fi
 INSTANCE_IDENTITY=$(echo "$RESPONSE" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
+# new API: instance_identity at top level or under versions.latest
 v = d.get('versions', {}).get('latest', d)
-print(v['instance_identity']['principal_id'])")
+ii = v.get('instance_identity') or d.get('instance_identity') or {}
+print(ii.get('principal_id', ''))")
 VERSION=$(echo "$RESPONSE" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
 v = d.get('versions', {}).get('latest', d)
-print(v.get('version', '1'))")
+print(v.get('version', d.get('version', '1')))")
 
 echo "    Instance identity : $INSTANCE_IDENTITY"
 echo "    Version            : $VERSION"

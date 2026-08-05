@@ -161,8 +161,17 @@ resource "aviatrix_spoke_gateway" "spoke" {
   single_ip_snat = true
   tags           = local.tags
 
+  # Controller 9.0: explicit RT selection for single_ip_snat 0/0 programming.
+  # avx_spoke_gw RT excluded (loop avoidance).
+  private_route_table_config = [
+    "${azurerm_route_table.private_endpoint.name}:${azurerm_resource_group.main.name}",
+    "${azurerm_route_table.foundry_agent.name}:${azurerm_resource_group.main.name}",
+  ]
+
   depends_on = [
     azurerm_subnet_route_table_association.avx_spoke_gw,
+    azurerm_subnet_route_table_association.private_endpoint,
+    azurerm_subnet_route_table_association.foundry_agent,
   ]
 }
 

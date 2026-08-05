@@ -34,13 +34,12 @@ resource "aviatrix_gateway" "vpn" {
   subnet  = azurerm_subnet.vpn_gw.address_prefixes[0]
   gw_size = var.avx_vpn_gw_size
 
-  # P2S VPN with NAT and split tunnel
-  vpn_access       = true
-  vpn_cidr         = var.vpn_client_cidr
-  enable_vpn_nat   = true
-  split_tunnel     = true
-  additional_cidrs = var.foundry_vnet_cidr
-  tags             = local.tags
+  # P2S VPN with NAT — full tunnel (force all traffic through VPN)
+  vpn_access     = true
+  vpn_cidr       = var.vpn_client_cidr
+  enable_vpn_nat = true
+  split_tunnel   = false
+  tags           = local.tags
 
   depends_on = [azurerm_subnet.vpn_gw]
 }

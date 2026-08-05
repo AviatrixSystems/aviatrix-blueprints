@@ -211,6 +211,21 @@ End-to-end testing with Playwright:
 - Capture screenshots
 - Destroy and verify cleanup
 
+## Pre-Deployment Checklist
+
+**Always ask these questions before deploying any blueprint:**
+
+1. **Controller** — FQDN or IP?
+2. **Controller credentials** — username and password?
+3. **Subscription / Account ID** — Azure subscription ID or AWS account ID for the target cloud?
+4. **VPN gateway** — deploy VPN gateway in the spoke VNet/VPC? (yes/no — affects cost and deploy time)
+
+Do not proceed with `terraform apply` until all four are confirmed. Set them in `.env.blueprint` before running any layer.
+
+**Post-deployment**: Once private endpoints are created, collect all `privatelink` DNS entries and their private IPs from outputs or `terraform state show`, then share them as `/etc/hosts` entries for the user to add locally so private endpoint FQDNs resolve over VPN.
+
+---
+
 ## Common Tasks
 
 ### Creating a New Blueprint

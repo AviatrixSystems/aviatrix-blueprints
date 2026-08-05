@@ -1,4 +1,8 @@
-azure-ai-agentserver-agentframework==1.0.0b16
+agent-framework-core
+agent-framework-openai
+agent-framework-foundry
+agent-framework-foundry-hosting
+azure-ai-agentserver-responses
+azure-identity
+python-dotenv
 debugpy
-# Agent development CLI tool (preview)
-agent-dev-cli

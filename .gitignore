@@ -17,41 +17,32 @@ terraform.rc
 # Claude Code local settings
 .claude/settings.local.json
 .claude/*.local.json
-
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
-
 # OS
 .DS_Store
 Thumbs.db
-
 # Logs
 *.log
-
 # Temporary files
 *.tmp
 *.temp
-
 # Local development (environment-specific, not for public repo)
 MEMORY.md
-
 # Diagram generation scripts and local icon refs (machine-specific, not for public repo)
 blueprints/**/architecture.py
 docs/diagrams/*.py
 docs/diagrams/icon-*.svg
-
 # Internal Claude Code planning artifacts
 docs/superpowers/
-
 # Environment variable files
 .env
 .env.*
 .env.blueprint
-
 # Credentials (should never be committed)
 *.pem
 *.key
@@ -59,14 +50,11 @@ credentials.json
 service-account*.json
 prod-nonprod-hybrid/gcp/network/tfplan
 tfplan
-*.tfstate
 *.tfstate.backup
-.terraform/
-
 # Git worktrees (local isolated workspaces)
 .worktrees/
-
 # AI tool runtime data (machine-specific, not for public repo)
 .playwright-mcp/
 .serena/
 .superpowers/
+agent-deploy/.env.sp

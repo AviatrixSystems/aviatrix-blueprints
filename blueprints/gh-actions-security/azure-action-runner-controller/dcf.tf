@@ -276,7 +276,6 @@ resource "aviatrix_distributed_firewalling_policy_list" "runner" {
     logging                  = true
     log_profile              = local.log_profile_start_uuid
     exclude_sg_orchestration = true
-    tls_profile              = aviatrix_dcf_tls_profile.strict.uuid
     src_smart_groups         = [aviatrix_smart_group.runner_pods.uuid]
     dst_smart_groups         = [local.internet_sg_uuid]
     web_groups               = [local.all_web_wg_uuid]
