@@ -96,6 +96,7 @@ variable "github_pat" {
   description = "GitHub PAT with repo scope — used by ARC to register runners. Set via tfvars; do not commit."
   type        = string
   sensitive   = true
+  default = ""
 }
 
 variable "github_repo_url" {
@@ -142,4 +143,34 @@ variable "deploy_probes" {
   description = "Deploy TLS-probe and ipify-probe pods. Set false to skip probe workloads (e.g. initial infra validation)."
   type        = bool
   default     = true
+}
+
+
+variable "github_app_id" {
+  description = "GitHub App ID for ARC authentication. Create an app with Organization > Self-hosted runners: Read+Write permission, then install it on the org/repo."
+  type        = string
+  default     = ""
+}
+
+variable "github_app_installation_id" {
+  description = "Installation ID of the GitHub App (visible in the app's installation URL)."
+  type        = string
+  default     = ""
+}
+
+variable "github_app_private_key" {
+  description = "PEM-encoded private key of the GitHub App. Set via env var or tfvars; do not commit."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "controller_source_ip" {
+  description = "Aviatrix controller public IP (plain IP, not FQDN) for EKS API allowlist"
+  type        = string
+}
+
+variable "my_source_ip" {
+  description = "Your public IP for EKS API allowlist (Terraform/kubectl host)"
+  type        = string
 }

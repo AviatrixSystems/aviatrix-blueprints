@@ -64,13 +64,21 @@ module "eks" {
   subnet_ids               = [aws_subnet.eks_primary.id, aws_subnet.eks_secondary.id]
   control_plane_subnet_ids = [aws_subnet.eks_primary.id, aws_subnet.eks_secondary.id]
 
-  # Public endpoint for kubectl (API server is AWS-managed; only worker data-plane
-  # traffic goes through the spoke). Set to false and add a bastion for stricter posture.
+  # whitelist
   cluster_endpoint_public_access = true
 
-  # enable_cluster_creator_admin_permissions binds the API-key caller at apply
-  # time — kept as a safety net in case access_entries resolution fails.
-  enable_cluster_creator_admin_permissions = true
+# Restrict API access to the allowlisted source CIDRs plus the Aviatrix controller 
+cluster_endpoint_public_access_cidrs = [
+  "${var.my_source_ip}/32",
+  "${var.controller_source_ip}/32",
+]
+
+  # Setting to false because we are using access entries
+  enable_cluster_creator_admin_permissions = false
+
+  #Settings auth mode to use API explicitly to disable configmap
+  authentication_mode = "API"
+
 
   # access_entries = deployer role (auto-detected) + any extra ARNs from tfvars.
   # data.aws_iam_session_context.deployer.issuer_arn resolves the source IAM

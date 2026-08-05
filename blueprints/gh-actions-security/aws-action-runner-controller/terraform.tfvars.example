@@ -8,9 +8,23 @@
 aws_region            = "eu-west-2"
 aviatrix_account_name = "aws-myaccount"
 
-# GitHub runner registration
+controller_source_ip = "<controller-ip>"
+my_source_ip         = "<your-ip>"
+
+# GitHub runner registration. This can also include Organisation URL
 github_repo_url = "https://github.com/your-org/your-repo"
-github_pat      = "ghp_..."
+
+#Authentication mode : Github APP
+#github_pat      = "ghp_..."
+github_app_id =""
+github_app_installation_id = ""
+github_app_private_key = <<-EOT
+-----BEGIN RSA PRIVATE KEY-----
+AAAA
+-----END RSA PRIVATE KEY-----
+EOT
+
+
 
 # ARC scale set name — becomes the runs-on label in workflow YAML.
 # Must be unique per runner registration target (org/repo).
