@@ -27,4 +27,13 @@ provider "aviatrix" {
 provider "aws" {
   region = var.aws_region
   # Credentials should be set via environment variables or AWS CLI profile
+
+  # Baseline tags applied automatically to every AWS resource this provider
+  # creates. Resource-level tags (e.g. Environment on the test VMs, which
+  # drives SmartGroup membership) take precedence on conflict, so the
+  # per-resource merge(local.common_tags, {...}) blocks remain authoritative
+  # where they override these values.
+  default_tags {
+    tags = local.common_tags
+  }
 }
