@@ -18,6 +18,7 @@ Before deploying this infrastructure, ensure you have the following prerequisite
 | **Aviatrix Controller** | Version compatible with provider ~> 8.2 | Must be deployed and accessible |
 | **Aviatrix CoPilot** | Recommended | Required for DCF visualization and SmartGroups UI |
 | **Azure Account Onboarded** | Account registered in Controller | Use the exact account name in `terraform.tfvars`. See [Onboard an Azure account](https://docs.aviatrix.com/documentation/latest/network-security/onboarding-azure.html) if you don't have one yet. |
+| **Distributed Cloud Firewall enabled** | Controller-wide feature toggle turned on | This blueprint intentionally does **not** manage DCF's global enable state (`aviatrix_distributed_firewalling_config`) — it's a controller-wide singleton, and toggling it from a single blueprint's Terraform risks fighting other tenants' state, or disabling DCF fabric-wide for everyone on `terraform destroy`. Enable it once, out of band, before deploying: Controller UI → **Security → Distributed Firewalling → Enable**, or apply `aviatrix_distributed_firewalling_config` (or `aviatrix_config_feature` with `feature_name = "microseg"` on newer provider versions) outside of this blueprint's state. |
 
 ### Local Tools
 
