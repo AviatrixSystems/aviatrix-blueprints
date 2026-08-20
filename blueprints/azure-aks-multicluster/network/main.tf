@@ -75,7 +75,7 @@ module "azure_transit" {
 
   # D-series has more reliable zonal capacity in eastus2 than B-series.
   # Same vCPU/RAM (2/8 GB) as B2ms, ~$0.013/hr more per gateway.
-  instance_size     = "Standard_D2s_v3"
+  instance_size     = "Standard_D2s_v5"
   connected_transit = true
 
   # NOTE: enable_vpc_dns_server is intentionally OFF.
@@ -164,7 +164,7 @@ module "frontend_spoke" {
   # D-series has more reliable zonal capacity in eastus2 than B-series
   # (B2ms hits ZonalAllocationFailed in some zones). Same vCPU/RAM (2/8 GB),
   # ~$0.013/hr more per gateway.
-  instance_size = "Standard_D2s_v3"
+  instance_size = "Standard_D2s_v5"
   ha_gw         = false
 
   # See comment in transit module above — DNS check fails on this controller.
@@ -302,7 +302,7 @@ module "backend_spoke" {
   # D-series has more reliable zonal capacity in eastus2 than B-series
   # (B2ms hits ZonalAllocationFailed in some zones). Same vCPU/RAM (2/8 GB),
   # ~$0.013/hr more per gateway.
-  instance_size = "Standard_D2s_v3"
+  instance_size = "Standard_D2s_v5"
   ha_gw         = false
 
   # See comment in transit module above — DNS check fails on this controller.
@@ -421,7 +421,7 @@ module "db_spoke" {
   region     = var.aviatrix_azure_region
   transit_gw = module.azure_transit.transit_gateway.gw_name
 
-  instance_size  = "Standard_D2s_v3"
+  instance_size  = "Standard_D2s_v5"
   ha_gw          = false
   single_ip_snat = true
 
