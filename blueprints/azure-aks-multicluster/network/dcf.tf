@@ -281,12 +281,16 @@ resource "aviatrix_web_group" "github_aviatrix" {
 }
 
 #####################
-# Enable Distributed Cloud Firewall
+# Distributed Cloud Firewall — already enabled globally
 #####################
-
-resource "aviatrix_distributed_firewalling_config" "enable" {
-  enable_distributed_firewalling = true
-}
+# DCF is a controller-wide feature toggle, not a per-blueprint resource. On a
+# shared controller it is typically already enabled by another blueprint or
+# by an administrator; managing it here would (a) fight over the same
+# singleton with other Terraform configs and (b) on `terraform destroy`,
+# attempt to disable DCF GLOBALLY for the whole controller — breaking DCF
+# policies owned by every other tenant/blueprint. Deliberately NOT managed by
+# this blueprint; see the "Distributed Cloud Firewall enabled" prerequisite
+# in README.md.
 
 #####################
 # DCF Ruleset
@@ -519,7 +523,6 @@ resource "aviatrix_dcf_ruleset" "aks_demo" {
   # SG destroy in parallel with the ruleset update and the controller
   # rejects it with [AVXERR-SMARTGROUP-0003]. count=0 SGs are valid here.
   depends_on = [
-    aviatrix_distributed_firewalling_config.enable,
     module.frontend_spoke,
     module.backend_spoke,
     module.db_spoke,
