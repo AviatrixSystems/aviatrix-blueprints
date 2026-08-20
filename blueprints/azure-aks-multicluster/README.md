@@ -48,19 +48,21 @@ This blueprint deploys 9 VMs across two vCPU families. The defaults on a clean s
 | Quota | Needed by blueprint | Default per-region limit | Headroom (recommended) |
 |-------|---------------------|--------------------------|------------------------|
 | **Total Regional vCPUs** | 17 (transit + 3 spoke GWs + 4 AKS nodes + DB VM) | varies (often 20–30) | ≥ 30 |
-| **Standard DSv3 Family vCPUs** | 8 (4 Aviatrix gateways × 2 vCPU each) | 10 | ≥ 16 |
+| **Standard DSv5 Family vCPUs** | 8 (4 Aviatrix gateways × 2 vCPU each) | 10 | ≥ 16 |
 | **Standard BS Family vCPUs** | 9 (4 AKS nodes × 2 vCPU + DB VM × 1 vCPU) | 10 | ≥ 16 |
 | **Standard Public IP Addresses** | 2 (one per Application Gateway) | default sufficient | — |
 
+> **Why DSv5, not DSv3:** Azure has deprecated `Standard DSv3` for new quota grants — a self-service quota increase request for that family is rejected with `DeprecatedQuotaType` even when the subscription's current limit isn't reached. The Aviatrix gateways use `Standard_D2s_v5` instead, which is still eligible for self-service increases.
+
 Check current usage and limits:
 ```bash
-az vm list-usage -l eastus2 -o table | grep -E "Total Regional|Standard DSv3|Standard BS Family"
+az vm list-usage -l eastus2 -o table | grep -E "Total Regional|Standard DSv5|Standard BS Family"
 ```
 
 **Fail-fast pre-flight check** — verifies available (limit − used) ≥ blueprint requirement, run before `terraform apply`:
 ```bash
 REGION=eastus2
-az vm list-usage -l "$REGION" --query "[?contains(name.value,'cores') || contains(name.value,'standardDSv3Family') || contains(name.value,'standardBSFamily')].{name:localName, used:currentValue, limit:limit}" -o tsv | \
+az vm list-usage -l "$REGION" --query "[?contains(name.value,'cores') || contains(name.value,'standardDSv5Family') || contains(name.value,'standardBSFamily')].{name:localName, used:currentValue, limit:limit}" -o tsv | \
   awk -F '\t' '
     function check(name, used, limit, need) {
       avail = limit - used
@@ -72,7 +74,7 @@ az vm list-usage -l "$REGION" --query "[?contains(name.value,'cores') || contain
       }
     }
     /^Total Regional vCPUs\t/   { check($1, $2, $3, 17) }
-    /^Standard DSv3 Family/     { check($1, $2, $3, 8) }
+    /^Standard DSv5 Family/     { check($1, $2, $3, 8) }
     /^Standard BSv?2? Family/   { check($1, $2, $3, 9) }
     END { if (bad) { print "Increase the failed quotas above before deploying."; exit 1 } else { print "Quota OK" } }
   '
@@ -1276,10 +1278,10 @@ ls -la clusters/frontend/terraform.tfstate
 | Component | Resource Type | Qty | VM Size | Notes |
 |-----------|--------------|-----|---------|-------|
 | **Aviatrix Gateways** | | | | |
-| Transit Gateway | Azure VM | 1 | Standard_D2s_v3 | No HA, FireNet OFF |
-| Frontend Spoke GW | Azure VM | 1 | Standard_D2s_v3 | customized_snat (no HA) |
-| Backend Spoke GW | Azure VM | 1 | Standard_D2s_v3 | customized_snat (no HA) |
-| DB Spoke GW | Azure VM | 1 | Standard_D2s_v3 | single_ip_snat (no HA) |
+| Transit Gateway | Azure VM | 1 | Standard_D2s_v5 | No HA, FireNet OFF |
+| Frontend Spoke GW | Azure VM | 1 | Standard_D2s_v5 | customized_snat (no HA) |
+| Backend Spoke GW | Azure VM | 1 | Standard_D2s_v5 | customized_snat (no HA) |
+| DB Spoke GW | Azure VM | 1 | Standard_D2s_v5 | single_ip_snat (no HA) |
 | **AKS Clusters** | | | | |
 | Frontend Control Plane | AKS | 1 | — | K8s 1.33, Free tier |
 | Backend Control Plane | AKS | 1 | — | K8s 1.33, Free tier |
@@ -1327,16 +1329,16 @@ The VNet has **two address spaces**: a per-cluster `/23` routable block (`10.10.
 
 | Resource | VM Size | Qty | Hourly Rate | Monthly (730 hrs) |
 |----------|---------|-----|-------------|-------------------|
-| Aviatrix Transit GW | Standard_D2s_v3 | 1 | $0.0960 | $70.08 |
-| Aviatrix Frontend Spoke GW | Standard_D2s_v3 | 1 | $0.0960 | $70.08 |
-| Aviatrix Backend Spoke GW | Standard_D2s_v3 | 1 | $0.0960 | $70.08 |
-| Aviatrix DB Spoke GW | Standard_D2s_v3 | 1 | $0.0960 | $70.08 |
+| Aviatrix Transit GW | Standard_D2s_v5 | 1 | $0.0960 | $70.08 |
+| Aviatrix Frontend Spoke GW | Standard_D2s_v5 | 1 | $0.0960 | $70.08 |
+| Aviatrix Backend Spoke GW | Standard_D2s_v5 | 1 | $0.0960 | $70.08 |
+| Aviatrix DB Spoke GW | Standard_D2s_v5 | 1 | $0.0960 | $70.08 |
 | AKS Frontend Nodes | Standard_B2s | 2 | $0.0416 each | $60.74 |
 | AKS Backend Nodes | Standard_B2s | 2 | $0.0416 each | $60.74 |
 | DB Test VM | Standard_B1s | 1 | $0.0124 | $9.05 |
 | **Subtotal Compute** | | | | **$410.85** |
 
-> **Family-quota choice:** Aviatrix gateways use `Standard_D2s_v3` (DSv3 family) and AKS nodes use `Standard_B2s` (BS family). This deliberate split avoids one family saturating at the default 10-vCPU subscription quota. See [Azure Subscription Quotas](#azure-subscription-quotas).
+> **Family-quota choice:** Aviatrix gateways use `Standard_D2s_v5` (DSv5 family) and AKS nodes use `Standard_B2s` (BS family). This deliberate split avoids one family saturating at the default 10-vCPU subscription quota. DSv5 was chosen over the otherwise-equivalent DSv3 because Azure no longer grants self-service quota increases for DSv3 (`DeprecatedQuotaType`). See [Azure Subscription Quotas](#azure-subscription-quotas).
 
 ### AKS Control Plane
 
