@@ -65,3 +65,50 @@ variable "aviatrix_password" {
   type        = string
   sensitive   = true
 }
+
+variable "controller_ip" {
+  description = "IP address or hostname of the Aviatrix Controller"
+  type        = string
+  default     = null
+}
+
+variable "controller_username" {
+  description = "Admin username for the Aviatrix Controller"
+  type        = string
+  default     = "admin"
+}
+
+variable "controller_password" {
+  description = "Admin password for the Aviatrix Controller"
+  type        = string
+  sensitive   = true
+  default     = null
+}
+
+# -----------------------------------------------------------------------------
+# Node pool sizing (inline node pool — previously embedded in cluster module)
+# -----------------------------------------------------------------------------
+
+variable "node_machine_type" {
+  description = "Machine type for the default production node pool"
+  type        = string
+  default     = "e2-standard-4"
+}
+
+variable "node_min_count" {
+  description = "Minimum node count per zone for the default node pool autoscaler"
+  type        = number
+  default     = 1
+}
+
+variable "node_max_count" {
+  description = "Maximum node count per zone for the default node pool autoscaler"
+  type        = number
+  default     = 10
+}
+
+variable "initial_node_count" {
+  description = "Initial number of nodes per zone when the node pool is created"
+  type        = number
+  default     = 3
+}

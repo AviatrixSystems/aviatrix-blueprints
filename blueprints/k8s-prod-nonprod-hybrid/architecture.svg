@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Pattern C — Prod/Non-Prod Hybrid -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 580" xmlns="http://www.w3.org/2000/svg">
+      <rect x="350" y="15" width="220" height="50" rx="10" fill="#001A3A" stroke="#0066CC" stroke-width="2"/>
+      <text x="460" y="36" text-anchor="middle" fill="white" font-size="12" font-weight="700">Aviatrix Transit Gateway</text>
+      <text x="460" y="52" text-anchor="middle" fill="#00AAFF" font-size="10">Active/Active | HPE up to 85Gbps</text>
+      <!-- PROD -->
+      <rect x="30" y="100" width="420" height="280" rx="14" fill="white" stroke="#DC2626" stroke-width="2.5"/>
+      <rect x="30" y="100" width="420" height="34" rx="14" fill="#DC2626"/>
+      <text x="240" y="121" text-anchor="middle" fill="white" font-size="12" font-weight="700">PRODUCTION — VPC 10.10.0.0/20</text>
+      <rect x="340" y="100" width="110" height="34" rx="14" fill="#0066CC"/>
+      <text x="395" y="121" text-anchor="middle" fill="white" font-size="10" font-weight="700">Spoke GW</text>
+      <!-- Prod NS -->
+      <rect x="50" y="150" width="180" height="75" rx="8" fill="#FEF2F2" stroke="#DC2626" stroke-width="1"/>
+      <text x="140" y="170" text-anchor="middle" fill="#DC2626" font-size="11" font-weight="700">ns: team-a-prod</text>
+      <text x="140" y="186" text-anchor="middle" fill="#4A5568" font-size="9">api v2.1 | worker v2.1</text>
+      <rect x="65" y="200" width="140" height="18" rx="3" fill="#FEE2E2"/>
+      <text x="135" y="213" text-anchor="middle" fill="#DC2626" font-size="8" font-weight="600">CRD: FirewallPolicy</text>
+      <rect x="250" y="150" width="180" height="75" rx="8" fill="#FEF2F2" stroke="#DC2626" stroke-width="1"/>
+      <text x="340" y="170" text-anchor="middle" fill="#DC2626" font-size="11" font-weight="700">ns: team-b-prod</text>
+      <text x="340" y="186" text-anchor="middle" fill="#4A5568" font-size="9">frontend | cache</text>
+      <rect x="265" y="200" width="140" height="18" rx="3" fill="#FEE2E2"/>
+      <text x="335" y="213" text-anchor="middle" fill="#DC2626" font-size="8" font-weight="600">CRD: FirewallPolicy</text>
+      <rect x="50" y="240" width="380" height="28" rx="6" fill="#FFFBEB" stroke="#F59E0B" stroke-width="1"/>
+      <text x="240" y="258" text-anchor="middle" fill="#92400E" font-size="10" font-weight="600">monitoring | istio-system | ingress-nginx</text>
+      <!-- Prod DB -->
+      <rect x="50" y="280" width="380" height="40" rx="6" fill="#F0FFF4" stroke="#059669" stroke-width="1"/>
+      <text x="240" y="297" text-anchor="middle" fill="#059669" font-size="10" font-weight="700">Database Spoke — VPC 10.5.0.0/22</text>
+      <text x="240" y="313" text-anchor="middle" fill="#4A5568" font-size="9">sg-prod-db (hostname SmartGroup) | Spoke GW</text>
+      <!-- NON-PROD -->
+      <rect x="470" y="100" width="420" height="280" rx="14" fill="white" stroke="#2563EB" stroke-width="2.5"/>
+      <rect x="470" y="100" width="420" height="34" rx="14" fill="#2563EB"/>
+      <text x="680" y="121" text-anchor="middle" fill="white" font-size="12" font-weight="700">NON-PRODUCTION — VPC 10.20.0.0/20</text>
+      <rect x="780" y="100" width="110" height="34" rx="14" fill="#0066CC"/>
+      <text x="835" y="121" text-anchor="middle" fill="white" font-size="10" font-weight="700">Spoke GW</text>
+      <!-- Non-prod NS -->
+      <rect x="490" y="150" width="180" height="75" rx="8" fill="#EFF6FF" stroke="#2563EB" stroke-width="1"/>
+      <text x="580" y="170" text-anchor="middle" fill="#2563EB" font-size="11" font-weight="700">ns: team-a-dev</text>
+      <text x="580" y="186" text-anchor="middle" fill="#4A5568" font-size="9">api v2.2-rc | worker v2.2-rc</text>
+      <rect x="505" y="200" width="140" height="18" rx="3" fill="#DBEAFE"/>
+      <text x="575" y="213" text-anchor="middle" fill="#2563EB" font-size="8" font-weight="600">CRD: FirewallPolicy</text>
+      <rect x="690" y="150" width="180" height="75" rx="8" fill="#EFF6FF" stroke="#2563EB" stroke-width="1"/>
+      <text x="780" y="170" text-anchor="middle" fill="#2563EB" font-size="11" font-weight="700">ns: team-b-staging</text>
+      <text x="780" y="186" text-anchor="middle" fill="#4A5568" font-size="9">frontend | cache</text>
+      <rect x="705" y="200" width="140" height="18" rx="3" fill="#DBEAFE"/>
+      <text x="775" y="213" text-anchor="middle" fill="#2563EB" font-size="8" font-weight="600">CRD: FirewallPolicy</text>
+      <rect x="490" y="240" width="380" height="28" rx="6" fill="#FFFBEB" stroke="#F59E0B" stroke-width="1"/>
+      <text x="680" y="258" text-anchor="middle" fill="#92400E" font-size="10" font-weight="600">monitoring | ArgoCD | test-tools</text>
+      <rect x="490" y="280" width="380" height="40" rx="6" fill="#F5F3FF" stroke="#7B2FBE" stroke-width="1"/>
+      <text x="680" y="297" text-anchor="middle" fill="#7B2FBE" font-size="10" font-weight="700">ns: sandbox</text>
+      <text x="680" y="313" text-anchor="middle" fill="#4A5568" font-size="9">Relaxed egress | No prod data access</text>
+      <!-- Lines -->
+      <line x1="395" y1="100" x2="420" y2="65" stroke="#DC2626" stroke-width="2" stroke-dasharray="4,4"/>
+      <line x1="835" y1="100" x2="530" y2="65" stroke="#2563EB" stroke-width="2" stroke-dasharray="4,4"/>
+      <!-- Environment Isolation -->
+      <rect x="80" y="420" width="760" height="140" rx="12" fill="#FEF3C7" stroke="#D97706" stroke-width="1.5"/>
+      <text x="460" y="445" text-anchor="middle" fill="#92400E" font-size="13" font-weight="700">DCF — Two-Layer Policy</text>
+      <text x="110" y="468" fill="#DC2626" font-size="11" font-weight="600">Layer 1 — Environment (VPC SmartGroups):</text>
+      <text x="110" y="486" fill="#4A5568" font-size="11">DENY prod-vpc &rarr; nonprod-vpc   |   DENY nonprod-vpc &rarr; prod-vpc   |   DENY nonprod &rarr; prod-db</text>
+      <text x="110" y="510" fill="#0066CC" font-size="11" font-weight="600">Layer 2 — Namespace (K8s SmartGroups):</text>
+      <text x="110" y="528" fill="#4A5568" font-size="11">DENY team-a-dev &rarr; team-b-staging   |   DENY team-b-staging &rarr; team-a-dev   (bidirectional for each pair)</text>
+      <text x="110" y="548" fill="#059669" font-size="11" font-weight="600">Data Protection:</text>
+      <text x="310" y="548" fill="#4A5568" font-size="11">PERMIT prod-vpc &rarr; sg-prod-db TCP/3306,5432</text>
+    </svg>

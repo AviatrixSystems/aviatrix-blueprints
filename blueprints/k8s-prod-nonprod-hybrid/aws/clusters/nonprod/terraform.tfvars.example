@@ -1,0 +1,27 @@
+# -----------------------------------------------------------------------------
+# Pattern C: Prod/Non-Prod Hybrid — AWS Non-Production Cluster Layer
+# Copy this file to terraform.tfvars and fill in values marked as REQUIRED.
+#
+# Controller credentials are read from environment variables by default:
+#   export AVIATRIX_CONTROLLER_IP="your-controller.example.com"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
+# -----------------------------------------------------------------------------
+
+# REQUIRED: Must match the value used in aws/network/
+aviatrix_aws_account_name = "your-aws-account-name"
+
+# AWS region — must match aws/network/
+aws_region = "us-east-2"
+
+# Must match the environment_prefix used in aws/network/
+environment_prefix = "pc2"
+
+# Kubernetes version
+kubernetes_version = "1.35"
+
+# Keep API server endpoint public for demo use; set true for production hardening
+# enable_private_endpoint = false
+
+# Enable EKS control plane audit logging
+# enable_control_plane_logging = false

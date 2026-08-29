@@ -22,6 +22,9 @@
 #####################
 
 provider "aviatrix" {
+  controller_ip           = var.controller_ip
+  username                = var.controller_username
+  password                = var.controller_password
   skip_version_validation = true
 }
 
@@ -56,11 +59,10 @@ module "azure_transit" {
   cidr    = var.transit_cidr
   ha_gw   = false
 
-  # Enable FireNet for future NGFW integration
-  enable_transit_firenet        = true
+  enable_transit_firenet        = false
   enable_egress_transit_firenet = false
 
-  instance_size     = "Standard_B2ms"
+  instance_size     = "Standard_D2s_v5"
   connected_transit = true
 
   # Use VPC DNS server for gateway management — required for hostname SmartGroups
@@ -105,7 +107,7 @@ resource "aviatrix_spoke_gateway" "shared" {
   gw_name      = "${local.name_prefix}-shared-spoke"
   vpc_id       = aviatrix_vpc.shared.vpc_id
   vpc_reg      = var.azure_region
-  gw_size      = "Standard_B2ms"
+  gw_size      = "Standard_D2s_v5"
   subnet       = aviatrix_vpc.shared.public_subnets[0].cidr
 
   single_ip_snat = true

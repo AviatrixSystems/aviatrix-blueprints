@@ -28,7 +28,7 @@ resource "helm_release" "nginx_ingress" {
     }
   })]
 
-  depends_on = [module.default_node_pool, kubernetes_config_map_v1_data.coredns_custom]
+  depends_on = [azurerm_kubernetes_cluster_node_pool.default, kubernetes_config_map_v1_data.coredns_custom]
 }
 
 resource "helm_release" "external_dns" {
@@ -40,9 +40,18 @@ resource "helm_release" "external_dns" {
 
   values = [data.terraform_remote_state.cluster.outputs.external_dns_helm_values]
 
-  set { name = "policy"; value = "sync" }
-  set { name = "txtOwnerId"; value = data.terraform_remote_state.cluster.outputs.cluster_name }
-  set { name = "nodeSelector.nodepool-type"; value = "user" }
+  set {
+    name  = "policy"
+    value = "sync"
+  }
+  set {
+    name  = "txtOwnerId"
+    value = data.terraform_remote_state.cluster.outputs.cluster_name
+  }
+  set {
+    name  = "nodeSelector.nodepool-type"
+    value = "user"
+  }
 
   depends_on = [helm_release.nginx_ingress]
 }

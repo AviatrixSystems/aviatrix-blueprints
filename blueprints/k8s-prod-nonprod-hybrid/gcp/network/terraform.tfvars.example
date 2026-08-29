@@ -1,0 +1,63 @@
+# -----------------------------------------------------------------------------
+# Pattern C: Prod/Non-Prod Hybrid — GCP Network Layer
+# Copy this file to terraform.tfvars and fill in values marked as REQUIRED.
+# -----------------------------------------------------------------------------
+
+# REQUIRED: Aviatrix Controller credentials — set as environment variables:
+#   export AVIATRIX_CONTROLLER_IP="your-controller.example.com"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
+
+# REQUIRED: Aviatrix GCP account name (as registered in Controller)
+gcp_account_name = "your-gcp-account-name"
+
+# REQUIRED: GCP project ID
+gcp_project_id = "your-gcp-project-id"
+
+# GCP region
+gcp_region = "us-central1"
+
+# Resource name prefix
+environment_prefix = "pc-gcp"
+
+# Random suffix avoids name collisions on a shared controller (recommended: true)
+random_suffix = true
+
+# HA (recommended for production deployments)
+enable_ha = true
+
+# CIDRs — defaults shown, uncomment and change only if they conflict
+# transit_cidr     = "10.38.0.0/20"
+# prod_vpc_cidr    = "10.40.0.0/20"
+# nonprod_vpc_cidr = "10.41.0.0/20"
+# db_spoke_cidr    = "10.45.0.0/22"
+# pod_cidr         = "100.64.0.0/16"
+
+# Gateway sizes
+# transit_gw_size  = "n1-standard-4"
+# spoke_gw_size    = "n1-standard-4"
+# db_spoke_gw_size = "n1-standard-2"
+
+# DNS
+dns_domain = "internal.example.com"
+
+# Teams — customize namespace names for your organization
+teams = {
+  team-a = {
+    prod_namespace    = "team-a-prod"
+    nonprod_namespace = "team-a-dev"
+    contact           = "team-a@example.com"
+  }
+  team-b = {
+    prod_namespace    = "team-b-prod"
+    nonprod_namespace = "team-b-staging"
+    contact           = "team-b@example.com"
+  }
+}
+
+# Cluster IDs — leave empty on first apply; set after clusters/prod and clusters/nonprod deploy
+# prod_cluster_id    = ""
+# nonprod_cluster_id = ""
+
+# manage_dcf: set true only if DCF is NOT already enabled on this controller
+# manage_dcf = false

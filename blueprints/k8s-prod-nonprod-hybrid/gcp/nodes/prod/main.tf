@@ -1,30 +1,11 @@
 # -----------------------------------------------------------------------------
-# Pattern C: GKE Production Nodes — Helm Deployments
+# Pattern C: GKE Production Nodes - inline node pool + Helm Deployments
 # Aviatrix k8s-firewall for DCF Layer 2 enforcement
+#
+# Adds google_container_node_pool inline (clusters/prod uses
+# remove_default_node_pool = true). Replaces the previous nonexistent
+# gke-node-pool module reference pattern from the other workspaces.
 # -----------------------------------------------------------------------------
-
-terraform {
-  required_version = ">= 1.5.0"
-
-  required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = "~> 5.0"
-    }
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.12"
-    }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.25"
-    }
-    aviatrix = {
-      source  = "AviatrixSystems/aviatrix"
-      version = "~> 8.2.0"
-    }
-  }
-}
 
 provider "google" {
   project = var.gcp_project_id
@@ -32,6 +13,9 @@ provider "google" {
 }
 
 provider "aviatrix" {
+  controller_ip           = var.controller_ip
+  username                = var.controller_username
+  password                = var.controller_password
   skip_version_validation = true
 }
 
@@ -49,6 +33,71 @@ provider "kubernetes" {
   token                  = data.google_client_config.current.access_token
 }
 
+locals {
+  # Service account created by clusters/prod follows this convention:
+  # ${cluster_name}-node-sa@${project}.iam.gserviceaccount.com
+  node_service_account = "${var.cluster_name}-node-sa@${var.gcp_project_id}.iam.gserviceaccount.com"
+}
+
+# ---------------------------------------------------------------------------
+# Production GKE Node Pool (inline — replaces broken gke-node-pool module)
+# ---------------------------------------------------------------------------
+
+resource "google_container_node_pool" "prod_default" {
+  name     = "prod-default"
+  project  = var.gcp_project_id
+  location = var.gcp_region
+  cluster  = var.cluster_name
+
+  node_count = var.initial_node_count
+
+  autoscaling {
+    min_node_count = var.node_min_count
+    max_node_count = var.node_max_count
+  }
+
+  management {
+    auto_repair  = true
+    auto_upgrade = true
+  }
+
+  upgrade_settings {
+    strategy        = "SURGE"
+    max_surge       = 1
+    max_unavailable = 0
+  }
+
+  node_config {
+    machine_type = var.node_machine_type
+    disk_size_gb = 100
+    disk_type    = "pd-ssd"
+
+    service_account = local.node_service_account
+    oauth_scopes    = ["https://www.googleapis.com/auth/cloud-platform"]
+
+    workload_metadata_config {
+      mode = "GKE_METADATA"
+    }
+
+    shielded_instance_config {
+      enable_secure_boot          = true
+      enable_integrity_monitoring = true
+    }
+
+    # Required: routes GKE node egress through Aviatrix spoke gateway
+    tags = ["avx-snat-noip"]
+
+    labels = {
+      "environment" = "production"
+      "cluster"     = "prod"
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [node_count]
+  }
+}
+
 # ---------------------------------------------------------------------------
 # Aviatrix Kubernetes Cluster Onboarding
 # ---------------------------------------------------------------------------
@@ -56,47 +105,20 @@ provider "kubernetes" {
 resource "aviatrix_kubernetes_cluster" "this" {
   cluster_id          = var.cluster_id
   use_csp_credentials = true
+
+  depends_on = [google_container_node_pool.prod_default]
 }
 
 # ---------------------------------------------------------------------------
 # Aviatrix Kubernetes Firewall (DCF Layer 2 enforcement)
 # ---------------------------------------------------------------------------
 
-resource "helm_release" "aviatrix_k8s_firewall" {
-  name             = "aviatrix-k8s-firewall"
-  namespace        = "aviatrix-system"
-  create_namespace = true
-  repository       = "https://aviatrix-download.s3.us-west-2.amazonaws.com/helm-charts"
-  chart            = "aviatrix-k8s-firewall"
-  version          = "1.0.0"
+resource "helm_release" "k8s_firewall" {
+  name       = "k8s-firewall"
+  repository = "https://aviatrixsystems.github.io/k8s-firewall-charts"
+  chart      = "k8s-firewall"
+  namespace  = "default"
+  wait       = false
 
-  set {
-    name  = "controllerIP"
-    value = var.aviatrix_controller_ip
-  }
-
-  set {
-    name  = "controllerUsername"
-    value = var.aviatrix_username
-  }
-
-  set_sensitive {
-    name  = "controllerPassword"
-    value = var.aviatrix_password
-  }
-
-  set {
-    name  = "clusterName"
-    value = var.cluster_name
-  }
-
-  set {
-    name  = "cloud"
-    value = "GCP"
-  }
-
-  set {
-    name  = "enableCRD"
-    value = "true"
-  }
+  depends_on = [google_container_node_pool.prod_default]
 }

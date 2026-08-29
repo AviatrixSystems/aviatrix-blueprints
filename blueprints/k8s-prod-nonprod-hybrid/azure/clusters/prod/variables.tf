@@ -48,11 +48,13 @@ variable "node_vm_size" {
 }
 
 variable "node_min_count" {
-  type    = number
-  default = 2
+  description = "Minimum node count for the default node pool autoscaler"
+  type        = number
+  default     = 2
 }
 
 variable "node_max_count" {
-  type    = number
-  default = 10
+  description = "Maximum node count for the default node pool autoscaler"
+  type        = number
+  default     = 10
 }

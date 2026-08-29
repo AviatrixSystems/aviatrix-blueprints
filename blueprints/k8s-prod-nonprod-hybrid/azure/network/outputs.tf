@@ -69,18 +69,51 @@ output "private_dns_zone_id" {
 
 # SmartGroup UUIDs for cross-module references
 output "sg_prod_vpc_uuid" {
-  value = aviatrix_smart_group.prod_vpc.uuid
+  description = "UUID of the production VPC SmartGroup for use in DCF rules"
+  value       = aviatrix_smart_group.prod_vpc.uuid
 }
 
 output "sg_nonprod_vpc_uuid" {
-  value = aviatrix_smart_group.nonprod_vpc.uuid
+  description = "UUID of the non-production VPC SmartGroup for use in DCF rules"
+  value       = aviatrix_smart_group.nonprod_vpc.uuid
 }
 
 output "sg_prod_db_uuid" {
-  value = aviatrix_smart_group.prod_db.uuid
+  description = "UUID of the production database SmartGroup for use in DCF rules"
+  value       = aviatrix_smart_group.prod_db.uuid
 }
 
 output "name_prefix" {
   description = "Name prefix with random suffix"
   value       = local.name_prefix
+}
+
+output "prod_aks_subnet_id" {
+  description = "Production AKS node pool subnet ID (second public subnet from aviatrix_vpc)"
+  value       = aviatrix_vpc.prod.public_subnets[1].subnet_id
+}
+
+output "nonprod_aks_subnet_id" {
+  description = "Non-production AKS node pool subnet ID (second public subnet from aviatrix_vpc)"
+  value       = aviatrix_vpc.nonprod.public_subnets[1].subnet_id
+}
+
+output "azure_subscription_id" {
+  description = "Azure subscription ID"
+  value       = var.azure_subscription_id
+}
+
+output "azure_region" {
+  description = "Azure region"
+  value       = var.azure_region
+}
+
+output "resource_group_name" {
+  description = "Azure Resource Group name"
+  value       = azurerm_resource_group.main.name
+}
+
+output "private_dns_zone_resource_group" {
+  description = "Resource group containing the Private DNS zone"
+  value       = azurerm_resource_group.main.name
 }

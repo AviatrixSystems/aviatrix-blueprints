@@ -4,6 +4,8 @@ Each team gets a **dedicated EKS cluster in its own VPC**. Workload isolation is
 
 ## Architecture
 
+![Architecture](architecture.svg)
+
 ```
 Transit GW (10.2.0.0/20)
 ├── Team-A Spoke (10.10.0.0/20) ──── EKS cluster-a  [pods: 100.64.0.0/18]
@@ -28,6 +30,48 @@ Pods use RFC 6598 overlay CIDR (`100.64.0.0/16`). Aviatrix SNAT translates pod I
 | 150 | PERMIT | All clusters → EKS required services (ECR, S3, STS, EKS API…) |
 | 200 | DENY | Default deny public internet (non-RFC1918) |
 
+## Resources Created
+
+### AWS (per 3-team deployment)
+
+| Resource | Count | Estimated $/hr |
+|---|---|---|
+| `aviatrix_transit_gateway` (c5.xlarge, HA) | 2 | ~$0.38 |
+| `aviatrix_spoke_gateway` (c5.xlarge, HA each) | 6 | ~$1.14 |
+| `aviatrix_vpc` | 4 | — |
+| `aviatrix_gateway_snat` | 3 | — |
+| `aviatrix_distributed_firewalling_config` | 1 | — |
+| `aviatrix_k8s_config` | 1 | — |
+| `aviatrix_kubernetes_cluster` | 3 | — |
+| `aviatrix_smart_group` | 6 | — |
+| `aviatrix_web_group` | 1 | — |
+| `aviatrix_dcf_ruleset` | 1 | — |
+| `aws_nat_gateway` | ~12 | ~$0.54 (3 per VPC × 4 VPCs) |
+| `aws_eks_cluster` | 3 | ~$0.30 |
+| `aws_eks_node_group` (t3.large × 2 SPOT each) | 3 | ~$0.14/node/hr |
+| `aws_iam_openid_connect_provider` | 3 | — |
+| `aws_iam_role` (IRSA) | 6+ | — |
+| `aws_route53_zone` | 1 | ~$0.50/month |
+| `helm_release` | 6 | — |
+| `kubernetes_config_map` | 3+ | — |
+
+**Estimated total: ~$3.20/hr** (HA enabled, us-west-2 SPOT pricing)
+
+> Disable HA (`enable_ha = false`) to reduce gateway cost by ~half. Azure and GCP deployments create equivalent resources using AKS/GKE, Azure Private DNS / Cloud DNS, and NGINX Ingress / Gateway API respectively.
+
+## Prerequisites
+
+- Aviatrix Controller with AWS account onboarded
+- AWS credentials with sufficient permissions (`AdministratorAccess` or scoped EKS + VPC + IAM)
+- Terraform ≥ 1.5 · kubectl · helm · AWS CLI
+
+```bash
+terraform version
+aws sts get-caller-identity
+kubectl version --client
+helm version
+```
+
 ## Deployment
 
 ```
@@ -35,11 +79,6 @@ Layer 1: aws/network/            ← Transit, VPCs, Spokes, DNS, DCF  (~8 min)
 Layer 2: aws/clusters/team-*/    ← EKS control planes (parallel)    (~15 min)
 Layer 3: aws/nodes/team-*/       ← Node groups, Helm charts (parallel) (~8 min)
 ```
-
-### Prerequisites
-- Aviatrix Controller with AWS account onboarded
-- AWS credentials with sufficient permissions
-- Terraform ≥ 1.5, Aviatrix provider ~> 8.2
 
 ### Layer 1 — Network
 
@@ -88,6 +127,91 @@ done && wait
 | `node_group_config.desired_size` | `2` | Node count |
 | `node_group_config.capacity_type` | `SPOT` | `SPOT` or `ON_DEMAND` |
 
+## Variables Reference
+
+### Network (`aws/network/`)
+
+| Variable | Type | Default | Required | Description |
+|---|---|---|---|---|
+| `aviatrix_aws_account_name` | string | — | yes | AWS account name as registered in Aviatrix Controller |
+| `aws_region` | string | `us-west-2` | no | AWS region for all resources |
+| `name_prefix` | string | `caas` | no | Prefix for all resource names |
+| `transit_cidr` | string | `10.2.0.0/20` | no | CIDR for the Aviatrix transit VPC |
+| `team_a_vpc_cidr` | string | `10.10.0.0/20` | no | Primary CIDR for team-a EKS VPC |
+| `team_b_vpc_cidr` | string | `10.11.0.0/20` | no | Primary CIDR for team-b EKS VPC |
+| `team_c_vpc_cidr` | string | `10.12.0.0/20` | no | Primary CIDR for team-c EKS VPC |
+| `db_vpc_cidr` | string | `10.5.0.0/22` | no | CIDR for the database spoke VPC |
+| `pod_cidr` | string | `100.64.0.0/16` | no | Overlay CIDR for pod networking (RFC6598) |
+| `private_dns_zone_name` | string | `aws.aviatrixdemo.local` | no | Route53 private hosted zone domain name |
+| `db_private_ip` | string | `10.5.0.10` | no | Private IP address of the database |
+| `random_suffix` | bool | `true` | no | Append a random suffix to all resource names |
+| `manage_dcf` | bool | `true` | no | Whether this blueprint manages DCF lifecycle |
+
+### Cluster (`aws/clusters/team-*/`)
+
+| Variable | Type | Default | Required | Description |
+|---|---|---|---|---|
+| `aviatrix_aws_account_name` | string | — | yes | Aviatrix access account name for AWS |
+| `kubernetes_version` | string | `1.35` | no | Kubernetes version for the EKS cluster |
+| `enable_private_endpoint` | bool | `false` | no | Disable public access to the EKS API server endpoint |
+| `enable_control_plane_logging` | bool | `false` | no | Enable EKS control plane logging |
+
+### Nodes (`aws/nodes/team-*/`)
+
+| Variable | Type | Default | Required | Description |
+|---|---|---|---|---|
+| `node_group_config` | object | see below | no | Configuration for EKS managed node groups |
+| `node_group_config.min_size` | number | `1` | no | Minimum node count |
+| `node_group_config.max_size` | number | `3` | no | Maximum node count |
+| `node_group_config.desired_size` | number | `2` | no | Desired node count |
+| `node_group_config.instance_type` | string | `t3.large` | no | EC2 instance type |
+| `node_group_config.capacity_type` | string | `SPOT` | no | `SPOT` or `ON_DEMAND` |
+| `alb_controller_chart_version` | string | `1.8.0` | no | Helm chart version for AWS ALB Controller |
+| `external_dns_chart_version` | string | `1.15.0` | no | Helm chart version for ExternalDNS |
+
+## Outputs Reference
+
+### Network (`aws/network/`)
+
+| Output | Description |
+|---|---|
+| `transit_gateway_name` | Aviatrix transit gateway name |
+| `transit_vpc_id` | Transit VPC ID |
+| `team_a_vpc_id` | Team-A VPC ID |
+| `team_a_private_subnet_ids` | Team-A private subnet IDs for EKS node groups |
+| `team_a_pod_subnet_ids` | Team-A pod subnet IDs for VPC CNI custom networking |
+| `team_a_spoke_gateway_name` | Team-A spoke gateway name |
+| `team_b_vpc_id` | Team-B VPC ID |
+| `team_b_private_subnet_ids` | Team-B private subnet IDs for EKS node groups |
+| `team_b_pod_subnet_ids` | Team-B pod subnet IDs for VPC CNI custom networking |
+| `team_b_spoke_gateway_name` | Team-B spoke gateway name |
+| `team_c_vpc_id` | Team-C VPC ID |
+| `team_c_private_subnet_ids` | Team-C private subnet IDs for EKS node groups |
+| `team_c_pod_subnet_ids` | Team-C pod subnet IDs for VPC CNI custom networking |
+| `team_c_spoke_gateway_name` | Team-C spoke gateway name |
+| `route53_zone_id` | Route53 private hosted zone ID |
+| `private_dns_zone_name` | Route53 private hosted zone domain name |
+| `team_a_cluster_name` | Team-A EKS cluster name |
+| `team_b_cluster_name` | Team-B EKS cluster name |
+| `team_c_cluster_name` | Team-C EKS cluster name |
+| `aws_region` | AWS region |
+
+### Cluster (`aws/clusters/team-*/`)
+
+| Output | Description |
+|---|---|
+| `cluster_name` | EKS cluster name |
+| `cluster_arn` | EKS cluster ARN |
+| `cluster_endpoint` | EKS cluster API endpoint |
+| `cluster_certificate_authority_data` | Base64 encoded CA certificate (sensitive) |
+| `oidc_provider_arn` | OIDC provider ARN for IRSA |
+| `alb_controller_role_arn` | IAM role ARN for ALB Controller |
+| `external_dns_role_arn` | IAM role ARN for ExternalDNS |
+
+### Nodes (`aws/nodes/team-*/`)
+
+Nodes workspaces expose no outputs — node groups are consumed by Kubernetes directly.
+
 ## Traffic Tests
 
 ```bash
@@ -114,13 +238,49 @@ Expected: **8/8 pass**
 | egress registry.k8s.io | PASS | PERMIT 150 |
 | egress example.com | BLOCKED | DEFAULT DENY 200 |
 
+## Troubleshooting
+
+**EIP quota exceeded during apply**
+
+This blueprint creates ~12 NAT Gateways plus up to 6 Aviatrix gateway EIPs per region. AWS default EIP quota is 5. Request an increase to at least 20 before deploying. Check: AWS Console → Service Quotas → EC2 → Elastic IP addresses.
+
+**`aviatrix_kubernetes_cluster` fails: cluster not found**
+
+The nodes layer must be applied after the EKS cluster is Ready and the Aviatrix Controller has completed its K8s inventory sync (typically 2–5 min). If this fails, wait and re-run `terraform apply` in `nodes/team-X/`.
+
+**Pods can't reach external services**
+
+Verify the SNAT rules are applied: in the Aviatrix Controller, check Gateways → [spoke gateway] → SNAT. The pod CIDR `100.64.0.0/16` must be translated to the spoke gateway's private IP. If SNAT rules are missing, re-apply the network layer.
+
+**DCF rules not enforcing**
+
+If traffic is passing when it should be blocked, check that `aviatrix_distributed_firewalling_config` was applied and DCF is enabled in CoPilot → Security → Distributed Cloud Firewall.
+
+**ENIConfig not found for AZ**
+
+If new pods are stuck Pending with "no ENIConfig found for AZ", verify `kubernetes_config_map` resources were applied in the nodes layer. Check: `kubectl get eniconfig -A`.
+
+**Terraform state conflict between layers**
+
+Each layer uses local state. If a layer was partially applied, run `terraform state list` to see what was created, then `terraform apply` again. Never run `terraform destroy` on `network/` before destroying `clusters/` and `nodes/` first.
+
 ## Destroy (reverse order)
 
+> **Before destroying nodes:** ExternalDNS creates Route53 / Azure Private DNS records outside Terraform's view. Delete all Ingress and LoadBalancer Service resources **before** running `terraform destroy` on the nodes layer, otherwise those DNS records become orphaned and must be removed manually.
+
 ```bash
+# Pre-destroy: remove ExternalDNS-managed records
+for team in team-a team-b team-c; do
+  kubectl delete ingress --all -A --context=$team 2>/dev/null || true
+  kubectl delete svc -A --field-selector spec.type=LoadBalancer --context=$team 2>/dev/null || true
+done
+
 for team in team-a team-b team-c; do terraform -chdir=aws/nodes/$team destroy -auto-approve & done && wait
 for team in team-a team-b team-c; do terraform -chdir=aws/clusters/$team destroy -var="aviatrix_aws_account_name=<account>" -auto-approve & done && wait
 terraform -chdir=aws/network destroy -var="aviatrix_aws_account_name=<account>" -auto-approve
 ```
+
+For **Azure** and **GCP** destroy sequences, see [azure/README.md](azure/README.md) and [gcp/README.md](gcp/README.md).
 
 ## Key Design Notes
 
@@ -132,3 +292,29 @@ terraform -chdir=aws/network destroy -var="aviatrix_aws_account_name=<account>" 
 ## When to Use
 
 Choose this pattern when teams need **full cluster autonomy**, different Kubernetes versions, or strict compliance isolation. For a cost-effective shared alternative, see [k8s-namespace-aas](../k8s-namespace-aas/). For the recommended balanced approach, see [k8s-prod-nonprod-hybrid](../k8s-prod-nonprod-hybrid/).
+
+## Multi-Cloud Variants
+
+This blueprint is available for **AWS**, **Azure**, and **GCP**. The DCF policies and team isolation model are identical across clouds.
+
+| Cloud | README | Deploy |
+|-------|--------|--------|
+| AWS (EKS) | [aws/README.md](aws/README.md) | `cd aws/network && terraform apply` |
+| Azure (AKS) | [azure/README.md](azure/README.md) | `cd azure/network && terraform apply` |
+| GCP (GKE) | [gcp/README.md](gcp/README.md) | `cd gcp/network && terraform apply` |
+
+The deployment instructions above cover **AWS**. See the per-cloud READMEs for full Azure and GCP prerequisites, destroy instructions, and tested-with tables.
+
+## Tested With
+
+| Component | Version |
+|-----------|---------|
+| Terraform | 1.12.2 |
+| Aviatrix Controller | 8.x |
+| Aviatrix provider | 8.2.10 |
+| AWS provider | 5.100.0 |
+| Azure provider (`azurerm`) | 4.75.0 |
+| Google provider | 6.50.0 |
+| Kubernetes | 1.35 |
+
+For full per-cloud tested versions, see [aws/README.md](aws/README.md), [azure/README.md](azure/README.md), and [gcp/README.md](gcp/README.md).

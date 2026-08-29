@@ -1,25 +1,9 @@
 #####################
 # AKS Cluster Layer (Layer 2) - Team-B
+#
+# Refactored to inline azurerm_kubernetes_cluster — the previously referenced
+# module ../../../../azure-aks-multicluster/modules/aks-cluster does not exist.
 #####################
-
-terraform {
-  required_version = ">= 1.5"
-
-  required_providers {
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "~> 4.0"
-    }
-    azuread = {
-      source  = "hashicorp/azuread"
-      version = "~> 3.0"
-    }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.0"
-    }
-  }
-}
 
 provider "azurerm" {
   features {}
@@ -29,8 +13,8 @@ provider "azurerm" {
 provider "azuread" {}
 
 provider "kubernetes" {
-  host                   = module.team_b_aks.cluster_endpoint
-  cluster_ca_certificate = base64decode(module.team_b_aks.cluster_certificate_authority_data)
+  host                   = azurerm_kubernetes_cluster.this.kube_config[0].host
+  cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.this.kube_config[0].cluster_ca_certificate)
 
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
@@ -44,24 +28,12 @@ provider "kubernetes" {
   }
 }
 
-module "team_b_aks" {
-  source = "../../../../azure-aks-multicluster/modules/aks-cluster"
-
+locals {
   cluster_name        = data.terraform_remote_state.network.outputs.team_b_cluster_name
   resource_group_name = data.terraform_remote_state.network.outputs.team_b_resource_group_name
   location            = data.terraform_remote_state.network.outputs.azure_region
-  kubernetes_version  = var.kubernetes_version
 
-  aks_subnet_id = data.terraform_remote_state.network.outputs.team_b_aks_system_subnet_id
-  pod_cidr      = data.terraform_remote_state.network.outputs.pod_cidr
-
-  private_dns_zone_id                  = data.terraform_remote_state.network.outputs.private_dns_zone_id
-  private_dns_zone_name                = data.terraform_remote_state.network.outputs.private_dns_zone_name
-  private_dns_zone_resource_group_name = data.terraform_remote_state.network.outputs.private_dns_zone_resource_group
-
-  enable_aviatrix_onboarding = true
-
-  tags = {
+  common_tags = {
     Environment = "demo"
     Team        = "team-b"
     Terraform   = "true"
@@ -69,45 +41,107 @@ module "team_b_aks" {
   }
 }
 
-#####################
-# Outputs
-#####################
-
-output "cluster_name" {
-  value = module.team_b_aks.cluster_name
+resource "azurerm_user_assigned_identity" "aks" {
+  name                = "${local.cluster_name}-identity"
+  location            = local.location
+  resource_group_name = local.resource_group_name
+  tags                = local.common_tags
 }
 
-output "cluster_endpoint" {
-  value = module.team_b_aks.cluster_endpoint
+resource "azurerm_role_assignment" "aks_vnet_contributor" {
+  scope                = data.terraform_remote_state.network.outputs.team_b_arm_vnet_id
+  role_definition_name = "Network Contributor"
+  principal_id         = azurerm_user_assigned_identity.aks.principal_id
 }
 
-output "cluster_certificate_authority_data" {
-  value     = module.team_b_aks.cluster_certificate_authority_data
-  sensitive = true
+resource "azurerm_user_assigned_identity" "external_dns" {
+  name                = "${local.cluster_name}-external-dns"
+  location            = local.location
+  resource_group_name = local.resource_group_name
+  tags                = local.common_tags
 }
 
-output "oidc_issuer_url" {
-  value = module.team_b_aks.oidc_issuer_url
+resource "azurerm_role_assignment" "external_dns_zone_contributor" {
+  scope                = data.terraform_remote_state.network.outputs.private_dns_zone_id
+  role_definition_name = "Private DNS Zone Contributor"
+  principal_id         = azurerm_user_assigned_identity.external_dns.principal_id
 }
 
-output "external_dns_identity_client_id" {
-  value = module.team_b_aks.external_dns_identity_client_id
+resource "azurerm_role_assignment" "external_dns_rg_reader" {
+  scope                = "/subscriptions/${data.terraform_remote_state.network.outputs.azure_subscription_id}/resourceGroups/${data.terraform_remote_state.network.outputs.private_dns_zone_resource_group}"
+  role_definition_name = "Reader"
+  principal_id         = azurerm_user_assigned_identity.external_dns.principal_id
 }
 
-output "ingress_identity_client_id" {
-  value = module.team_b_aks.ingress_identity_client_id
+resource "azurerm_user_assigned_identity" "ingress" {
+  name                = "${local.cluster_name}-ingress"
+  location            = local.location
+  resource_group_name = local.resource_group_name
+  tags                = local.common_tags
 }
 
-output "external_dns_helm_values" {
-  value = module.team_b_aks.external_dns_helm_values
+resource "azurerm_kubernetes_cluster" "this" {
+  name                = local.cluster_name
+  location            = local.location
+  resource_group_name = local.resource_group_name
+  dns_prefix          = local.cluster_name
+  kubernetes_version  = var.kubernetes_version
+
+  oidc_issuer_enabled       = true
+  workload_identity_enabled = true
+
+  default_node_pool {
+    name                         = "system"
+    vm_size                      = var.system_node_vm_size
+    node_count                   = 1
+    min_count                    = 1
+    max_count                    = 3
+    auto_scaling_enabled         = true
+    vnet_subnet_id               = data.terraform_remote_state.network.outputs.team_b_aks_system_subnet_id
+    max_pods                     = 110
+    only_critical_addons_enabled = true
+
+    upgrade_settings {
+      max_surge = "10%"
+    }
+  }
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.aks.id]
+  }
+
+  network_profile {
+    network_plugin      = "azure"
+    network_plugin_mode = "overlay"
+    pod_cidr            = data.terraform_remote_state.network.outputs.pod_cidr
+  }
+
+  depends_on = [
+    azurerm_role_assignment.aks_vnet_contributor,
+  ]
+
+  lifecycle {
+    ignore_changes = [default_node_pool[0].node_count]
+  }
+
+  tags = local.common_tags
 }
 
-output "kube_config_raw" {
-  value     = module.team_b_aks.kube_config_raw
-  sensitive = true
+resource "azurerm_federated_identity_credential" "external_dns" {
+  name                = "${local.cluster_name}-external-dns"
+  resource_group_name = local.resource_group_name
+  audience            = ["api://AzureADTokenExchange"]
+  issuer              = azurerm_kubernetes_cluster.this.oidc_issuer_url
+  parent_id           = azurerm_user_assigned_identity.external_dns.id
+  subject             = "system:serviceaccount:kube-system:external-dns"
 }
 
-output "cluster_id" {
-  description = "AKS cluster ID for Aviatrix onboarding"
-  value       = module.team_b_aks.cluster_id
+resource "azurerm_federated_identity_credential" "ingress" {
+  name                = "${local.cluster_name}-ingress"
+  resource_group_name = local.resource_group_name
+  audience            = ["api://AzureADTokenExchange"]
+  issuer              = azurerm_kubernetes_cluster.this.oidc_issuer_url
+  parent_id           = azurerm_user_assigned_identity.ingress.id
+  subject             = "system:serviceaccount:kube-system:ingress-nginx"
 }

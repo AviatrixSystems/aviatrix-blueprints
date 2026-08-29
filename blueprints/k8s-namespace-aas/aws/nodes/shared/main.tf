@@ -12,34 +12,14 @@
 #   - Layer 2 (clusters/) — EKS control plane, IRSA setup
 #####################
 
-terraform {
-  required_version = ">= 1.5"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.0"
-    }
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.0"
-    }
-    aviatrix = {
-      source  = "AviatrixSystems/aviatrix"
-      version = "~> 8.2.0"
-    }
-  }
-}
-
 provider "aws" {
   region = data.terraform_remote_state.network.outputs.aws_region
 }
 
 provider "aviatrix" {
+  controller_ip           = var.controller_ip
+  username                = var.controller_username
+  password                = var.controller_password
   skip_version_validation = true
 }
 

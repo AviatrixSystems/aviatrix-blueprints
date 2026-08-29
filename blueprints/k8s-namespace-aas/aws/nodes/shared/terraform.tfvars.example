@@ -1,0 +1,31 @@
+# Pattern B: Namespace-as-a-Service — AWS Nodes Layer (shared node group)
+# Prerequisites: aws/clusters/shared/ must be applied first.
+# Copy to terraform.tfvars and fill in required values before running:
+#   terraform init
+#   terraform apply -var-file=terraform.tfvars
+
+# ─── Node Group ──────────────────────────────────────────────────────────────
+
+node_group_config = {
+  min_size      = 2
+  max_size      = 6
+  desired_size  = 3
+  instance_type = "m5.xlarge"
+  capacity_type = "SPOT"   # or "ON_DEMAND"
+}
+
+# ─── Helm Chart Versions ─────────────────────────────────────────────────────
+
+alb_controller_chart_version = "1.8.0"
+external_dns_chart_version   = "1.15.0"
+
+# ─── Aviatrix Controller (env vars preferred) ────────────────────────────────
+# Set these via environment variables instead of tfvars to avoid storing
+# credentials in version control:
+#   export AVIATRIX_CONTROLLER_IP="your-controller-ip"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
+#
+# controller_ip       = "your-controller-ip"
+# controller_username = "admin"
+# controller_password = "your-password"

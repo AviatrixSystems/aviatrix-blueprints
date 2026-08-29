@@ -1,0 +1,58 @@
+# Pattern A: Cluster-as-a-Service — Azure Network Layer
+#
+# Copy to terraform.tfvars and fill in values before running:
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# Credentials are read from environment variables (do not put them here):
+#   export AVIATRIX_CONTROLLER_IP="98.82.148.86"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
+#   az login                          # or set ARM_CLIENT_ID / ARM_CLIENT_SECRET / ARM_TENANT_ID
+
+#####################
+# Required
+#####################
+
+# Azure account name exactly as registered in the Aviatrix Controller
+aviatrix_azure_account_name = "your-aviatrix-azure-account"
+
+# Azure subscription ID (find with: az account show --query id -o tsv)
+azure_subscription_id = "00000000-0000-0000-0000-000000000000"
+
+#####################
+# Optional — override defaults if needed
+#####################
+
+# Prefix applied to every resource name; change when deploying multiple instances
+# in the same subscription to avoid name collisions.
+name_prefix = "caas"
+
+# Azure region to deploy all resources into
+azure_region = "East US 2"
+
+# CIDR for the Aviatrix transit VNet
+transit_cidr = "10.28.0.0/20"
+
+# Dedicated /20 per team — each gets its own VNet and AKS cluster
+team_a_vnet_cidr = "10.30.0.0/20"
+team_b_vnet_cidr = "10.31.0.0/20"
+team_c_vnet_cidr = "10.32.0.0/20"
+
+# Shared database spoke VNet CIDR
+db_vnet_cidr = "10.35.0.0/22"
+
+# RFC 6598 overlay CIDR for pod networking — SNAT'd to spoke gateway IPs
+pod_cidr = "100.64.0.0/16"
+
+# Azure Private DNS zone name for internal DNS
+private_dns_zone_name = "azure.aviatrixdemo.local"
+
+# Private IP of the database server (used for DNS A record)
+db_private_ip = "10.35.0.10"
+
+# Append a random hex suffix to all resource names for uniqueness on shared controllers.
+random_suffix = true
+
+# Whether this deployment manages the global DCF enable/disable toggle.
+# Set to true only if DCF has not already been enabled by another blueprint or the UI.
+manage_dcf = false

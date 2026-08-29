@@ -171,15 +171,18 @@ output "team_c_spoke_gateway_name" {
 #####################
 
 output "db_vnet_id" {
-  value = module.spoke_db.vpc.vpc_id
+  description = "Database spoke VNet ID"
+  value       = module.spoke_db.vpc.vpc_id
 }
 
 output "db_private_ip" {
-  value = var.db_private_ip
+  description = "Database private IP address"
+  value       = var.db_private_ip
 }
 
 output "db_dns_name" {
-  value = "db.${var.private_dns_zone_name}"
+  description = "Database DNS name"
+  value       = "db.${var.private_dns_zone_name}"
 }
 
 #####################
@@ -187,15 +190,18 @@ output "db_dns_name" {
 #####################
 
 output "private_dns_zone_id" {
-  value = azurerm_private_dns_zone.this.id
+  description = "Azure Private DNS zone resource ID"
+  value       = azurerm_private_dns_zone.this.id
 }
 
 output "private_dns_zone_name" {
-  value = azurerm_private_dns_zone.this.name
+  description = "Azure Private DNS zone name"
+  value       = azurerm_private_dns_zone.this.name
 }
 
 output "private_dns_zone_resource_group" {
-  value = local.team_a_rg_name
+  description = "Resource group containing the Azure Private DNS zone"
+  value       = local.team_a_rg_name
 }
 
 #####################
@@ -203,19 +209,23 @@ output "private_dns_zone_resource_group" {
 #####################
 
 output "name_prefix" {
-  value = local.name_prefix
+  description = "Name prefix used for all resources"
+  value       = local.name_prefix
 }
 
 output "team_a_cluster_name" {
-  value = "${local.name_prefix}-team-a"
+  description = "Team-A AKS cluster name"
+  value       = "${local.name_prefix}-team-a"
 }
 
 output "team_b_cluster_name" {
-  value = "${local.name_prefix}-team-b"
+  description = "Team-B AKS cluster name"
+  value       = "${local.name_prefix}-team-b"
 }
 
 output "team_c_cluster_name" {
-  value = "${local.name_prefix}-team-c"
+  description = "Team-C AKS cluster name"
+  value       = "${local.name_prefix}-team-c"
 }
 
 #####################
@@ -223,14 +233,17 @@ output "team_c_cluster_name" {
 #####################
 
 output "azure_region" {
-  value = var.azure_region
+  description = "Azure region for all resources"
+  value       = var.azure_region
 }
 
 output "azure_subscription_id" {
-  value     = var.azure_subscription_id
-  sensitive = true
+  description = "Azure subscription ID"
+  value       = var.azure_subscription_id
+  sensitive   = true
 }
 
 output "pod_cidr" {
-  value = local.pod_cidr
+  description = "Overlay CIDR for pod networking (overlapping across VNets)"
+  value       = local.pod_cidr
 }

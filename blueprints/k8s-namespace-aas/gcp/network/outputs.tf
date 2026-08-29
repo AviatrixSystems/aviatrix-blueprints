@@ -2,10 +2,6 @@
 # Pattern B: Namespace-as-a-Service — GCP Network Outputs
 #####################
 
-#####################
-# Transit Gateway
-#####################
-
 output "transit_gateway_name" {
   description = "Aviatrix transit gateway name"
   value       = module.gcp_transit.transit_gateway.gw_name
@@ -18,32 +14,32 @@ output "transit_gateway_name" {
 
 output "shared_network_name" {
   description = "Shared cluster VPC network name"
-  value       = module.shared_vpc.network_name
+  value       = module.shared_vpc.vpc_name
 }
 
 output "shared_network_id" {
   description = "Shared cluster VPC network ID (self-link)"
-  value       = module.shared_vpc.network_id
+  value       = module.shared_vpc.vpc_id
 }
 
 output "shared_network_self_link" {
   description = "Shared cluster VPC network self link"
-  value       = module.shared_vpc.network_self_link
+  value       = module.shared_vpc.vpc_self_link
 }
 
 output "shared_gke_nodes_subnet_name" {
   description = "Shared GKE node subnet name"
-  value       = module.shared_vpc.gke_nodes_subnet_name
+  value       = module.shared_vpc.nodes_subnet_name
 }
 
 output "shared_gke_nodes_subnet_cidr" {
   description = "Shared GKE node subnet CIDR"
-  value       = module.shared_vpc.gke_nodes_subnet_cidr
+  value       = local.shared_nodes_cidr
 }
 
 output "shared_pod_range_name" {
   description = "Shared pod secondary range name"
-  value       = module.shared_vpc.pod_range_name
+  value       = module.shared_vpc.pods_range_name
 }
 
 output "shared_services_range_name" {

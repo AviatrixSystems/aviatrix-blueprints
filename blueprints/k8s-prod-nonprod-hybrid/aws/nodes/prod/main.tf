@@ -1,26 +1,19 @@
 # Pattern C: EKS Production Nodes
 # Reads cluster info from remote state
 
-terraform {
-  required_version = ">= 1.5.0"
-  required_providers {
-    aws        = { source = "hashicorp/aws", version = "~> 5.0" }
-    helm       = { source = "hashicorp/helm", version = "~> 2.12" }
-    kubernetes = { source = "hashicorp/kubernetes", version = "~> 2.25" }
-    aviatrix   = { source = "AviatrixSystems/aviatrix", version = "~> 8.2.0" }
-  }
-}
-
 locals {
   cluster_name     = data.terraform_remote_state.cluster.outputs.cluster_name
   cluster_endpoint = data.terraform_remote_state.cluster.outputs.cluster_endpoint
   cluster_ca       = data.terraform_remote_state.cluster.outputs.cluster_certificate_authority_data
-  region           = "us-east-2"
+  region           = var.aws_region
 }
 
 provider "aws" { region = local.region }
 
 provider "aviatrix" {
+  controller_ip           = var.controller_ip
+  username                = var.controller_username
+  password                = var.controller_password
   skip_version_validation = true
 }
 

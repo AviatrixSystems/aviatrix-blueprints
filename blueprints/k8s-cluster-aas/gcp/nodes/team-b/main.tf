@@ -2,29 +2,25 @@
 # GKE Node Layer (Layer 3) - Team-B
 #####################
 
-terraform {
-  required_version = ">= 1.5"
-
-  required_providers {
-    google     = { source = "hashicorp/google", version = "~> 6.0" }
-    kubernetes = { source = "hashicorp/kubernetes", version = "~> 2.0" }
-    helm       = { source = "hashicorp/helm", version = "~> 2.0" }
-    aviatrix   = { source = "AviatrixSystems/aviatrix", version = "~> 8.2.0" }
-  }
-}
-
 provider "google" {
   project = local.gcp_project
   region  = local.gcp_region
 }
 
 provider "aviatrix" {
+  controller_ip           = var.controller_ip
+  username                = var.controller_username
+  password                = var.controller_password
   skip_version_validation = true
 }
 
 locals {
   gcp_project = data.terraform_remote_state.network.outputs.gcp_project
   gcp_region  = data.terraform_remote_state.network.outputs.gcp_region
+
+  cluster_name         = data.terraform_remote_state.cluster.outputs.cluster_name
+  cluster_location     = data.terraform_remote_state.cluster.outputs.cluster_location
+  node_service_account = "${local.cluster_name}-node-sa@${local.gcp_project}.iam.gserviceaccount.com"
 }
 
 provider "kubernetes" {
@@ -54,6 +50,8 @@ provider "helm" {
 resource "aviatrix_kubernetes_cluster" "this" {
   cluster_id          = data.terraform_remote_state.cluster.outputs.cluster_id
   use_csp_credentials = true
+
+  depends_on = [google_container_node_pool.default]
 }
 
 resource "helm_release" "k8s_firewall" {
@@ -62,25 +60,65 @@ resource "helm_release" "k8s_firewall" {
   chart      = "k8s-firewall"
   namespace  = "default"
   wait       = false
+
+  depends_on = [google_container_node_pool.default]
 }
 
-module "default_node_pool" {
-  source = "../../../../gcp-gke-multicluster/modules/gke-node-pool"
+#####################
+# Team-B GKE Node Pool (inline — replaces broken gke-node-pool module)
+#####################
 
-  cluster_name = data.terraform_remote_state.cluster.outputs.cluster_name
-  project      = local.gcp_project
-  location     = data.terraform_remote_state.cluster.outputs.cluster_location
+resource "google_container_node_pool" "default" {
+  name     = "default"
+  project  = local.gcp_project
+  location = local.cluster_location
+  cluster  = local.cluster_name
 
-  node_pool_name     = "default"
-  min_node_count     = var.node_pool_config.min_node_count
-  max_node_count     = var.node_pool_config.max_node_count
-  initial_node_count = var.node_pool_config.initial_node_count
-  machine_type       = var.node_pool_config.machine_type
-  spot               = var.node_pool_config.spot
+  node_count = var.node_pool_config.initial_node_count
 
-  labels = {
-    environment = "demo"
-    team        = "team-b"
-    pattern     = "cluster-aas"
+  autoscaling {
+    min_node_count = var.node_pool_config.min_node_count
+    max_node_count = var.node_pool_config.max_node_count
+  }
+
+  management {
+    auto_repair  = true
+    auto_upgrade = true
+  }
+
+  upgrade_settings {
+    strategy        = "SURGE"
+    max_surge       = 1
+    max_unavailable = 0
+  }
+
+  node_config {
+    machine_type = var.node_pool_config.machine_type
+    disk_size_gb = 100
+    disk_type    = "pd-balanced"
+    spot         = var.node_pool_config.spot
+
+    service_account = local.node_service_account
+    oauth_scopes    = ["https://www.googleapis.com/auth/cloud-platform"]
+    tags            = ["avx-snat-noip"]
+
+    workload_metadata_config {
+      mode = "GKE_METADATA"
+    }
+
+    shielded_instance_config {
+      enable_secure_boot          = true
+      enable_integrity_monitoring = true
+    }
+
+    labels = {
+      environment = "demo"
+      team        = "team-b"
+      pattern     = "cluster-aas"
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [node_count]
   }
 }

@@ -46,12 +46,12 @@ resource "aviatrix_transit_gateway" "main" {
   gw_size      = var.transit_gw_size
   subnet       = aviatrix_vpc.transit.public_subnets[0].cidr
 
-  enable_transit_firenet              = true
-  enable_segmentation                 = true
+  enable_transit_firenet               = true
+  enable_segmentation                  = true
   enable_transit_summarize_cidr_to_tgw = false
-  connected_transit                   = true
-  ha_gw_size                          = var.enable_ha ? var.transit_gw_size : null
-  ha_subnet                           = var.enable_ha ? aviatrix_vpc.transit.public_subnets[1].cidr : null
+  connected_transit                    = true
+  ha_gw_size                           = var.enable_ha ? var.transit_gw_size : null
+  ha_subnet                            = var.enable_ha ? aviatrix_vpc.transit.public_subnets[1].cidr : null
 }
 
 # ---------------------------------------------------------------------------

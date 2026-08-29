@@ -1,0 +1,37 @@
+# -----------------------------------------------------------------------------
+# Pattern C: Prod/Non-Prod Hybrid — GCP Production Cluster Layer
+# Copy this file to terraform.tfvars and fill in values marked as REQUIRED.
+#
+# vpc_self_link and subnet_self_link are read from the gcp/network/ remote state
+# via data.terraform_remote_state.network when the standard deployment sequence is used.
+# They only need to be set here if deploying this layer standalone.
+# -----------------------------------------------------------------------------
+
+# REQUIRED: GCP project ID — must match gcp/network/
+gcp_project_id = "your-gcp-project-id"
+
+# GCP region — must match gcp/network/
+gcp_region = "us-central1"
+
+# Must match the environment_prefix used in gcp/network/
+environment_prefix = "pc-gcp"
+
+# Kubernetes version
+kubernetes_version = "1.35"
+
+# GKE control plane CIDR — must be /28, unique per cluster, not overlapping with any VPC CIDR
+# master_ipv4_cidr_block = "172.16.0.0/28"
+
+# Node sizing
+# node_machine_type  = "e2-standard-4"
+# node_min_count     = 1
+# node_max_count     = 10
+# initial_node_count = 3
+
+# Pod CIDR — must match gcp/network/
+# pod_cidr = "100.64.0.0/16"
+
+# The following are sourced from remote state automatically.
+# Set them here only if deploying this layer standalone (not recommended).
+# vpc_self_link    = "https://www.googleapis.com/compute/v1/projects/your-project/global/networks/pc-gcp-prod"
+# subnet_self_link = "https://www.googleapis.com/compute/v1/projects/your-project/regions/us-central1/subnetworks/pc-gcp-prod-nodes"

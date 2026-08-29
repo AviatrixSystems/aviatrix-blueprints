@@ -1,0 +1,31 @@
+# Pattern B: Namespace-as-a-Service — Azure Nodes Layer (shared node pool)
+# Prerequisites: azure/clusters/shared/ must be applied first.
+# Copy to terraform.tfvars and fill in required values before running:
+#   terraform init
+#   terraform apply -var-file=terraform.tfvars
+
+# ─── Node Pool ───────────────────────────────────────────────────────────────
+
+node_pool_config = {
+  min_count  = 2
+  max_count  = 6
+  node_count = 3
+  vm_size    = "Standard_D4s_v3"
+  priority   = "Spot"   # or "Regular"
+}
+
+# ─── Helm Chart Versions ─────────────────────────────────────────────────────
+
+nginx_ingress_chart_version = "4.11.0"
+external_dns_chart_version  = "1.15.0"
+
+# ─── Aviatrix Controller (env vars preferred) ────────────────────────────────
+# Set these via environment variables instead of tfvars to avoid storing
+# credentials in version control:
+#   export AVIATRIX_CONTROLLER_IP="your-controller-ip"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
+#
+# controller_ip       = "your-controller-ip"
+# controller_username = "admin"
+# controller_password = "your-password"

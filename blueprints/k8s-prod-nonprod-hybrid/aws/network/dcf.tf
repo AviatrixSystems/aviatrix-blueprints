@@ -8,6 +8,7 @@ resource "aviatrix_distributed_firewalling_config" "main" {
 }
 
 resource "aviatrix_k8s_config" "main" {
+  count               = var.manage_dcf ? 1 : 0
   depends_on          = [aviatrix_distributed_firewalling_config.main]
   enable_k8s          = true
   enable_dcf_policies = true
@@ -410,11 +411,11 @@ resource "aviatrix_dcf_ruleset" "pattern_c" {
   }
 
   rules {
-    name             = "${local.name_prefix}-monitoring-scrape"
-    action           = "PERMIT"
-    priority         = 32
-    protocol         = "TCP"
-    logging          = true
+    name     = "${local.name_prefix}-monitoring-scrape"
+    action   = "PERMIT"
+    priority = 32
+    protocol = "TCP"
+    logging  = true
     src_smart_groups = [
       aviatrix_smart_group.monitoring_prod.uuid,
       aviatrix_smart_group.monitoring_nonprod.uuid,

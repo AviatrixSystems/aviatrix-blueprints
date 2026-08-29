@@ -27,11 +27,22 @@
 #####################
 
 provider "aviatrix" {
+  controller_ip           = var.controller_ip
+  username                = var.controller_username
+  password                = var.controller_password
   skip_version_validation = true
 }
 
 provider "aws" {
   region = var.aws_region
+
+  default_tags {
+    tags = {
+      Blueprint   = "k8s-namespace-aas"
+      Environment = "demo"
+      ManagedBy   = "terraform"
+    }
+  }
 }
 
 resource "random_id" "suffix" {

@@ -3,19 +3,6 @@
 # -----------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
-# Gateway API CRDs (GKE native support)
-# ---------------------------------------------------------------------------
-
-resource "helm_release" "gateway_api" {
-  name       = "gateway-api"
-  namespace  = "gateway-system"
-  create_namespace = true
-  repository = "https://kubernetes-sigs.github.io/gateway-api"
-  chart      = "gateway-api"
-  version    = "1.0.0"
-}
-
-# ---------------------------------------------------------------------------
 # ExternalDNS (Cloud DNS + Workload Identity Federation)
 # ---------------------------------------------------------------------------
 
@@ -73,6 +60,8 @@ resource "helm_release" "external_dns" {
     name  = "policy"
     value = "sync"
   }
+
+  timeout = 600 # 10 min — allows for image pull on cold node pools
 
   depends_on = [google_service_account_iam_member.external_dns_workload_identity]
 }

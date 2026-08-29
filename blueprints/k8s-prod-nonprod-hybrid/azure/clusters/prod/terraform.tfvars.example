@@ -1,0 +1,33 @@
+# -----------------------------------------------------------------------------
+# Pattern C: Prod/Non-Prod Hybrid — Azure Production Cluster Layer
+# Copy this file to terraform.tfvars and fill in values marked as REQUIRED.
+#
+# Most values (vnet_id, subnet_id) are sourced automatically from the
+# azure/network/ remote state. Only override these if you need to break
+# the remote-state chain or deploy into a manually-created VNet.
+# -----------------------------------------------------------------------------
+
+# REQUIRED: Must match the Resource Group used in azure/network/
+resource_group_name = "rg-patternc"
+
+# Azure region — must match azure/network/
+azure_region = "East US"
+
+# Must match the environment_prefix used in azure/network/
+environment_prefix = "pc-azure"
+
+# Kubernetes version
+kubernetes_version = "1.35"
+
+# Node sizing
+# node_vm_size    = "Standard_D4s_v3"
+# node_min_count  = 2
+# node_max_count  = 10
+
+# Pod CIDR — must match azure/network/
+# pod_cidr = "100.64.0.0/16"
+
+# The following are sourced from remote state automatically.
+# Set them here only if deploying this layer standalone (not recommended).
+# vnet_id   = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-patternc/providers/Microsoft.Network/virtualNetworks/pc-azure-prod-vnet"
+# subnet_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-patternc/providers/Microsoft.Network/virtualNetworks/pc-azure-prod-vnet/subnets/pc-azure-prod-nodes"

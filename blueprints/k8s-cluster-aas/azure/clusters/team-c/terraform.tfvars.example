@@ -1,0 +1,20 @@
+# Pattern A: Cluster-as-a-Service — Azure Cluster Layer (team-a)
+#
+# Copy to terraform.tfvars before deploying:
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# Prerequisites: azure/network/ must be fully applied first.
+#
+# Credentials are read from environment variables:
+#   export AVIATRIX_CONTROLLER_IP="98.82.148.86"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
+#   az login
+
+#####################
+# Optional — all variables have safe defaults
+#####################
+
+# Kubernetes version for the AKS cluster.
+# Check Azure documentation for currently supported versions in your region.
+kubernetes_version = "1.35"

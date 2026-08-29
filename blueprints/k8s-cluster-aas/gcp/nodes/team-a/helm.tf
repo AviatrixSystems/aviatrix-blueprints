@@ -1,27 +1,4 @@
 #####################
-# Gateway API Setup
-#
-# GKE has built-in Gateway API support (enabled in the cluster module).
-# Deploy a default GatewayClass for internal load balancing.
-#####################
-
-resource "kubernetes_manifest" "internal_gateway_class" {
-  manifest = {
-    apiVersion = "gateway.networking.k8s.io/v1beta1"
-    kind       = "GatewayClass"
-    metadata = {
-      name = "gke-l7-rilb"
-    }
-    spec = {
-      controllerName = "networking.gke.io/gateway"
-      description    = "GKE internal regional L7 load balancer via Gateway API"
-    }
-  }
-
-  depends_on = [module.default_node_pool]
-}
-
-#####################
 # ExternalDNS
 #
 # Automatically creates Cloud DNS records for Kubernetes resources.
@@ -62,5 +39,5 @@ resource "helm_release" "external_dns" {
     })
   ]
 
-  depends_on = [module.default_node_pool]
+  depends_on = [google_container_node_pool.default]
 }

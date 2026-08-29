@@ -22,6 +22,9 @@
 #####################
 
 provider "aviatrix" {
+  controller_ip           = var.controller_ip
+  username                = var.controller_username
+  password                = var.controller_password
   skip_version_validation = true
 }
 
@@ -40,6 +43,17 @@ locals {
   pod_cidr         = var.pod_cidr
   services_cidr    = var.services_cidr
   k8s_cluster_name = "${local.name_prefix}-${var.k8s_cluster_suffix}"
+
+  # Derive subnet CIDRs from the shared VPC CIDR. The shift values are computed
+  # from the VPC mask so the same expression works for a /16 (default) or a /20
+  # (matching the cluster-aas split):
+  #   nodes:      first /24                       (e.g. 10.40.0.0/24)
+  #   avx_gw:     /28 immediately after nodes      (e.g. 10.40.1.0/28)
+  #   proxy_only: /26 in the second /26 of the /24 (e.g. 10.40.2.0/26)
+  shared_vpc_mask        = tonumber(split("/", var.shared_vpc_cidr)[1])
+  shared_nodes_cidr      = cidrsubnet(var.shared_vpc_cidr, 24 - local.shared_vpc_mask, 0)
+  shared_avx_gw_cidr     = cidrsubnet(var.shared_vpc_cidr, 28 - local.shared_vpc_mask, 16)
+  shared_proxy_only_cidr = cidrsubnet(var.shared_vpc_cidr, 26 - local.shared_vpc_mask, 8)
 }
 
 #####################
@@ -81,14 +95,20 @@ module "gcp_transit" {
 module "shared_vpc" {
   source = "../../../gcp-gke-multicluster/network/modules/gke-vpc"
 
-  name    = "${local.name_prefix}-shared"
-  project = var.gcp_project
-  region  = var.gcp_region
+  name        = "shared"
+  name_prefix = local.name_prefix
+  project_id  = var.gcp_project
+  region      = var.gcp_region
 
-  primary_cidr           = var.shared_vpc_cidr
-  pod_cidr               = local.pod_cidr
+  vpc_cidr               = var.shared_vpc_cidr
+  nodes_cidr             = local.shared_nodes_cidr
+  pods_cidr              = local.pod_cidr
   services_cidr          = local.services_cidr
+  avx_gw_cidr            = local.shared_avx_gw_cidr
   master_ipv4_cidr_block = var.master_ipv4_cidr_block
+
+  create_proxy_only_subnet = true
+  proxy_only_cidr          = local.shared_proxy_only_cidr
 }
 
 #####################
@@ -112,9 +132,9 @@ module "shared_spoke" {
 
   # Use existing VPC created by gke-vpc module
   use_existing_vpc = true
-  vpc_id           = "${module.shared_vpc.network_name}~~${var.gcp_project}"
-  gw_subnet        = module.shared_vpc.avx_gateway_subnet_cidr
-  hagw_subnet      = module.shared_vpc.avx_gateway_subnet_cidr
+  vpc_id           = module.shared_vpc.aviatrix_vpc_id
+  gw_subnet        = module.shared_vpc.avx_gw_subnet_cidr
+  hagw_subnet      = module.shared_vpc.avx_gw_subnet_cidr
 }
 
 # CRITICAL: Custom SNAT for pod traffic (100.64.0.0/16 -> spoke gateway IP)
@@ -149,7 +169,7 @@ resource "aviatrix_gateway_snat" "shared_spoke_snat" {
 
   # SNAT for GKE node subnet to internet via eth0
   snat_policy {
-    src_cidr   = module.shared_vpc.gke_nodes_subnet_cidr
+    src_cidr   = local.shared_nodes_cidr
     dst_cidr   = "0.0.0.0/0"
     protocol   = "all"
     interface  = "eth0"
@@ -177,7 +197,7 @@ resource "google_dns_managed_zone" "private" {
   private_visibility_config {
     # Associate with shared cluster VPC
     networks {
-      network_url = module.shared_vpc.network_id
+      network_url = module.shared_vpc.vpc_id
     }
 
     # Associate with transit VPC

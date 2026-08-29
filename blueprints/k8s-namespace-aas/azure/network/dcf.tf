@@ -10,17 +10,17 @@
 # RBAC is NOT a hard security boundary — DCF is the primary network isolation.
 #####################
 
-#####################
-# Enable Distributed Cloud Firewall
-#####################
-
 resource "aviatrix_distributed_firewalling_config" "main" {
   count                          = var.manage_dcf ? 1 : 0
   enable_distributed_firewalling = true
 }
 
 # Enable DCF Enforcement on Kubernetes
+# Gated by the same count as aviatrix_distributed_firewalling_config so that
+# destroying this layer does not toggle K8s DCF off controller-wide when
+# another blueprint is managing DCF (manage_dcf = false).
 resource "aviatrix_k8s_config" "main" {
+  count               = var.manage_dcf ? 1 : 0
   depends_on          = [aviatrix_distributed_firewalling_config.main]
   enable_k8s          = true
   enable_dcf_policies = true
@@ -258,14 +258,14 @@ resource "aviatrix_web_group" "approved_egress" {
 #   70-99: Reserved for CRD-managed rules (team self-service)
 #####################
 
-data "aviatrix_dcf_attachment_point" "tf_before_ui" {
-  name = "TERRAFORM_BEFORE_UI_MANAGED"
+data "aviatrix_dcf_attachment_point" "pre_hook" {
+  name = "PRE_HOOK"
 }
 
 resource "aviatrix_dcf_ruleset" "namespace_isolation" {
   depends_on = [time_sleep.wait_for_dcf]
   name       = "${local.name_prefix}-namespace-isolation"
-  attach_to  = "defa11a1-3000-4001-0000-000000000000"
+  attach_to  = data.aviatrix_dcf_attachment_point.pre_hook.id
 
   #############################
   # THREAT PREVENTION (Priority 0-1)

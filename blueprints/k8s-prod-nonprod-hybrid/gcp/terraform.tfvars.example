@@ -4,10 +4,10 @@
 # Copy this file to terraform.tfvars and fill in values
 # -----------------------------------------------------------------------------
 
-# Aviatrix Controller
-aviatrix_controller_ip = "controller.example.com"
-aviatrix_username      = "admin"
-aviatrix_password      = "CHANGE_ME"
+# REQUIRED: Aviatrix Controller credentials — set as environment variables:
+#   export AVIATRIX_CONTROLLER_IP="your-controller.example.com"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
 
 # GCP
 gcp_account_name = "gcp-prod-account"

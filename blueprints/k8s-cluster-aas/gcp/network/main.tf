@@ -31,6 +31,9 @@
 #####################
 
 provider "aviatrix" {
+  controller_ip           = var.controller_ip
+  username                = var.controller_username
+  password                = var.controller_password
   skip_version_validation = true
 }
 
@@ -49,21 +52,36 @@ locals {
   pod_cidr      = var.pod_cidr
   services_cidr = var.services_cidr
 
+  # Per-team CIDR plan derived from the team's /20 VPC CIDR.
+  # - nodes:      first /24  (e.g. 10.40.0.0/24)
+  # - avx_gw:     /28 after the nodes /24 (e.g. 10.40.1.0/28)
+  # - proxy_only: second /26 in the /22 covering avx_gw (e.g. 10.40.2.0/26)
+  # Centralised here so both the gke-vpc module call and the SNAT policies
+  # (which need the per-team node CIDR) read from a single source of truth.
   teams = {
     team-a = {
-      name         = "${local.name_prefix}-team-a"
-      primary_cidr = var.team_a_vpc_cidr
-      master_cidr  = var.team_a_master_cidr
+      name            = "${local.name_prefix}-team-a"
+      vpc_cidr        = var.team_a_vpc_cidr
+      nodes_cidr      = cidrsubnet(var.team_a_vpc_cidr, 4, 0)
+      avx_gw_cidr     = cidrsubnet(var.team_a_vpc_cidr, 8, 16)
+      proxy_only_cidr = cidrsubnet(var.team_a_vpc_cidr, 6, 8)
+      master_cidr     = var.team_a_master_cidr
     }
     team-b = {
-      name         = "${local.name_prefix}-team-b"
-      primary_cidr = var.team_b_vpc_cidr
-      master_cidr  = var.team_b_master_cidr
+      name            = "${local.name_prefix}-team-b"
+      vpc_cidr        = var.team_b_vpc_cidr
+      nodes_cidr      = cidrsubnet(var.team_b_vpc_cidr, 4, 0)
+      avx_gw_cidr     = cidrsubnet(var.team_b_vpc_cidr, 8, 16)
+      proxy_only_cidr = cidrsubnet(var.team_b_vpc_cidr, 6, 8)
+      master_cidr     = var.team_b_master_cidr
     }
     team-c = {
-      name         = "${local.name_prefix}-team-c"
-      primary_cidr = var.team_c_vpc_cidr
-      master_cidr  = var.team_c_master_cidr
+      name            = "${local.name_prefix}-team-c"
+      vpc_cidr        = var.team_c_vpc_cidr
+      nodes_cidr      = cidrsubnet(var.team_c_vpc_cidr, 4, 0)
+      avx_gw_cidr     = cidrsubnet(var.team_c_vpc_cidr, 8, 16)
+      proxy_only_cidr = cidrsubnet(var.team_c_vpc_cidr, 6, 8)
+      master_cidr     = var.team_c_master_cidr
     }
   }
 }
@@ -103,14 +121,20 @@ module "gcp_transit" {
 module "team_a_vpc" {
   source = "../../../gcp-gke-multicluster/network/modules/gke-vpc"
 
-  name    = local.teams["team-a"].name
-  project = var.gcp_project
-  region  = var.gcp_region
+  name        = "team-a"
+  name_prefix = local.name_prefix
+  project_id  = var.gcp_project
+  region      = var.gcp_region
 
-  primary_cidr           = local.teams["team-a"].primary_cidr
-  pod_cidr               = local.pod_cidr
+  vpc_cidr               = local.teams["team-a"].vpc_cidr
+  nodes_cidr             = local.teams["team-a"].nodes_cidr
+  pods_cidr              = local.pod_cidr
   services_cidr          = local.services_cidr
+  avx_gw_cidr            = local.teams["team-a"].avx_gw_cidr
   master_ipv4_cidr_block = local.teams["team-a"].master_cidr
+
+  create_proxy_only_subnet = true
+  proxy_only_cidr          = local.teams["team-a"].proxy_only_cidr
 }
 
 module "team_a_spoke" {
@@ -128,11 +152,11 @@ module "team_a_spoke" {
   ha_gw         = false
 
 
-  # GCP VPC format: "network_name~~project_id"
+  # Aviatrix GCP composite VPC id format: "<vpc_name>~-~<project_id>"
   use_existing_vpc = true
-  vpc_id           = "${module.team_a_vpc.network_name}~~${var.gcp_project}"
-  gw_subnet        = module.team_a_vpc.avx_gateway_subnet_cidr
-  hagw_subnet      = module.team_a_vpc.avx_gateway_subnet_cidr
+  vpc_id           = module.team_a_vpc.aviatrix_vpc_id
+  gw_subnet        = module.team_a_vpc.avx_gw_subnet_cidr
+  hagw_subnet      = module.team_a_vpc.avx_gw_subnet_cidr
 }
 
 # CRITICAL: Custom SNAT for pod traffic (100.64.0.0/16 -> spoke gateway IP)
@@ -159,7 +183,7 @@ resource "aviatrix_gateway_snat" "team_a_spoke_snat" {
   }
 
   snat_policy {
-    src_cidr   = module.team_a_vpc.gke_nodes_subnet_cidr
+    src_cidr   = local.teams["team-a"].nodes_cidr
     dst_cidr   = "0.0.0.0/0"
     protocol   = "all"
     interface  = "eth0"
@@ -177,14 +201,20 @@ resource "aviatrix_gateway_snat" "team_a_spoke_snat" {
 module "team_b_vpc" {
   source = "../../../gcp-gke-multicluster/network/modules/gke-vpc"
 
-  name    = local.teams["team-b"].name
-  project = var.gcp_project
-  region  = var.gcp_region
+  name        = "team-b"
+  name_prefix = local.name_prefix
+  project_id  = var.gcp_project
+  region      = var.gcp_region
 
-  primary_cidr           = local.teams["team-b"].primary_cidr
-  pod_cidr               = local.pod_cidr
+  vpc_cidr               = local.teams["team-b"].vpc_cidr
+  nodes_cidr             = local.teams["team-b"].nodes_cidr
+  pods_cidr              = local.pod_cidr
   services_cidr          = local.services_cidr
+  avx_gw_cidr            = local.teams["team-b"].avx_gw_cidr
   master_ipv4_cidr_block = local.teams["team-b"].master_cidr
+
+  create_proxy_only_subnet = true
+  proxy_only_cidr          = local.teams["team-b"].proxy_only_cidr
 }
 
 module "team_b_spoke" {
@@ -202,9 +232,9 @@ module "team_b_spoke" {
 
 
   use_existing_vpc = true
-  vpc_id           = "${module.team_b_vpc.network_name}~~${var.gcp_project}"
-  gw_subnet        = module.team_b_vpc.avx_gateway_subnet_cidr
-  hagw_subnet      = module.team_b_vpc.avx_gateway_subnet_cidr
+  vpc_id           = module.team_b_vpc.aviatrix_vpc_id
+  gw_subnet        = module.team_b_vpc.avx_gw_subnet_cidr
+  hagw_subnet      = module.team_b_vpc.avx_gw_subnet_cidr
 }
 
 resource "aviatrix_gateway_snat" "team_b_spoke_snat" {
@@ -230,7 +260,7 @@ resource "aviatrix_gateway_snat" "team_b_spoke_snat" {
   }
 
   snat_policy {
-    src_cidr   = module.team_b_vpc.gke_nodes_subnet_cidr
+    src_cidr   = local.teams["team-b"].nodes_cidr
     dst_cidr   = "0.0.0.0/0"
     protocol   = "all"
     interface  = "eth0"
@@ -248,14 +278,20 @@ resource "aviatrix_gateway_snat" "team_b_spoke_snat" {
 module "team_c_vpc" {
   source = "../../../gcp-gke-multicluster/network/modules/gke-vpc"
 
-  name    = local.teams["team-c"].name
-  project = var.gcp_project
-  region  = var.gcp_region
+  name        = "team-c"
+  name_prefix = local.name_prefix
+  project_id  = var.gcp_project
+  region      = var.gcp_region
 
-  primary_cidr           = local.teams["team-c"].primary_cidr
-  pod_cidr               = local.pod_cidr
+  vpc_cidr               = local.teams["team-c"].vpc_cidr
+  nodes_cidr             = local.teams["team-c"].nodes_cidr
+  pods_cidr              = local.pod_cidr
   services_cidr          = local.services_cidr
+  avx_gw_cidr            = local.teams["team-c"].avx_gw_cidr
   master_ipv4_cidr_block = local.teams["team-c"].master_cidr
+
+  create_proxy_only_subnet = true
+  proxy_only_cidr          = local.teams["team-c"].proxy_only_cidr
 }
 
 module "team_c_spoke" {
@@ -273,9 +309,9 @@ module "team_c_spoke" {
 
 
   use_existing_vpc = true
-  vpc_id           = "${module.team_c_vpc.network_name}~~${var.gcp_project}"
-  gw_subnet        = module.team_c_vpc.avx_gateway_subnet_cidr
-  hagw_subnet      = module.team_c_vpc.avx_gateway_subnet_cidr
+  vpc_id           = module.team_c_vpc.aviatrix_vpc_id
+  gw_subnet        = module.team_c_vpc.avx_gw_subnet_cidr
+  hagw_subnet      = module.team_c_vpc.avx_gw_subnet_cidr
 }
 
 resource "aviatrix_gateway_snat" "team_c_spoke_snat" {
@@ -301,7 +337,7 @@ resource "aviatrix_gateway_snat" "team_c_spoke_snat" {
   }
 
   snat_policy {
-    src_cidr   = module.team_c_vpc.gke_nodes_subnet_cidr
+    src_cidr   = local.teams["team-c"].nodes_cidr
     dst_cidr   = "0.0.0.0/0"
     protocol   = "all"
     interface  = "eth0"
@@ -355,13 +391,13 @@ resource "google_dns_managed_zone" "private" {
 
     # Associate with team VPCs (these use module output which is already self-link format)
     networks {
-      network_url = module.team_a_vpc.network_id
+      network_url = module.team_a_vpc.vpc_id
     }
     networks {
-      network_url = module.team_b_vpc.network_id
+      network_url = module.team_b_vpc.vpc_id
     }
     networks {
-      network_url = module.team_c_vpc.network_id
+      network_url = module.team_c_vpc.vpc_id
     }
   }
 

@@ -8,8 +8,12 @@ resource "aviatrix_distributed_firewalling_config" "main" {
 }
 
 # Enable DCF Enforcement on Kubernetes
-# This enables DCF to enforce policies using K8s pod/namespace identities
+# This enables DCF to enforce policies using K8s pod/namespace identities.
+# Gated by the same count as aviatrix_distributed_firewalling_config so that
+# destroying this layer does not toggle K8s DCF off controller-wide when
+# another blueprint is managing DCF (manage_dcf = false).
 resource "aviatrix_k8s_config" "main" {
+  count               = var.manage_dcf ? 1 : 0
   depends_on          = [aviatrix_distributed_firewalling_config.main]
   enable_k8s          = true
   enable_dcf_policies = true
@@ -221,13 +225,13 @@ resource "aviatrix_web_group" "approved_egress" {
 #   70-99: Reserved for CRD-managed rules (team self-service)
 #####################
 
-data "aviatrix_dcf_attachment_point" "tf_before_ui" {
-  name = "TERRAFORM_BEFORE_UI_MANAGED"
+data "aviatrix_dcf_attachment_point" "pre_hook" {
+  name = "PRE_HOOK"
 }
 
 resource "aviatrix_dcf_policy_group" "namespace_isolation" {
   name      = "${local.name_prefix}-namespace-isolation-group"
-  attach_to = data.aviatrix_dcf_attachment_point.tf_before_ui.id
+  attach_to = data.aviatrix_dcf_attachment_point.pre_hook.id
 
   ruleset_reference {
     priority    = 100
@@ -238,7 +242,7 @@ resource "aviatrix_dcf_policy_group" "namespace_isolation" {
 resource "aviatrix_dcf_ruleset" "namespace_isolation" {
   depends_on = [time_sleep.wait_for_dcf]
 
-  name      = "${local.name_prefix}-namespace-isolation"
+  name = "${local.name_prefix}-namespace-isolation"
 
   #############################
   # THREAT PREVENTION (Priority 0-1)

@@ -8,6 +8,7 @@ resource "aviatrix_distributed_firewalling_config" "main" {
 }
 
 resource "aviatrix_k8s_config" "main" {
+  count               = var.manage_dcf ? 1 : 0
   depends_on          = [aviatrix_distributed_firewalling_config.main]
   enable_k8s          = true
   enable_dcf_policies = true
@@ -329,13 +330,13 @@ resource "aviatrix_web_group" "github_aviatrix" {
 # Each blueprint creates its own policy group as a standalone attachment point.
 #####################
 
-data "aviatrix_dcf_attachment_point" "terraform_after" {
-  name = "TERRAFORM_AFTER_UI_MANAGED"
+data "aviatrix_dcf_attachment_point" "pre_hook" {
+  name = "PRE_HOOK"
 }
 
 resource "aviatrix_dcf_policy_group" "caas" {
   name      = "${local.name_prefix}-caas-group"
-  attach_to = data.aviatrix_dcf_attachment_point.terraform_after.id
+  attach_to = data.aviatrix_dcf_attachment_point.pre_hook.id
 
   ruleset_reference {
     priority    = 100

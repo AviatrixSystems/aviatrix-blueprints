@@ -11,26 +11,14 @@
 #   - AWS: AWS_PROFILE or AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY
 #####################
 
-terraform {
-  required_version = ">= 1.5"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-    aviatrix = {
-      source  = "AviatrixSystems/aviatrix"
-      version = "~> 8.2.0"
-    }
-  }
-}
-
 provider "aws" {
   region = data.terraform_remote_state.network.outputs.aws_region
 }
 
 provider "aviatrix" {
+  controller_ip           = var.controller_ip
+  username                = var.controller_username
+  password                = var.controller_password
   skip_version_validation = true
 }
 
@@ -158,42 +146,3 @@ module "external_dns_irsa" {
   }
 }
 
-#####################
-# Outputs
-#####################
-
-output "cluster_name" {
-  description = "EKS cluster name"
-  value       = module.team_a_eks.cluster_name
-}
-
-output "cluster_arn" {
-  description = "EKS cluster ARN"
-  value       = module.team_a_eks.cluster_arn
-}
-
-output "cluster_endpoint" {
-  description = "EKS cluster API endpoint"
-  value       = module.team_a_eks.cluster_endpoint
-}
-
-output "cluster_certificate_authority_data" {
-  description = "Base64 encoded CA certificate"
-  value       = module.team_a_eks.cluster_certificate_authority_data
-  sensitive   = true
-}
-
-output "oidc_provider_arn" {
-  description = "OIDC provider ARN for IRSA"
-  value       = module.team_a_eks.oidc_provider_arn
-}
-
-output "alb_controller_role_arn" {
-  description = "IAM role ARN for ALB Controller"
-  value       = module.alb_controller_irsa.iam_role_arn
-}
-
-output "external_dns_role_arn" {
-  description = "IAM role ARN for ExternalDNS"
-  value       = module.external_dns_irsa.iam_role_arn
-}

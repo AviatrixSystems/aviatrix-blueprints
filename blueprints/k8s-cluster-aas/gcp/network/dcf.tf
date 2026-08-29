@@ -13,10 +13,6 @@
 #   - Do NOT use 0.0.0.0/0 as default deny destination (blocks RFC1918 too)
 #####################
 
-#####################
-# Enable Distributed Cloud Firewall
-#####################
-
 resource "aviatrix_distributed_firewalling_config" "main" {
   count                          = var.manage_dcf ? 1 : 0
   enable_distributed_firewalling = true
@@ -24,6 +20,7 @@ resource "aviatrix_distributed_firewalling_config" "main" {
 
 # Enable DCF Enforcement on Kubernetes
 resource "aviatrix_k8s_config" "main" {
+  count               = var.manage_dcf ? 1 : 0
   depends_on          = [aviatrix_distributed_firewalling_config.main]
   enable_k8s          = true
   enable_dcf_policies = true
@@ -225,14 +222,14 @@ resource "aviatrix_web_group" "github_aviatrix" {
 # DCF Ruleset
 #####################
 
-data "aviatrix_dcf_attachment_point" "tf_before_ui" {
-  name = "TERRAFORM_BEFORE_UI_MANAGED"
+data "aviatrix_dcf_attachment_point" "pre_hook" {
+  name = "PRE_HOOK"
 }
 
 resource "aviatrix_dcf_ruleset" "caas" {
   depends_on = [time_sleep.wait_for_dcf]
   name       = "${local.name_prefix}-caas"
-  attach_to  = "defa11a1-3000-4002-0000-000000000000"  # TERRAFORM_AFTER_UI_MANAGED
+  attach_to  = data.aviatrix_dcf_attachment_point.pre_hook.id
 
   #############################
   # THREAT PREVENTION (Priority 0-1)
@@ -366,17 +363,21 @@ resource "aviatrix_dcf_ruleset" "caas" {
 #####################
 
 output "dcf_ruleset_uuid" {
-  value = aviatrix_dcf_ruleset.caas.id
+  description = "UUID of the DCF ruleset managing inter-team and egress policies"
+  value       = aviatrix_dcf_ruleset.caas.id
 }
 
 output "smartgroup_team_a_vpc_uuid" {
-  value = aviatrix_smart_group.team_a_vpc.uuid
+  description = "UUID of the SmartGroup matching team-a VPC traffic"
+  value       = aviatrix_smart_group.team_a_vpc.uuid
 }
 
 output "smartgroup_team_b_vpc_uuid" {
-  value = aviatrix_smart_group.team_b_vpc.uuid
+  description = "UUID of the SmartGroup matching team-b VPC traffic"
+  value       = aviatrix_smart_group.team_b_vpc.uuid
 }
 
 output "smartgroup_team_c_vpc_uuid" {
-  value = aviatrix_smart_group.team_c_vpc.uuid
+  description = "UUID of the SmartGroup matching team-c VPC traffic"
+  value       = aviatrix_smart_group.team_c_vpc.uuid
 }

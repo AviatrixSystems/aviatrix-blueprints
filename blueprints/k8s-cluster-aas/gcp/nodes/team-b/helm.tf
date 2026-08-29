@@ -1,19 +1,3 @@
-resource "kubernetes_manifest" "internal_gateway_class" {
-  manifest = {
-    apiVersion = "gateway.networking.k8s.io/v1beta1"
-    kind       = "GatewayClass"
-    metadata = {
-      name = "gke-l7-rilb"
-    }
-    spec = {
-      controllerName = "networking.gke.io/gateway"
-      description    = "GKE internal regional L7 load balancer via Gateway API"
-    }
-  }
-
-  depends_on = [module.default_node_pool]
-}
-
 resource "helm_release" "external_dns" {
   name       = "external-dns"
   repository = "https://kubernetes-sigs.github.io/external-dns/"
@@ -42,5 +26,5 @@ resource "helm_release" "external_dns" {
     })
   ]
 
-  depends_on = [module.default_node_pool]
+  depends_on = [google_container_node_pool.default]
 }

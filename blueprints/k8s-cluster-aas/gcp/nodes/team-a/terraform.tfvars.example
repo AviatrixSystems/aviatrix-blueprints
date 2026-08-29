@@ -1,0 +1,35 @@
+# Pattern A: Cluster-as-a-Service — GCP Nodes Layer (team-a)
+#
+# Copy to terraform.tfvars before deploying:
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# Prerequisites: gcp/network/ and gcp/clusters/team-a/ must be fully applied first.
+#
+# Credentials are read from environment variables:
+#   export AVIATRIX_CONTROLLER_IP="98.82.148.86"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
+#   gcloud auth application-default login
+
+#####################
+# Optional — all variables have safe defaults
+#####################
+
+# GKE node pool configuration.
+# machine_type:       GCP machine type for worker nodes
+# spot:               true = preemptible/spot (cheaper); false = standard on-demand
+# initial_node_count: starting node count per zone
+# min_node_count / max_node_count: autoscaling limits
+# NOTE: GKE node pools require tags = ["avx-snat-noip"] for internet egress via the
+# Aviatrix spoke — this is set automatically by the module.
+node_pool_config = {
+  min_node_count     = 1
+  max_node_count     = 3
+  initial_node_count = 1
+  machine_type       = "e2-standard-4"
+  spot               = true
+}
+
+# Helm chart version for ExternalDNS.
+# Check https://github.com/kubernetes-sigs/external-dns/tree/master/charts/external-dns for latest.
+external_dns_chart_version = "1.19.0"

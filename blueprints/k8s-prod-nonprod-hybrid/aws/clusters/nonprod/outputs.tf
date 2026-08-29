@@ -15,6 +15,7 @@ output "cluster_endpoint" {
 output "cluster_certificate_authority_data" {
   description = "EKS non-production cluster CA certificate (base64)"
   value       = module.eks_nonprod.cluster_certificate_authority_data
+  sensitive   = true
 }
 
 output "cluster_oidc_issuer_url" {

@@ -1,0 +1,36 @@
+# Pattern A: Cluster-as-a-Service — AWS Cluster Layer (team-a)
+#
+# Copy to terraform.tfvars before deploying:
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# Prerequisites: aws/network/ must be fully applied first.
+#
+# Credentials are read from environment variables:
+#   export AVIATRIX_CONTROLLER_IP="98.82.148.86"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
+#   export AWS_PROFILE="your-profile"
+
+#####################
+# Required
+#####################
+
+# AWS account name exactly as registered in the Aviatrix Controller.
+# Must match the value used in the network layer.
+aviatrix_aws_account_name = "your-aviatrix-aws-account"
+
+#####################
+# Optional — override defaults if needed
+#####################
+
+# Kubernetes version for the EKS control plane.
+# Check AWS documentation for currently supported versions.
+kubernetes_version = "1.35"
+
+# Set to true to disable the public EKS API server endpoint.
+# When enabled, kubectl access requires VPN or a bastion host inside the VPC.
+enable_private_endpoint = false
+
+# Set to true to enable EKS control plane logging to CloudWatch
+# (audit, api, authenticator, controllerManager, scheduler).
+enable_control_plane_logging = false

@@ -1,0 +1,36 @@
+# Pattern A: Cluster-as-a-Service — Azure Nodes Layer (team-a)
+#
+# Copy to terraform.tfvars before deploying:
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# Prerequisites: azure/network/ and azure/clusters/team-a/ must be fully applied first.
+#
+# Credentials are read from environment variables:
+#   export AVIATRIX_CONTROLLER_IP="98.82.148.86"
+#   export AVIATRIX_USERNAME="admin"
+#   export AVIATRIX_PASSWORD="your-password"
+#   az login
+
+#####################
+# Optional — all variables have safe defaults
+#####################
+
+# AKS user node pool configuration.
+# vm_size:    Azure VM size for worker nodes
+# priority:   Spot (cheaper, interruptible) or Regular (stable, for production)
+# node_count: initial/desired node count; min_count/max_count control autoscaling range
+node_pool_config = {
+  min_count  = 1
+  max_count  = 3
+  node_count = 2
+  vm_size    = "Standard_D4s_v3"
+  priority   = "Spot"
+}
+
+# Helm chart version for nginx-ingress controller.
+# Check https://github.com/kubernetes/ingress-nginx/tree/main/charts/ingress-nginx for latest.
+nginx_ingress_chart_version = "4.11.0"
+
+# Helm chart version for ExternalDNS.
+# Check https://github.com/kubernetes-sigs/external-dns/tree/master/charts/external-dns for latest.
+external_dns_chart_version = "1.15.0"

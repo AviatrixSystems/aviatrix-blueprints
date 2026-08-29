@@ -3,3 +3,9 @@ variable "kubernetes_version" {
   type        = string
   default     = "1.35"
 }
+
+variable "system_node_vm_size" {
+  description = "VM size for the AKS system node pool (runs critical add-ons only)"
+  type        = string
+  default     = "Standard_D2s_v5"
+}

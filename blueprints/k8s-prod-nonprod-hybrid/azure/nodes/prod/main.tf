@@ -3,34 +3,14 @@
 # Aviatrix k8s-firewall for DCF Layer 2 enforcement
 # -----------------------------------------------------------------------------
 
-terraform {
-  required_version = ">= 1.5.0"
-
-  required_providers {
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "~> 3.80"
-    }
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.12"
-    }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.25"
-    }
-    aviatrix = {
-      source  = "AviatrixSystems/aviatrix"
-      version = "~> 8.2.0"
-    }
-  }
-}
-
 provider "azurerm" {
   features {}
 }
 
 provider "aviatrix" {
+  controller_ip           = var.aviatrix_controller_ip
+  username                = var.aviatrix_username
+  password                = var.aviatrix_password
   skip_version_validation = true
 }
 
@@ -67,9 +47,10 @@ resource "helm_release" "aviatrix_k8s_firewall" {
   name             = "aviatrix-k8s-firewall"
   namespace        = "aviatrix-system"
   create_namespace = true
-  repository       = "https://aviatrix-download.s3.us-west-2.amazonaws.com/helm-charts"
-  chart            = "aviatrix-k8s-firewall"
-  version          = "1.0.0"
+  repository       = "https://aviatrixsystems.github.io/k8s-firewall-charts"
+  chart            = "k8s-firewall"
+  version          = "9.0.0"
+  wait             = false
 
   set {
     name  = "controllerIP"
