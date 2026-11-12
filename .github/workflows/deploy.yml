@@ -150,29 +150,29 @@ jobs:
       run:
         working-directory: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/network
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
       # ── Cloud credentials ──
       - name: Configure AWS credentials
         if: inputs.csp == 'aws'
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Configure Azure credentials
         if: inputs.csp == 'azure'
-        uses: azure/login@v2
+        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2.3.1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Configure GCP credentials
         if: inputs.csp == 'gcp'
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS }}
 
@@ -236,7 +236,7 @@ jobs:
 
       - name: Upload state as artifact (backup)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: network-state-${{ inputs.pattern }}-${{ inputs.csp }}
           path: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/network/terraform.tfstate
@@ -265,29 +265,29 @@ jobs:
       run:
         working-directory: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/clusters/${{ matrix.target }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
       # ── Cloud credentials ──
       - name: Configure AWS credentials
         if: inputs.csp == 'aws'
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Configure Azure credentials
         if: inputs.csp == 'azure'
-        uses: azure/login@v2
+        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2.3.1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Configure GCP credentials
         if: inputs.csp == 'gcp'
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS }}
 
@@ -359,7 +359,7 @@ jobs:
 
       - name: Upload state as artifact (backup)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: cluster-state-${{ inputs.pattern }}-${{ inputs.csp }}-${{ matrix.target }}
           path: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/clusters/${{ matrix.target }}/terraform.tfstate
@@ -388,29 +388,29 @@ jobs:
       run:
         working-directory: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/nodes/${{ matrix.target }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
       # ── Cloud credentials ──
       - name: Configure AWS credentials
         if: inputs.csp == 'aws'
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Configure Azure credentials
         if: inputs.csp == 'azure'
-        uses: azure/login@v2
+        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2.3.1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Configure GCP credentials
         if: inputs.csp == 'gcp'
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS }}
 
@@ -479,7 +479,7 @@ jobs:
 
       - name: Upload state as artifact (backup)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: nodes-state-${{ inputs.pattern }}-${{ inputs.csp }}-${{ matrix.target }}
           path: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/nodes/${{ matrix.target }}/terraform.tfstate
@@ -501,15 +501,15 @@ jobs:
       (inputs.layer == 'all' || inputs.layer == 'crds') &&
       inputs.pattern != 'cluster-aas'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
       - name: Configure AWS credentials
         if: inputs.csp == 'aws'
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -594,7 +594,7 @@ jobs:
     steps:
       - name: Configure AWS credentials
         if: inputs.csp == 'aws'
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -692,29 +692,29 @@ jobs:
       run:
         working-directory: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/nodes/${{ matrix.target }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
       # ── Cloud credentials ──
       - name: Configure AWS credentials
         if: inputs.csp == 'aws'
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Configure Azure credentials
         if: inputs.csp == 'azure'
-        uses: azure/login@v2
+        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2.3.1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Configure GCP credentials
         if: inputs.csp == 'gcp'
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS }}
 
@@ -781,29 +781,29 @@ jobs:
       run:
         working-directory: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/clusters/${{ matrix.target }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
       # ── Cloud credentials ──
       - name: Configure AWS credentials
         if: inputs.csp == 'aws'
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Configure Azure credentials
         if: inputs.csp == 'azure'
-        uses: azure/login@v2
+        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2.3.1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Configure GCP credentials
         if: inputs.csp == 'gcp'
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS }}
 
@@ -855,29 +855,29 @@ jobs:
       run:
         working-directory: blueprints/${{ inputs.pattern }}/${{ inputs.csp }}/network
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
       # ── Cloud credentials ──
       - name: Configure AWS credentials
         if: inputs.csp == 'aws'
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Configure Azure credentials
         if: inputs.csp == 'azure'
-        uses: azure/login@v2
+        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2.3.1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Configure GCP credentials
         if: inputs.csp == 'gcp'
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS }}
 
